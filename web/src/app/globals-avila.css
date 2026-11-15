@@ -1,0 +1,10 @@
+/* Extra Ávila utilities imported from globals if needed */
+.btn-green-gradient {
+  background: linear-gradient(135deg, #6cc24a 0%, #0f7a33 100%);
+  box-shadow: 0 8px 20px -4px #6cc24a66;
+  transition: 0.3s;
+}
+.btn-green-gradient:hover {
+  background: linear-gradient(135deg, #78d154 0%, #128a3a 100%);
+  transform: translateY(-2px);
+}

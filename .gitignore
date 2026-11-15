@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.*
+!.env.example
+web/.env.local
+web/.env*.local
+# Dependencies & build
+node_modules/
+web/node_modules/
+web/.next/
+web/out/
+scripts/node_modules/
+marketing/node_modules/
+marketing/dist/
+# Source backups & OCR cache (never commit PHI / scans)
+Avila-backup/
+output/invoices/ocr/
+output/invoices/*.log
+output/invoices/*.pid
+.repo-probe/
+# OS / editor
+.DS_Store
+*.log
+.cursor/
+.vercel/
+web/.clerk/
+web/.DS_Store
+**/.DS_Store

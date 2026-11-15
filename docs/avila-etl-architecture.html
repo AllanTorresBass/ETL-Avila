@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ávila GPS · ETL architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#0A2A6B; --navy:#0A1F4D; --link:#033CA0; --sky:#5BB2F5; --green:#6CC24A; --page:#F4F8FC; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:Montserrat,sans-serif; background:var(--page); color:var(--ink); line-height:1.55; }
+  header { background:var(--ink); color:#fff; padding:48px 24px 64px; }
+  .wrap { max-width:72rem; margin:0 auto; }
+  .kicker { color:var(--sky); font-size:12px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; }
+  h1 { font-weight:500; font-size:2.25rem; margin:8px 0 12px; letter-spacing:-.03em; }
+  header p { max-width:42rem; color:rgba(255,255,255,.88); font-weight:300; }
+  main { max-width:72rem; margin:-36px auto 0; padding:0 24px 64px; }
+  section { background:#fff; border:1px solid #f1f5f9; border-radius:24px; padding:28px; margin:20px 0; box-shadow:0 1px 2px rgba(10,42,107,.06); }
+  h2 { margin:0 0 12px; font-size:1.35rem; font-weight:500; }
+  h3 { margin:20px 0 8px; font-size:1.05rem; }
+  table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+  th { background:var(--page); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  code, pre { font-size:13px; background:#EBF4FC; border-radius:8px; }
+  code { padding:2px 6px; }
+  pre { padding:14px; overflow:auto; }
+  a { color:var(--link); }
+  footer { margin-top:28px; background:var(--navy); color:rgba(255,255,255,.86); border-radius:24px; padding:20px 24px; font-size:13px; }
+  ul { padding-left:1.2rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <p class="kicker">Ávila GPS</p>
+    <h1>ETL architecture</h1>
+    <p>Person-centered schema, page-level Blob uploads, and the Next.js reader. This page mirrors <code>docs/avila-etl-architecture.md</code>.</p>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>1. Purpose and scope</h2>
+    <ul>
+      <li>Client = person (titular / beneficiary).</li>
+      <li>Account = billed insurer or company.</li>
+      <li>First load = invoice universe from <code>invoices.csv</code>.</li>
+      <li>Miranda scanner lots without a FACT number stay out of this load.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>2. Entities</h2>
+    <table>
+      <thead><tr><th>Entity</th><th>Owns</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>account</td><td>Payer</td><td>Canonical insurer codes</td></tr>
+        <tr><td>person</td><td>Client</td><td>identity_type + identity_number</td></tr>
+        <tr><td>invoice</td><td>Case</td><td>One number (or synthetic range key)</td></tr>
+        <tr><td>source_file</td><td>Packet</td><td>Unique backup_path</td></tr>
+        <tr><td>document</td><td>One page</td><td>document_type + Blob pathname</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section>
+    <h2>3. Document types</h2>
+    <table>
+      <thead><tr><th>Code</th><th>Spanish</th></tr></thead>
+      <tbody>
+        <tr><td>factura_fiscal</td><td>Factura fiscal</td></tr>
+        <tr><td>cedula_identidad</td><td>Cédula de identidad</td></tr>
+        <tr><td>pasaporte</td><td>Pasaporte</td></tr>
+        <tr><td>egreso / ingreso</td><td>Egreso / Ingreso</td></tr>
+        <tr><td>informe_medico</td><td>Informe médico</td></tr>
+        <tr><td>comprobante</td><td>Comprobante</td></tr>
+        <tr><td>carta_aval</td><td>Carta aval</td></tr>
+        <tr><td>presupuesto</td><td>Presupuesto</td></tr>
+        <tr><td>laboratorio / imagenologia</td><td>Laboratorio / Imagenología</td></tr>
+        <tr><td>orden_servicio</td><td>Orden de servicio</td></tr>
+        <tr><td>otro_anexo / ilegible</td><td>Otro anexo / Ilegible</td></tr>
+      </tbody>
+    </table>
+    <p>The printed “C.I., R.I.F. o pasaporte” box on the fiscal sheet is a field, not a separate ID document.</p>
+  </section>
+  <section>
+    <h2>4. Split and Blob</h2>
+    <p>One page = one document = one Blob object.</p>
+    <pre>avila/invoices/{invoice}/{source_sha}/{page}-{type}.png</pre>
+    <p>The linked store currently requires public access. The reader still uses <code>/api/blob/[id]</code> so private signed URLs can replace the redirect later.</p>
+  </section>
+  <section>
+    <h2>5. How to run</h2>
+    <pre>psql "$DATABASE_URL_UNPOOLED" -f sql/001_schema.sql -f sql/002_seed_accounts.sql
+cd scripts && npm install
+python3 scripts/upload_documents_to_blob.py --paths-file output/invoices/pilot-paths.txt
+cd web && npm install && npm run dev</pre>
+    <p>Env names only: <code>DATABASE_URL</code>, <code>DATABASE_URL_UNPOOLED</code>, <code>BLOB_READ_WRITE_TOKEN</code>.</p>
+  </section>
+  <section>
+    <h2>6. Reader routes</h2>
+    <table>
+      <thead><tr><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>/</td><td>Dashboard</td></tr>
+        <tr><td>/personas</td><td>Person directory</td></tr>
+        <tr><td>/facturas</td><td>Invoice directory</td></tr>
+        <tr><td>/documentos</td><td>Documents by type</td></tr>
+        <tr><td>/api/blob/[id]</td><td>Preview bytes</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <footer>
+    Full detail in <code>docs/avila-etl-architecture.md</code>. No credentials or patient identifiers belong in this page.
+  </footer>
+</main>
+</body>
+</html>

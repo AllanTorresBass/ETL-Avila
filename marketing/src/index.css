@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", sans-serif;
+  --color-ink: #0a2a6b;
+  --color-deep: #0a1f4d;
+  --color-link: #033ca0;
+  --color-sky: #5bb2f5;
+  --color-green: #6cc24a;
+  --color-green-deep: #0f7a33;
+  --color-page: #f4f8fc;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-[#F4F8FC] font-sans text-[#0A2A6B] antialiased;
+  }
+
+  ::selection {
+    @apply bg-[#6CC24A] text-white;
+  }
+}
+
+@layer components {
+  .btn-green-gradient {
+    background: linear-gradient(135deg, #6cc24a 0%, #0f7a33 100%);
+    box-shadow: 0 8px 20px -4px #6cc24a66;
+    transition: 0.3s ease;
+  }
+
+  .btn-green-gradient:hover {
+    background: linear-gradient(135deg, #78d154 0%, #128a3a 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -4px #6cc24a88;
+  }
+
+  .input-avila {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-[#0A2A6B] outline-none focus:ring-2 focus:ring-[#6CC24A];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
