@@ -350,6 +350,18 @@ class DocumentTypeTests(unittest.TestCase):
         self.assertEqual(name, "Nelson Valera")
         self.assertIsNone(cedula)
 
+    def test_batch_folder_facturas_noviembre_is_not_a_person(self):
+        name, cedula = extract_titular_from_path(
+            "FACTURAS/FACTURAS PREVISORA NOVIEMBRE LOTE 1, 2024/FACT 9351.pdf"
+        )
+        self.assertIsNone(name)
+        self.assertIsNone(cedula)
+
+    def test_fact_stem_still_resolves_titular(self):
+        name, cedula = extract_titular_from_path("FACT 19263 NELSON VALERA.pdf")
+        self.assertEqual(name, "Nelson Valera")
+        self.assertIsNone(cedula)
+
 
 class OfficePacketTests(unittest.TestCase):
     def test_each_slide_keeps_its_largest_picture(self):

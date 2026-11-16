@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from invoice_pages import judge_page
-from invoice_rules import fold
+from invoice_rules import MONTHS, fold
 
 DOCUMENT_TYPES = (
     "factura_fiscal",
@@ -93,12 +93,14 @@ _NOISE_TOKENS = {
     "DIGITALIZACIONES",
     "FACT",
     "FACTURA",
+    "FACTURAS",
     "FAC",
     "SEG",
     "SEGURO",
     "SEGUROS",
     "MIRANDA",
     "PREVISORA",
+    "PREVISA",
     "ALTAMIRA",
     "LATITUD",
     "LOTE",
@@ -110,12 +112,22 @@ _NOISE_TOKENS = {
     "PRESUPUESTO",
     "PROFORMA",
     "EGRESO",
+    "EGRESOS",
     "ENGRESO",
     "INGRESO",
     "CARTA",
     "AVAL",
     "ACTIVACION",
     "ACTIVACIÓN",
+    "PACIENTES",
+    "CONSTITUCION",
+    "SENIAT",
+    "2023",
+    "2024",
+    "2025",
+    "2026",
+    "2027",
+    *MONTHS,
 }
 
 
@@ -279,6 +291,8 @@ def extract_titular_from_path(relative_path: str) -> tuple[str | None, str | Non
         text = re.sub(r"(?:V|E)?\s*-?\s*\d{6,9}\s*$", "", text, flags=re.I)
         name = _normalize_person_name(text)
         tokens = name.split() if name else []
+        # Batch folders like "FACTURAS … NOVIEMBRE LOTE …" normalize to empty
+        # once months/FACTURAS are noise — skip them.
         if len(tokens) >= 2:
             return name, cedula
         if cedula and not best_cedula:
