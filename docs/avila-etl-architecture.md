@@ -208,6 +208,8 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 
 Baseline / cleanup notes: `output/invoices/person-enrichment-baseline.md`, `output/invoices/person-cleanup-report.md`.
 
+Worked example (titular CI vs path patient, document naming, reader links): [case-helber-aaron-matheus.md](./case-helber-aaron-matheus.md). Agent playbook: [`.cursor/skills/avila-etl-persons/`](../.cursor/skills/avila-etl-persons/SKILL.md).
+
 ## 15. Roadmap
 
 - Miranda scanner lots without FACT context.

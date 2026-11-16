@@ -1,13 +1,14 @@
 """Reclassify document pages from OCR cache with the current classifier.
 
 Fixes mislabeled ID collage sheets and birth certificates that were stored as
-cedula_identidad / otro_anexo. Default scope: Aaron Matheus FACT packets.
+cedula_identidad / otro_anexo. Scope: --invoices list, or --all loaded invoices.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from collections import Counter
 from pathlib import Path
 
 import psycopg
@@ -15,7 +16,11 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from document_types import classify_document, extract_identity_number
+from document_types import (
+    classify_document,
+    extract_identity_number,
+    extract_titular_from_path,
+)
 from env_load import load_env
 from ocr_invoice_pages import _read_cache
 from person_upsert import upsert_by_ci, upsert_by_name
@@ -26,6 +31,12 @@ from upload_documents_to_blob import (
 )
 
 AARON_FACTS = ("7316", "7394", "7759", "7798", "7799", "8322")
+IDENTITY_TYPES = {
+    "cedula_identidad",
+    "carnet",
+    "documentos_identificacion",
+    "pasaporte",
+}
 
 
 def _page_text(cache: dict, page_index: int) -> str:
@@ -42,32 +53,73 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
     parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Reclassify every document page with invoice + OCR (corpus-wide)",
+    )
+    parser.add_argument(
         "--invoices",
-        default=",".join(AARON_FACTS),
-        help="Comma-separated invoice numbers (default: Aaron packets)",
+        default="",
+        help="Comma-separated invoice numbers (default: Aaron packets if not --all)",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Only print transition summary (recommended for --all)",
+    )
+    parser.add_argument(
+        "--suspect-only",
+        action="store_true",
+        help="Only pages currently typed as identity-related / otro_anexo / comprobante",
     )
     args = parser.parse_args()
-    numbers = [n.strip() for n in args.invoices.split(",") if n.strip()]
 
     env = load_env()
     url = env.get("DATABASE_URL_UNPOOLED") or env["DATABASE_URL"]
     stats = {"scanned": 0, "changed": 0, "skipped_no_ocr": 0, "person_linked": 0}
+    transitions: Counter[str] = Counter()
 
     with psycopg.connect(url, row_factory=dict_row) as conn:
         with conn.cursor() as cur:
-            cur.execute(
+            if args.all:
+                where = "d.page_index < 900"
+                params: tuple = ()
+            else:
+                numbers = [
+                    n.strip()
+                    for n in (args.invoices or ",".join(AARON_FACTS)).split(",")
+                    if n.strip()
+                ]
+                where = "i.invoice_number = ANY(%s) AND d.page_index < 900"
+                params = (numbers,)
+
+            if args.suspect_only:
+                where += """
+                  AND d.document_type::text = ANY(%s)
                 """
+                suspect = [
+                    "cedula_identidad",
+                    "otro_anexo",
+                    "pasaporte",
+                    "carnet",
+                    "documentos_identificacion",
+                    "acta_nacimiento",
+                    "comprobante",
+                ]
+                params = params + (suspect,) if params else (suspect,)
+
+            cur.execute(
+                f"""
                 SELECT d.id, d.page_index, d.document_type::text AS document_type,
                        d.evidence, d.person_id, d.invoice_id,
                        i.invoice_number, sf.backup_path
                 FROM avila.document d
                 JOIN avila.invoice i ON i.id = d.invoice_id
                 JOIN avila.source_file sf ON sf.id = d.source_file_id
-                WHERE i.invoice_number = ANY(%s)
-                  AND d.page_index < 900
+                WHERE {where}
                 ORDER BY i.invoice_number, d.page_index
                 """,
-                (numbers,),
+                params,
             )
             rows = cur.fetchall()
 
@@ -87,23 +139,19 @@ def main() -> int:
                 ):
                     continue
 
-                print(
-                    f"{row['invoice_number']} p{row['page_index']}: "
-                    f"{row['document_type']} → {new_type} ({new_evidence})"
-                )
+                key = f"{row['document_type']}→{new_type}"
+                transitions[key] += 1
                 stats["changed"] += 1
+                if not args.quiet:
+                    print(
+                        f"{row['invoice_number']} p{row['page_index']}: "
+                        f"{row['document_type']} → {new_type} ({new_evidence})"
+                    )
                 if not args.apply:
                     continue
 
-                from document_types import extract_titular_from_path
-
                 person_id = None
-                if new_type in {
-                    "cedula_identidad",
-                    "carnet",
-                    "documentos_identificacion",
-                    "pasaporte",
-                }:
+                if new_type in IDENTITY_TYPES:
                     identity = extract_identity_number(text)
                     if identity and identity[0] == "cedula":
                         person_id, _ = upsert_by_ci(
@@ -112,8 +160,6 @@ def main() -> int:
                             identity_type="cedula",
                         )
                     if not person_id:
-                        # Weak collage OCR often only yields the provider RIF —
-                        # keep the invoice's CI titular on the sheet.
                         cur.execute(
                             """
                             SELECT p.id
@@ -122,6 +168,7 @@ def main() -> int:
                             WHERE ip.invoice_id = %s
                               AND ip.role = 'titular'
                               AND p.identity_number IS NOT NULL
+                              AND p.identity_number <> ''
                             LIMIT 1
                             """,
                             (row["invoice_id"],),
@@ -155,16 +202,15 @@ def main() -> int:
                             )
                             stats["person_linked"] += 1
 
-                # Replace person_id when we resolved one; clear when leaving a false cédula.
                 if person_id is None and row["document_type"] == "cedula_identidad":
-                    person_id_sql = None
                     clear_person = True
+                    person_id_sql = None
                 elif person_id is not None:
+                    clear_person = False
                     person_id_sql = person_id
-                    clear_person = False
                 else:
-                    person_id_sql = row["person_id"]
                     clear_person = False
+                    person_id_sql = row["person_id"]
 
                 if clear_person:
                     cur.execute(
@@ -197,6 +243,10 @@ def main() -> int:
         else:
             conn.rollback()
             print("dry-run", stats)
+
+    print("transitions (top 30):")
+    for key, n in transitions.most_common(30):
+        print(f"  {n:5d}  {key}")
     return 0
 
 
