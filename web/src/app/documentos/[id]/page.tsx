@@ -58,7 +58,10 @@ export default async function DocumentoDetailPage({
                 <UploadStatusBadge status={doc.upload_status} />
                 {doc.upload_status === "failed" ? (
                   <p className="text-xs">
-                    Reintenta la carga con el script de upload. {doc.upload_error || ""}
+                    Reintenta la carga con el script de upload.
+                    {doc.upload_error
+                      ? ` ${String(doc.upload_error).split("\n")[0].slice(0, 120)}`
+                      : ""}
                   </p>
                 ) : null}
               </div>

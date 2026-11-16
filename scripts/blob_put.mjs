@@ -2,8 +2,10 @@
 /**
  * Put one Blob object. Args: pathname filePath
  * Reads BLOB_READ_WRITE_TOKEN from the environment.
- * Set BLOB_ACCESS=private (default) for private stores, or public for legacy stores.
- * Prints JSON { url, pathname, contentType } on success.
+ * BLOB_ACCESS=private|public (default private). If the token's store rejects
+ * that access mode, automatically retries with the opposite mode so a mismatched
+ * .env cannot leave every document as "failed".
+ * Prints JSON { url, pathname, contentType, access } on success.
  */
 import { readFileSync } from "node:fs";
 import { put } from "@vercel/blob";
@@ -13,12 +15,14 @@ if (!pathname || !filePath) {
   console.error("Usage: blob_put.mjs <pathname> <filePath>");
   process.exit(2);
 }
-if (!process.env.BLOB_READ_WRITE_TOKEN) {
+const token = (process.env.BLOB_READ_WRITE_TOKEN || "").trim().replace(/^["']|["']$/g, "");
+if (!token) {
   console.error("BLOB_READ_WRITE_TOKEN is missing");
   process.exit(2);
 }
 
-const access = process.env.BLOB_ACCESS === "public" ? "public" : "private";
+const preferred = process.env.BLOB_ACCESS === "public" ? "public" : "private";
+const fallback = preferred === "private" ? "public" : "private";
 
 const body = readFileSync(filePath);
 const contentType =
@@ -28,13 +32,33 @@ const contentType =
       ? "image/png"
       : "application/octet-stream";
 
-const blob = await put(pathname, body, {
-  access,
-  addRandomSuffix: false,
-  contentType,
-  token: process.env.BLOB_READ_WRITE_TOKEN,
-  allowOverwrite: true,
-});
+async function putWithAccess(access) {
+  return put(pathname, body, {
+    access,
+    addRandomSuffix: false,
+    contentType,
+    token,
+    allowOverwrite: true,
+  });
+}
+
+function isAccessMismatch(err) {
+  const msg = String(err?.message || err);
+  return (
+    msg.includes("Cannot use private access on a public store") ||
+    msg.includes("Cannot use public access on a private store")
+  );
+}
+
+let access = preferred;
+let blob;
+try {
+  blob = await putWithAccess(access);
+} catch (err) {
+  if (!isAccessMismatch(err)) throw err;
+  access = fallback;
+  blob = await putWithAccess(access);
+}
 
 process.stdout.write(
   JSON.stringify({

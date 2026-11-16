@@ -4,6 +4,10 @@
 !.env.example
 web/.env.local
 web/.env*.local
+# Local Python venv (upload helpers)
+.venv/
+**/__pycache__/
+*.py[cod]
 # Dependencies & build
 node_modules/
 web/node_modules/
