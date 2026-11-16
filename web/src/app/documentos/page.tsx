@@ -1,55 +1,130 @@
-import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { DocumentCard } from "@/components/document-card";
+import { ListFilterBar } from "@/components/list-filter-bar";
 import { PageHeader } from "@/components/page-header";
 import { Pagination, DEFAULT_PAGE_SIZE, parsePage } from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
-import { DOCUMENT_TYPE_LABELS, sql } from "@/lib/db";
+import { DOCUMENT_TYPE_LABELS, UPLOAD_STATUS_LABELS, sql } from "@/lib/db";
 import { formatInvoiceNumber } from "@/lib/format";
+import {
+  buildListHref,
+  firstParam,
+  hasActiveFilters,
+  normalizeQuery,
+  omitParam,
+  type ActiveChip,
+} from "@/lib/list-params";
 
 export const dynamic = "force-dynamic";
+
+const UPLOAD_STATUSES = ["pending", "uploaded", "failed", "skipped"] as const;
 
 export default async function DocumentosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    type?: string;
+    upload_status?: string;
+    account?: string;
+    page?: string;
+  }>;
 }) {
-  const { type = "", page: pageRaw } = await searchParams;
-  const page = parsePage(pageRaw);
+  const sp = await searchParams;
+  const query = normalizeQuery(sp.q);
+  const rawQ = firstParam(sp.q);
+  const type = firstParam(sp.type);
+  const uploadStatus = firstParam(sp.upload_status);
+  const account = firstParam(sp.account);
+  const page = parsePage(firstParam(sp.page) || undefined);
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
   const db = sql();
 
+  const typeOk = type in DOCUMENT_TYPE_LABELS ? type : "";
+  const statusOk = (UPLOAD_STATUSES as readonly string[]).includes(uploadStatus)
+    ? uploadStatus
+    : "";
+
+  const accounts = await db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`;
   const types = await db`
     SELECT document_type::text AS document_type, count(*)::int AS n
     FROM avila.document GROUP BY 1 ORDER BY n DESC
   `;
+  const statusCounts = await db`
+    SELECT upload_status::text AS upload_status, count(*)::int AS n
+    FROM avila.document GROUP BY 1 ORDER BY n DESC
+  `;
 
-  const [countRow] = type
-    ? await db`
-        SELECT count(*)::int AS n FROM avila.document
-        WHERE document_type = ${type}::avila.document_type
-      `
-    : await db`SELECT count(*)::int AS n FROM avila.document`;
+  const like = `%${query}%`;
+
+  const [countRow] = await db`
+    SELECT count(*)::int AS n
+    FROM avila.document d
+    LEFT JOIN avila.invoice i ON i.id = d.invoice_id
+    LEFT JOIN avila.account a ON a.id = i.account_id
+    WHERE (${typeOk} = '' OR d.document_type = ${typeOk}::avila.document_type)
+      AND (${statusOk} = '' OR d.upload_status = ${statusOk}::avila.upload_status)
+      AND (${account} = '' OR a.code = ${account})
+      AND (${query} = '' OR coalesce(i.invoice_number, '') ILIKE ${like}
+           OR coalesce(d.evidence, '') ILIKE ${like})
+  `;
   const total = countRow?.n ?? 0;
 
-  const docs = type
-    ? await db`
-        SELECT d.id, d.page_index, d.document_type::text AS document_type,
-               d.upload_status::text AS upload_status, i.invoice_number
-        FROM avila.document d
-        LEFT JOIN avila.invoice i ON i.id = d.invoice_id
-        WHERE d.document_type = ${type}::avila.document_type
-        ORDER BY d.created_at DESC
-        LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
-      `
-    : await db`
-        SELECT d.id, d.page_index, d.document_type::text AS document_type,
-               d.upload_status::text AS upload_status, i.invoice_number
-        FROM avila.document d
-        LEFT JOIN avila.invoice i ON i.id = d.invoice_id
-        ORDER BY d.created_at DESC
-        LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
-      `;
+  const docs = await db`
+    SELECT d.id, d.page_index, d.document_type::text AS document_type,
+           d.upload_status::text AS upload_status, i.invoice_number
+    FROM avila.document d
+    LEFT JOIN avila.invoice i ON i.id = d.invoice_id
+    LEFT JOIN avila.account a ON a.id = i.account_id
+    WHERE (${typeOk} = '' OR d.document_type = ${typeOk}::avila.document_type)
+      AND (${statusOk} = '' OR d.upload_status = ${statusOk}::avila.upload_status)
+      AND (${account} = '' OR a.code = ${account})
+      AND (${query} = '' OR coalesce(i.invoice_number, '') ILIKE ${like}
+           OR coalesce(d.evidence, '') ILIKE ${like})
+    ORDER BY d.created_at DESC
+    LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
+  `;
+
+  const filterParams: Record<string, string | undefined> = {
+    q: query || undefined,
+    type: typeOk || undefined,
+    upload_status: statusOk || undefined,
+    account: account || undefined,
+  };
+
+  const baseWithoutType = { ...filterParams, type: undefined, page: undefined };
+  const baseWithoutStatus = { ...filterParams, upload_status: undefined, page: undefined };
+
+  const activeChips: ActiveChip[] = [];
+  if (query) {
+    activeChips.push({
+      key: "q",
+      label: `Buscar: ${query}`,
+      clearHref: buildListHref("/documentos", omitParam(filterParams, "q")),
+    });
+  }
+  if (typeOk) {
+    activeChips.push({
+      key: "type",
+      label: DOCUMENT_TYPE_LABELS[typeOk] || typeOk,
+      clearHref: buildListHref("/documentos", omitParam(filterParams, "type")),
+    });
+  }
+  if (statusOk) {
+    activeChips.push({
+      key: "upload_status",
+      label: UPLOAD_STATUS_LABELS[statusOk] || statusOk,
+      clearHref: buildListHref("/documentos", omitParam(filterParams, "upload_status")),
+    });
+  }
+  if (account) {
+    const accName = accounts.find((a) => a.code === account)?.legal_name || account;
+    activeChips.push({
+      key: "account",
+      label: accName,
+      clearHref: buildListHref("/documentos", omitParam(filterParams, "account")),
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -57,34 +132,60 @@ export default async function DocumentosPage({
         title="Documentos"
         description="Una tarjeta por página, con tipo y enlace único."
       />
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/documentos"
-          className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-            !type ? "bg-[#033CA0] text-white" : "border border-slate-200 bg-white text-slate-600"
-          }`}
-        >
-          Todos
-        </Link>
-        {types.map((t) => (
-          <Link
-            key={t.document_type}
-            href={`/documentos?type=${t.document_type}`}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              type === t.document_type
-                ? "bg-[#033CA0] text-white"
-                : "border border-slate-200 bg-white text-slate-600"
-            }`}
-          >
-            {DOCUMENT_TYPE_LABELS[t.document_type] || t.document_type} ({t.n})
-          </Link>
-        ))}
-      </div>
+      <ListFilterBar
+        searchValue={rawQ}
+        searchPlaceholder="Factura o evidencia (mín. 2)"
+        searchLabel="Buscar"
+        submitLabel="Filtrar"
+        clearHref={hasActiveFilters(filterParams) ? "/documentos" : undefined}
+        activeChips={activeChips}
+        selects={[
+          {
+            name: "account",
+            label: "Cuenta",
+            value: account,
+            emptyLabel: "Todas las cuentas",
+            options: accounts.map((a) => ({ value: a.code, label: a.legal_name })),
+          },
+        ]}
+        chipGroups={[
+          {
+            param: "type",
+            label: "Tipo",
+            value: typeOk,
+            allHref: buildListHref("/documentos", baseWithoutType),
+            options: types.map((t) => ({
+              value: t.document_type,
+              label: DOCUMENT_TYPE_LABELS[t.document_type] || t.document_type,
+              count: t.n,
+              href: buildListHref("/documentos", {
+                ...baseWithoutType,
+                type: t.document_type,
+              }),
+            })),
+          },
+          {
+            param: "upload_status",
+            label: "Estado Blob",
+            value: statusOk,
+            allHref: buildListHref("/documentos", baseWithoutStatus),
+            options: statusCounts.map((s) => ({
+              value: s.upload_status,
+              label: UPLOAD_STATUS_LABELS[s.upload_status] || s.upload_status,
+              count: s.n,
+              href: buildListHref("/documentos", {
+                ...baseWithoutStatus,
+                upload_status: s.upload_status,
+              }),
+            })),
+          },
+        ]}
+      />
       <ResultCount shown={docs.length} total={total} />
       {docs.length === 0 ? (
         <EmptyState
           title="No se encontraron documentos"
-          hint="Ejecuta la carga piloto o completa hacia Neon y Blob."
+          hint="Cambia el tipo, el estado o la búsqueda, o ejecuta la carga hacia Neon y Blob."
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -105,7 +206,7 @@ export default async function DocumentosPage({
         pageSize={DEFAULT_PAGE_SIZE}
         total={total}
         basePath="/documentos"
-        searchParams={{ type: type || undefined }}
+        searchParams={filterParams}
       />
     </div>
   );

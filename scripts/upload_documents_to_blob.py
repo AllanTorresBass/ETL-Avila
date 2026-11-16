@@ -32,6 +32,7 @@ from document_types import (
     extract_titular_from_ocr,
     extract_titular_from_path,
 )
+from person_upsert import upsert_by_ci, upsert_titular
 from env_load import load_env
 from ocr_invoice_pages import (
     BACKUP,
@@ -111,48 +112,52 @@ def ensure_account(cur, label: str):
 def upsert_titular_person(
     cur, *, full_name: str | None, identity_number: str | None, invoice_number: str
 ) -> str | None:
-    """Each invoice has one titular person (the client)."""
-    if not full_name and not identity_number:
-        return None
-    if identity_number:
-        cur.execute(
-            """
-            INSERT INTO avila.person (identity_type, identity_number, full_name)
-            VALUES ('cedula'::avila.identity_type, %s, %s)
-            ON CONFLICT (identity_type, identity_number) DO UPDATE
-              SET full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), avila.person.full_name),
-                  updated_at = now()
-            RETURNING id
-            """,
-            (identity_number, full_name),
-        )
-        return cur.fetchone()["id"]
-    key = f"titular:{invoice_number}:{fold_name(full_name or '')}"
-    cur.execute(
-        """
-        INSERT INTO avila.person (identity_type, full_name, provisional_key)
-        VALUES ('unknown'::avila.identity_type, %s, %s)
-        ON CONFLICT (provisional_key) DO UPDATE
-          SET full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), avila.person.full_name),
-              updated_at = now()
-        RETURNING id
-        """,
-        (full_name, key),
-    )
-    return cur.fetchone()["id"]
-
-
-def fold_name(value: str) -> str:
-    return re.sub(r"\s+", " ", value.strip().lower())
+    """Each invoice has one titular person (the client). invoice_number kept for API compat."""
+    _ = invoice_number
+    return upsert_titular(cur, full_name=full_name, identity_number=identity_number)
 
 
 def ensure_invoice_titular(cur, invoice_id: str, row: dict, ocr_text: str = "") -> str | None:
+    # Protect workbook-enriched titulars with CI / contact from weak path overwrites.
+    cur.execute(
+        """
+        SELECT ip.source, p.identity_number, p.phone, p.birth_date, p.id AS person_id
+        FROM avila.invoice_person ip
+        JOIN avila.person p ON p.id = ip.person_id
+        WHERE ip.invoice_id = %s AND ip.role = 'titular'
+        LIMIT 1
+        """,
+        (invoice_id,),
+    )
+    existing = cur.fetchone()
+
     name, cedula = extract_titular_from_path(row.get("path") or "")
     path_weak = not name or len(name.split()) < 2
     if (path_weak and not cedula) and ocr_text:
         ocr_name, ocr_cedula = extract_titular_from_ocr(ocr_text)
         if ocr_name or ocr_cedula:
             name, cedula = ocr_name or name, ocr_cedula or cedula
+
+    if existing and existing.get("source") == "workbook":
+        has_strength = bool(
+            existing.get("identity_number")
+            or existing.get("phone")
+            or existing.get("birth_date")
+        )
+        if has_strength:
+            # Only upgrade when path/OCR brings a new CI for the same link target.
+            if not cedula or (
+                existing.get("identity_number") and cedula == existing["identity_number"]
+            ):
+                return str(existing["person_id"])
+            if existing.get("identity_number") and cedula != existing["identity_number"]:
+                # Different CI from path — keep workbook person; do not swap.
+                return str(existing["person_id"])
+
+    if not name and not cedula:
+        # Do not delete an existing titular when path/OCR yields nothing.
+        return str(existing["person_id"]) if existing else None
+
     person_id = upsert_titular_person(
         cur,
         full_name=name,
@@ -160,12 +165,19 @@ def ensure_invoice_titular(cur, invoice_id: str, row: dict, ocr_text: str = "") 
         invoice_number=invoice_key(row),
     )
     if person_id:
-        # One titular per invoice: drop prior titular links before writing this one.
         cur.execute(
             "DELETE FROM avila.invoice_person WHERE invoice_id = %s AND role = 'titular'",
             (invoice_id,),
         )
         link_invoice_person(cur, invoice_id, person_id, "titular")
+        cur.execute(
+            """
+            UPDATE avila.invoice_person
+            SET source = coalesce(source, 'path')
+            WHERE invoice_id = %s AND person_id = %s
+            """,
+            (invoice_id, person_id),
+        )
     return person_id
 
 
@@ -245,49 +257,12 @@ def upsert_person_from_text(cur, text: str) -> str | None:
         return None
     identity_type, identity_number = found
     full_name = extract_name_from_cedula_ocr(text)
-    cur.execute(
-        """
-        INSERT INTO avila.person (identity_type, identity_number, full_name)
-        VALUES (%s::avila.identity_type, %s, %s)
-        ON CONFLICT (identity_type, identity_number) DO UPDATE SET
-          full_name = coalesce(EXCLUDED.full_name, avila.person.full_name),
-          updated_at = now()
-        RETURNING id
-        """,
-        (identity_type, identity_number, full_name),
+    person_id, _ = upsert_by_ci(
+        cur,
+        identity_number=identity_number,
+        full_name=full_name,
+        identity_type=identity_type,
     )
-    person_id = cur.fetchone()["id"]
-    if full_name:
-        # Absorb provisional same-name rows into this CI person.
-        cur.execute(
-            """
-            SELECT id FROM avila.person
-            WHERE id <> %s
-              AND identity_number IS NULL
-              AND provisional_key IS NOT NULL
-              AND lower(full_name) = lower(%s)
-            """,
-            (person_id, full_name),
-        )
-        for orphan in cur.fetchall():
-            cur.execute(
-                """
-                UPDATE avila.invoice_person SET person_id = %s
-                WHERE person_id = %s
-                  AND NOT EXISTS (
-                    SELECT 1 FROM avila.invoice_person x
-                    WHERE x.invoice_id = avila.invoice_person.invoice_id
-                      AND x.person_id = %s
-                  )
-                """,
-                (person_id, orphan["id"], person_id),
-            )
-            cur.execute("DELETE FROM avila.invoice_person WHERE person_id = %s", (orphan["id"],))
-            cur.execute(
-                "UPDATE avila.document SET person_id = %s WHERE person_id = %s",
-                (person_id, orphan["id"]),
-            )
-            cur.execute("DELETE FROM avila.person WHERE id = %s", (orphan["id"],))
     return person_id
 
 

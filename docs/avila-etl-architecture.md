@@ -130,17 +130,19 @@ App root: `web/`
 
 | Path | Purpose |
 | --- | --- |
-| `/` | Dashboard counts (links into filtered lists) |
-| `/personas` | Person search with pagination |
-| `/personas/[id]` | Person + invoices + documents |
-| `/facturas` | Invoice directory with account filter + pagination |
-| `/facturas/[id]` | Invoice + people + page grid |
-| `/documentos` | Filter by type + pagination |
-| `/documentos/[id]` | Preview via authenticated blob proxy |
+| `/` | Dashboard counts (deep-links into filtered lists, incl. `upload_status=failed`) |
+| `/personas` | Person directory: `q`, `has_ci`, `has_phone`, `role`, `account` + pagination |
+| `/personas/[id]` | Relation hub: contacto, facturas, archivos fuente (via invoices), autorizaciones, docs identidad + expediente |
+| `/facturas` | Invoice directory: `q`, `account`, `year`, `month`, `has_person` + pagination |
+| `/facturas/[id]` | Resumen + personas + autorizaciones + archivos + páginas (`?file=` filters pages) |
+| `/documentos` | `q`, `type`, `upload_status`, `account` + pagination |
+| `/documentos/[id]` | Preview, source file, siblings, links to factura/persona |
 | `/sign-in`, `/sign-up` | Clerk staff auth |
 | `/api/blob/[documentId]` | Document bytes (Clerk + optional email allowlist) |
 
-Stack: Next.js App Router, Clerk, shadcn/ui, Montserrat, Ávila tokens (`#0A2A6B`, `#F4F8FC`, green gradient actions, `rounded-3xl` cards). Shared UI: `PageHeader`, `EmptyState`, `DocumentCard`, `UploadStatusBadge`, `Breadcrumbs`, `Pagination`.
+**Person → archivos fuente** is composed in the reader (`invoice_person` → `source_file`), not a DB FK. Identity pages use `document.person_id`; packet pages use the expediente join through invoices.
+
+Stack: Next.js App Router, Clerk, shadcn/ui, Montserrat, Ávila tokens (`#0A2A6B`, `#F4F8FC`, green gradient actions, `rounded-3xl` cards). Shared UI: `PageHeader`, `EmptyState`, `DocumentCard`, `RelationSection`, `EntityRow`, `ListFilterBar`, `DocumentTypeGroup`, `SectionNav`, `UploadStatusBadge`, `Breadcrumbs`, `Pagination`.
 
 Public marketing SPA (separate deploy): `marketing/` on Netlify with SPA rewrites. Visitor data → WhatsApp only; never Neon/Blob.
 
@@ -196,11 +198,12 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 
 1. Apply `sql/003_person_enrichment.sql` (demographics + `authorization_line`).
 2. Inventory: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment inventory`
-3. Load: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment run --apply [--family sabana|claves|relacion|amp]`
-4. OCR/path still fills gaps via `upload_documents_to_blob.py` / `backfill_titulares.py` (cédula name extraction, titular vs beneficiario role).
-5. Reader `/personas/[id]` shows contact fields and authorization lines.
+3. Load workbooks first: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment run --apply [--family sabana|claves|relacion|amp]`
+4. One-time / periodic dedupe: `PYTHONPATH=scripts .venv/bin/python cleanup_person_duplicates.py --apply` (junk folder names + merge same-name provisionals). Provisional keys are `name:{folded}` (not per-invoice).
+5. Path/OCR gap fill via `upload_documents_to_blob.py` / `backfill_titulares.py`. Workbook titulars with CI/contact are not overwritten by weak path names. Use `--metadata-only` when refreshing links without re-rendering Blob pages.
+6. Shared helpers live in `scripts/person_upsert.py`. Reader `/personas/[id]` shows contact fields and authorization lines.
 
-Baseline notes: `output/invoices/person-enrichment-baseline.md`.
+Baseline / cleanup notes: `output/invoices/person-enrichment-baseline.md`, `output/invoices/person-cleanup-report.md`.
 
 ## 15. Roadmap
 

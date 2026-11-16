@@ -60,7 +60,7 @@ export default async function HomePage() {
           </Link>
           {counts.failed > 0 ? (
             <Link
-              href="/documentos"
+              href="/documentos?upload_status=failed"
               className="rounded-full border border-amber-300/60 bg-amber-500/20 px-5 py-2.5 text-xs font-medium text-white"
             >
               {counts.failed} fallidos en Blob
@@ -81,7 +81,9 @@ export default async function HomePage() {
           <StatCard label="Documentos" value={counts.documents} />
         </Link>
         <StatCard label="Subidos a Blob" value={counts.uploaded} />
-        <StatCard label="Fallidos" value={counts.failed} />
+        <Link href="/documentos?upload_status=failed">
+          <StatCard label="Fallidos" value={counts.failed} />
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
