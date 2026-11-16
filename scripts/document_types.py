@@ -13,6 +13,8 @@ DOCUMENT_TYPES = (
     "cedula_identidad",
     "pasaporte",
     "carnet",
+    "documentos_identificacion",
+    "acta_nacimiento",
     "egreso",
     "ingreso",
     "informe_medico",
@@ -31,6 +33,8 @@ DOCUMENT_TYPE_LABELS_ES = {
     "cedula_identidad": "Cédula de identidad",
     "pasaporte": "Pasaporte",
     "carnet": "Carnet",
+    "documentos_identificacion": "Documentos de identificación",
+    "acta_nacimiento": "Acta de nacimiento",
     "egreso": "Egreso",
     "ingreso": "Ingreso",
     "informe_medico": "Informe médico",
@@ -44,18 +48,24 @@ DOCUMENT_TYPE_LABELS_ES = {
     "ilegible": "Ilegible",
 }
 
-# Real plastic cédula card — not claim forms that only print "República Bolivariana".
+# Real plastic cédula card — not claim forms or civil-registry actas.
 _CEDULA_TITLE = re.compile(r"CEDULA\s+DE\s+IDENTIDAD")
-_CEDULA_CNE = re.compile(r"CONSEJO\s+NACIONAL\s+ELECTORAL|COMISION\s+DE\s+REGISTRO\s+CIVIL")
-_CEDULA_FIELDS = re.compile(
-    r"APELLIDOS?\b.+\bNOMBRES?\b|\bF\.?\s*NACIMIENTO\b|\bF\.?\s*EXPEDIC"
+_CEDULA_CNE = re.compile(r"CONSEJO\s+NACIONAL\s+ELECTORAL")
+_CEDULA_CARD_FIELDS = re.compile(
+    r"APELLIDOS?\b.+\bNOMBRES?\b|\bF\.?\s*EXPEDIC|\bESTADO\s+CIVIL\b|\bVENEZOLAN[OA]\b"
 )
 _FORM_NOT_CEDULA = re.compile(
     r"DECLARACION\s+DE\s+SINIESTRO|\bPLANILLA\b|\bINFORME\s*:|\bDATOS\s+DEL\s+TITULAR\b|"
     r"\bDATOS\s+DE\s+LA\s+POLIZA\b|\bBENEFICIARIO\b.+\bTITULAR\b"
 )
+_ACTA_NACIMIENTO = re.compile(
+    r"ACTA\s+(?:DE\s+)?NACIMIENTO|\bREGISTRO\s+CIVIL\b|"
+    r"UNIDAD\s+DE\s+REGISTRO\s+CIVIL|PRESENTACI[OÓ]N\s+DEL\s+NACIDO|"
+    r"COMISI[OÓ]N\s+DE\s+REGISTRO\s+(?:CIVIL|ENVIL)|"
+    r"\bACTA\s+N[°º\.Y]?\s*\d+"
+)
 _CARNET_BDV = re.compile(
-    r"BANCO\s+DE\s+VENEZUELA|\bBDV\b.+\bVP\b|\bCARNET\b"
+    r"BANCO\s+DE\s+VENEZUELA|\bBDV\b.+\bVP\b|\bCARNET\b|\bVP\s+SERVICIOS\b"
 )
 _ID_COLLAGE = re.compile(r"DOCUMENTOS?\s+DE\s+IDENTIFICACION")
 _PASAPORTE_CARD = re.compile(r"\bPASAPORTE\b")
@@ -82,7 +92,8 @@ _CEDULA_NOMBRES = re.compile(
 )
 # Path stems often look like: FACT 19263 NELSON VALERA or FACT 7806 AMALI LAREZ 30.107.906
 _FACT_PREFIX = re.compile(
-    r"^(?:FACT(?:URA)?|FAC)\s*(\d{3,6})\b",
+    # Allow glued stems like "FACT 7394AARON …" (no boundary after the digits).
+    r"^(?:FACT(?:URA)?|FAC)\s*(\d{3,6})(?!\d)",
     re.IGNORECASE,
 )
 _PATH_CEDULA = re.compile(r"(?:V|E)?\s*-?\s*(\d{1,2}(?:[.\s]\d{3}){2}|\d{6,9})\b")
@@ -165,27 +176,32 @@ def classify_document(
     path_folded = fold(backup_path)
     stem = fold(Path(backup_path).stem) if backup_path else ""
 
-    # Employee badge / carnet (before weak "república" cues).
+    # Birth certificate / civil registry — often under the same GPS cover sheet
+    # as ID collage pages; must win before cédula (actas quote "cédula de identidad"
+    # for parents and print CNE / República / venezolano|a).
+    if _ACTA_NACIMIENTO.search(folded):
+        return "acta_nacimiento", "acta_nacimiento"
+
+    # GPS cover sheet that mounts plastic IDs (cédula + carnet side by side).
+    if _ID_COLLAGE.search(folded):
+        return "documentos_identificacion", "documentos_identificacion"
+
+    # Employee badge / carnet crop (standalone page, not the collage sheet).
     if _CARNET_BDV.search(folded) and (
-        "CARNET" in folded or "VP " in folded or "SERVICIOS" in folded or _ID_COLLAGE.search(folded)
+        "CARNET" in folded or "VP " in folded or "SERVICIOS" in folded
     ):
-        # Collage pages that also show the plastic cédula stay as collage unless
-        # the cédula title dominates; crops are stored separately as cedula/carnet.
-        if _ID_COLLAGE.search(folded) and not _CEDULA_TITLE.search(folded):
-            return "otro_anexo", "documentos_identificacion"
         if not _CEDULA_TITLE.search(folded):
             return "carnet", "carnet_bdv"
 
-    # Plastic cédula card only — claim/siniestro forms often print República / C.I.
+    # Plastic cédula card only — claim forms and actas print República / C.I.
     if not _FORM_NOT_CEDULA.search(folded) and (
-        (_CEDULA_TITLE.search(folded) and (_CEDULA_FIELDS.search(folded) or _CEDULA_CNE.search(folded)))
-        or (_CEDULA_CNE.search(folded) and "REPUBLICA" in folded)
-        or (_CEDULA_TITLE.search(folded) and "VENEZOLANO" in folded)
+        (
+            _CEDULA_TITLE.search(folded)
+            and (_CEDULA_CARD_FIELDS.search(folded) or _CEDULA_CNE.search(folded))
+        )
+        or (_CEDULA_TITLE.search(folded) and "VENEZOLAN" in folded)
     ):
         return "cedula_identidad", "cedula_card"
-
-    if _ID_COLLAGE.search(folded):
-        return "otro_anexo", "documentos_identificacion"
 
     # Passport as a photographed page is rare. The fiscal form also prints
     # "C.I., R.I.F. o PASAPORTE" — ignore that when the page is already fiscal.
@@ -262,7 +278,7 @@ def extract_name_from_cedula_ocr(text: str | None) -> str | None:
     if not text:
         return None
     folded = fold(text)
-    if not _CEDULA_CARD.search(folded):
+    if not _CEDULA_TITLE.search(folded):
         return None
     apellidos = None
     nombres = None
@@ -327,6 +343,8 @@ def extract_titular_from_path(relative_path: str) -> tuple[str | None, str | Non
         text = raw
         text = _FACT_PREFIX.sub("", text)
         text = _ROLE_PREFIX.sub("", text)
+        # Drop a leading invoice number glued to the name (7394AARON → AARON).
+        text = re.sub(r"^\d{3,6}(?=[A-Za-zÁÉÍÓÚÑáéíóúñ])", "", text)
         # Drop a trailing dotted cédula from the name span.
         text = re.sub(r"(?:V|E)?\s*-?\s*\d{1,2}(?:[.\s]\d{3}){2}\s*$", "", text, flags=re.I)
         text = re.sub(r"(?:V|E)?\s*-?\s*\d{6,9}\s*$", "", text, flags=re.I)
