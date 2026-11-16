@@ -43,7 +43,8 @@ See [schema-relationships.md](../output/invoices/schema-relationships.md).
 | Code | Spanish label | Detection |
 | --- | --- | --- |
 | `factura_fiscal` | Factura fiscal | Fiscal page judge |
-| `cedula_identidad` | Cédula de identidad | Attachment OCR: cédula card |
+| `cedula_identidad` | Cédula de identidad | Plastic card cues (`CEDULA DE IDENTIDAD` + fields/CNE); not siniestro/planilla forms |
+| `carnet` | Carnet | Employer badge (e.g. BDV); crops stored separately from collage pages |
 | `pasaporte` | Pasaporte | Passport card cues (rare) |
 | `egreso` | Egreso | Path / OCR |
 | `ingreso` | Ingreso | Path / OCR |
@@ -200,7 +201,7 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 2. Inventory: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment inventory`
 3. Load workbooks first: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment run --apply [--family sabana|claves|relacion|amp]`
 4. One-time / periodic dedupe: `PYTHONPATH=scripts .venv/bin/python cleanup_person_duplicates.py --apply` (junk folder names + merge same-name provisionals). Provisional keys are `name:{folded}` (not per-invoice).
-5. Path/OCR gap fill via `upload_documents_to_blob.py` / `backfill_titulares.py`. Workbook titulars with CI/contact are not overwritten by weak path names. Use `--metadata-only` when refreshing links without re-rendering Blob pages.
+5. Path/OCR gap fill via `upload_documents_to_blob.py` / `backfill_titulares.py`. Workbook titulars with CI/contact are not overwritten by weak path names. Use `--metadata-only` when refreshing links without re-rendering Blob pages. Role rule: a plastic ID / carnet CI on the packet is titular; a different FACT path name becomes `beneficiario` (not a second titular).
 6. Shared helpers live in `scripts/person_upsert.py`. Reader `/personas/[id]` shows contact fields and authorization lines.
 
 Baseline / cleanup notes: `output/invoices/person-enrichment-baseline.md`, `output/invoices/person-cleanup-report.md`.

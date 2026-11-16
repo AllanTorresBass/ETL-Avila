@@ -12,6 +12,7 @@ DOCUMENT_TYPES = (
     "factura_fiscal",
     "cedula_identidad",
     "pasaporte",
+    "carnet",
     "egreso",
     "ingreso",
     "informe_medico",
@@ -29,6 +30,7 @@ DOCUMENT_TYPE_LABELS_ES = {
     "factura_fiscal": "Factura fiscal",
     "cedula_identidad": "Cédula de identidad",
     "pasaporte": "Pasaporte",
+    "carnet": "Carnet",
     "egreso": "Egreso",
     "ingreso": "Ingreso",
     "informe_medico": "Informe médico",
@@ -42,7 +44,20 @@ DOCUMENT_TYPE_LABELS_ES = {
     "ilegible": "Ilegible",
 }
 
-_CEDULA_CARD = re.compile(r"CEDULA\s+DE\s+IDENTIDAD|REPUBLICA\s+BOLIVARIANA")
+# Real plastic cédula card — not claim forms that only print "República Bolivariana".
+_CEDULA_TITLE = re.compile(r"CEDULA\s+DE\s+IDENTIDAD")
+_CEDULA_CNE = re.compile(r"CONSEJO\s+NACIONAL\s+ELECTORAL|COMISION\s+DE\s+REGISTRO\s+CIVIL")
+_CEDULA_FIELDS = re.compile(
+    r"APELLIDOS?\b.+\bNOMBRES?\b|\bF\.?\s*NACIMIENTO\b|\bF\.?\s*EXPEDIC"
+)
+_FORM_NOT_CEDULA = re.compile(
+    r"DECLARACION\s+DE\s+SINIESTRO|\bPLANILLA\b|\bINFORME\s*:|\bDATOS\s+DEL\s+TITULAR\b|"
+    r"\bDATOS\s+DE\s+LA\s+POLIZA\b|\bBENEFICIARIO\b.+\bTITULAR\b"
+)
+_CARNET_BDV = re.compile(
+    r"BANCO\s+DE\s+VENEZUELA|\bBDV\b.+\bVP\b|\bCARNET\b"
+)
+_ID_COLLAGE = re.compile(r"DOCUMENTOS?\s+DE\s+IDENTIFICACION")
 _PASAPORTE_CARD = re.compile(r"\bPASAPORTE\b")
 _EGRESO = re.compile(r"\bEGRESO\b|\bENGRESO\b")
 _INGRESO = re.compile(r"\bINGRESO\b")
@@ -150,16 +165,42 @@ def classify_document(
     path_folded = fold(backup_path)
     stem = fold(Path(backup_path).stem) if backup_path else ""
 
-    if _CEDULA_CARD.search(folded):
+    # Employee badge / carnet (before weak "república" cues).
+    if _CARNET_BDV.search(folded) and (
+        "CARNET" in folded or "VP " in folded or "SERVICIOS" in folded or _ID_COLLAGE.search(folded)
+    ):
+        # Collage pages that also show the plastic cédula stay as collage unless
+        # the cédula title dominates; crops are stored separately as cedula/carnet.
+        if _ID_COLLAGE.search(folded) and not _CEDULA_TITLE.search(folded):
+            return "otro_anexo", "documentos_identificacion"
+        if not _CEDULA_TITLE.search(folded):
+            return "carnet", "carnet_bdv"
+
+    # Plastic cédula card only — claim/siniestro forms often print República / C.I.
+    if not _FORM_NOT_CEDULA.search(folded) and (
+        (_CEDULA_TITLE.search(folded) and (_CEDULA_FIELDS.search(folded) or _CEDULA_CNE.search(folded)))
+        or (_CEDULA_CNE.search(folded) and "REPUBLICA" in folded)
+        or (_CEDULA_TITLE.search(folded) and "VENEZOLANO" in folded)
+    ):
         return "cedula_identidad", "cedula_card"
+
+    if _ID_COLLAGE.search(folded):
+        return "otro_anexo", "documentos_identificacion"
+
     # Passport as a photographed page is rare. The fiscal form also prints
     # "C.I., R.I.F. o PASAPORTE" — ignore that when the page is already fiscal.
     if _PASAPORTE_CARD.search(folded) and "FACTURA" not in folded[:200]:
         if "REPUBLICA" in folded or "PASAPORTE" in folded[:400]:
             return "pasaporte", "pasaporte_card"
 
-    if evidence == "comprobante" or "COMPROBANTE" in folded:
-        return "comprobante", "comprobante"
+    if (
+        evidence == "comprobante"
+        or "COMPROBANTE" in folded
+        or "DECLARACION DE SINIESTRO" in folded
+    ):
+        return "comprobante", (
+            "declaracion_siniestro" if "DECLARACION DE SINIESTRO" in folded else "comprobante"
+        )
     if evidence == "informe" or (_ORDEN.search(folded) is None and "INFORME" in folded):
         if _ORDEN.search(folded):
             return "orden_servicio", "orden_servicio"

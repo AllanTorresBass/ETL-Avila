@@ -61,7 +61,7 @@ export default async function PersonasPage({
            OR (${hasCi} = '0' AND (p.identity_number IS NULL OR p.identity_number = '')))
       AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p.phone IS NOT NULL AND p.phone <> '')
            OR (${hasPhone} = '0' AND (p.phone IS NULL OR p.phone = '')))
-      AND (${roleFilter} = '' OR ip.role = ${roleFilter}::avila.invoice_person_role)
+      AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
       AND (${account} = '' OR a.code = ${account})
   `;
   const total = countRow?.n ?? 0;
@@ -89,10 +89,12 @@ export default async function PersonasPage({
              OR (${hasCi} = '0' AND (p2.identity_number IS NULL OR p2.identity_number = '')))
         AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p2.phone IS NOT NULL AND p2.phone <> '')
              OR (${hasPhone} = '0' AND (p2.phone IS NULL OR p2.phone = '')))
-        AND (${roleFilter} = '' OR ip.role = ${roleFilter}::avila.invoice_person_role)
+        AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
         AND (${account} = '' OR a.code = ${account})
     )
-    ORDER BY p.identity_number NULLS LAST, p.full_name NULLS LAST, p.created_at DESC
+    ORDER BY lower(nullif(trim(p.full_name), '')) ASC NULLS LAST,
+             p.identity_number NULLS LAST,
+             p.created_at DESC
     LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
   `;
 
