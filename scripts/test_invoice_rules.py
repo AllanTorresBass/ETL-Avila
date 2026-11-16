@@ -289,9 +289,26 @@ class DocumentTypeTests(unittest.TestCase):
         self.assertEqual(dtype, "factura_fiscal")
 
     def test_cedula_card_maps(self):
-        dtype, evidence = classify_document("REPUBLICA BOLIVARIANA DE VENEZUELA\nCEDULA DE IDENTIDAD\nV-12.345.678")
+        dtype, evidence = classify_document(
+            "REPUBLICA BOLIVARIANA DE VENEZUELA\nCEDULA DE IDENTIDAD\n"
+            "APELLIDOS MATHEUS\nNOMBRES HELBER\nV-12.345.678\nVENEZOLANO"
+        )
         self.assertEqual(dtype, "cedula_identidad")
         self.assertEqual(evidence, "cedula_card")
+
+    def test_siniestro_form_is_not_cedula(self):
+        dtype, _ = classify_document(
+            "DECLARACION DE SINIESTRO DE HCM\nDATOS DEL TITULAR\n"
+            "HELBER JOSE MATHEUS\nBENEFICIARIO AARON MATHEUS\nREPUBLICA BOLIVARIANA"
+        )
+        self.assertNotEqual(dtype, "cedula_identidad")
+
+    def test_carnet_bdv_maps(self):
+        dtype, evidence = classify_document(
+            "BANCO DE VENEZUELA\nHelber J. Matheus A.\n13.996.036\nVP Servicios\nCARNET"
+        )
+        self.assertEqual(dtype, "carnet")
+        self.assertEqual(evidence, "carnet_bdv")
 
     def test_egreso_from_path(self):
         dtype, _ = classify_document("texto clinico", backup_path="FACTURAS/EGRESO EJEMPLO FACT 1000.pdf")

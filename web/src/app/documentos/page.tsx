@@ -62,8 +62,8 @@ export default async function DocumentosPage({
     FROM avila.document d
     LEFT JOIN avila.invoice i ON i.id = d.invoice_id
     LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE (${typeOk} = '' OR d.document_type = ${typeOk}::avila.document_type)
-      AND (${statusOk} = '' OR d.upload_status = ${statusOk}::avila.upload_status)
+    WHERE (${typeOk} = '' OR d.document_type::text = ${typeOk})
+      AND (${statusOk} = '' OR d.upload_status::text = ${statusOk})
       AND (${account} = '' OR a.code = ${account})
       AND (${query} = '' OR coalesce(i.invoice_number, '') ILIKE ${like}
            OR coalesce(d.evidence, '') ILIKE ${like})
@@ -76,8 +76,8 @@ export default async function DocumentosPage({
     FROM avila.document d
     LEFT JOIN avila.invoice i ON i.id = d.invoice_id
     LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE (${typeOk} = '' OR d.document_type = ${typeOk}::avila.document_type)
-      AND (${statusOk} = '' OR d.upload_status = ${statusOk}::avila.upload_status)
+    WHERE (${typeOk} = '' OR d.document_type::text = ${typeOk})
+      AND (${statusOk} = '' OR d.upload_status::text = ${statusOk})
       AND (${account} = '' OR a.code = ${account})
       AND (${query} = '' OR coalesce(i.invoice_number, '') ILIKE ${like}
            OR coalesce(d.evidence, '') ILIKE ${like})

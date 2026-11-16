@@ -32,7 +32,7 @@ from document_types import (
     extract_titular_from_ocr,
     extract_titular_from_path,
 )
-from person_upsert import upsert_by_ci, upsert_titular
+from person_upsert import upsert_by_ci, upsert_by_name, upsert_titular
 from env_load import load_env
 from ocr_invoice_pages import (
     BACKUP,
@@ -117,6 +117,49 @@ def upsert_titular_person(
     return upsert_titular(cur, full_name=full_name, identity_number=identity_number)
 
 
+def _link_path_name_as_beneficiario(
+    cur, invoice_id: str, name: str, titular_id: str
+) -> str | None:
+    """When the FACT path names a patient different from the CI titular."""
+    path_person_id, _ = upsert_by_name(cur, full_name=name)
+    if not path_person_id or str(path_person_id) == str(titular_id):
+        return None
+    link_invoice_person(cur, invoice_id, path_person_id, "beneficiario")
+    cur.execute(
+        """
+        UPDATE avila.invoice_person
+        SET source = coalesce(nullif(source, ''), 'path')
+        WHERE invoice_id = %s AND person_id = %s
+        """,
+        (invoice_id, path_person_id),
+    )
+    return str(path_person_id)
+
+
+def promote_ci_person_as_titular(cur, invoice_id: str, person_id: str) -> None:
+    """Cédula/carnet CI wins: that person becomes titular; prior path titular → beneficiario."""
+    cur.execute(
+        """
+        UPDATE avila.invoice_person
+        SET role = 'beneficiario',
+            source = coalesce(nullif(source, ''), 'path')
+        WHERE invoice_id = %s
+          AND role = 'titular'
+          AND person_id <> %s::uuid
+        """,
+        (invoice_id, person_id),
+    )
+    link_invoice_person(cur, invoice_id, person_id, "titular")
+    cur.execute(
+        """
+        UPDATE avila.invoice_person
+        SET source = 'ocr_cedula'
+        WHERE invoice_id = %s AND person_id = %s::uuid
+        """,
+        (invoice_id, person_id),
+    )
+
+
 def ensure_invoice_titular(cur, invoice_id: str, row: dict, ocr_text: str = "") -> str | None:
     # Protect workbook-enriched titulars with CI / contact from weak path overwrites.
     cur.execute(
@@ -138,6 +181,14 @@ def ensure_invoice_titular(cur, invoice_id: str, row: dict, ocr_text: str = "") 
         if ocr_name or ocr_cedula:
             name, cedula = ocr_name or name, ocr_cedula or cedula
 
+    # CI titular (from cédula OCR or workbook) always beats a path-only name.
+    if existing and existing.get("identity_number") and not cedula:
+        if name:
+            _link_path_name_as_beneficiario(
+                cur, invoice_id, name, str(existing["person_id"])
+            )
+        return str(existing["person_id"])
+
     if existing and existing.get("source") == "workbook":
         has_strength = bool(
             existing.get("identity_number")
@@ -158,13 +209,30 @@ def ensure_invoice_titular(cur, invoice_id: str, row: dict, ocr_text: str = "") 
         # Do not delete an existing titular when path/OCR yields nothing.
         return str(existing["person_id"]) if existing else None
 
+    # Path has a CI: that person is titular.
+    if cedula:
+        person_id = upsert_titular_person(
+            cur,
+            full_name=name,
+            identity_number=cedula,
+            invoice_number=invoice_key(row),
+        )
+        if person_id:
+            promote_ci_person_as_titular(cur, invoice_id, person_id)
+        return person_id
+
+    # Path name only — provisional titular until a cédula page promotes a CI person.
     person_id = upsert_titular_person(
         cur,
         full_name=name,
-        identity_number=cedula,
+        identity_number=None,
         invoice_number=invoice_key(row),
     )
     if person_id:
+        if existing and existing.get("identity_number"):
+            # Should have returned earlier; keep CI titular.
+            _link_path_name_as_beneficiario(cur, invoice_id, name, str(existing["person_id"]))
+            return str(existing["person_id"])
         cur.execute(
             "DELETE FROM avila.invoice_person WHERE invoice_id = %s AND role = 'titular'",
             (invoice_id,),
@@ -444,12 +512,15 @@ def _upsert_document(
         )
         inv_number = cur.fetchone()["invoice_number"]
 
-        if document_type in {"cedula_identidad", "pasaporte"} and text:
+        if document_type in {"cedula_identidad", "pasaporte", "carnet"} and text:
             person_id = upsert_person_from_text(cur, text)
             if person_id:
-                # Cédula page may be the titular or the beneficiary; keep role unknown
-                # unless this person is already linked as titular.
-                link_invoice_person(cur, invoice_id, person_id, "unknown")
+                # Plastic ID / carnet CI is the insurer titular; demote path-only names.
+                promote_ci_person_as_titular(cur, invoice_id, person_id)
+                # Path patient name (e.g. FACT … AARON) → beneficiario when different.
+                path_name, _path_ci = extract_titular_from_path(relative)
+                if path_name:
+                    _link_path_name_as_beneficiario(cur, invoice_id, path_name, person_id)
         if document_type == "factura_fiscal" and text:
             ensure_invoice_titular(
                 cur,

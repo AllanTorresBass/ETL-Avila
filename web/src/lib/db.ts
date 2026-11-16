@@ -14,6 +14,7 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   factura_fiscal: "Factura fiscal",
   cedula_identidad: "Cédula de identidad",
   pasaporte: "Pasaporte",
+  carnet: "Carnet",
   egreso: "Egreso",
   ingreso: "Ingreso",
   informe_medico: "Informe médico",
