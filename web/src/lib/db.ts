@@ -15,6 +15,8 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   cedula_identidad: "Cédula de identidad",
   pasaporte: "Pasaporte",
   carnet: "Carnet",
+  documentos_identificacion: "Documentos de identificación",
+  acta_nacimiento: "Acta de nacimiento",
   egreso: "Egreso",
   ingreso: "Ingreso",
   informe_medico: "Informe médico",

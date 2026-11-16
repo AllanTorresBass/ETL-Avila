@@ -61,6 +61,43 @@ export default async function PersonaDetailPage({
     ORDER BY i.invoice_number
   `;
 
+  // People linked as beneficiario on invoices where this person is titular.
+  const beneficiaries = await db`
+    SELECT b.id, b.full_name, b.identity_number,
+           count(DISTINCT i.id)::int AS invoice_count,
+           max(bip.parentesco) AS parentesco
+    FROM avila.invoice_person tip
+    JOIN avila.invoice i ON i.id = tip.invoice_id
+    JOIN avila.invoice_person bip
+      ON bip.invoice_id = tip.invoice_id
+     AND bip.role = 'beneficiario'
+     AND bip.person_id <> tip.person_id
+    JOIN avila.person b ON b.id = bip.person_id
+    WHERE tip.person_id = ${id}::uuid
+      AND tip.role = 'titular'
+    GROUP BY b.id, b.full_name, b.identity_number
+    ORDER BY lower(coalesce(b.full_name, '')), b.identity_number
+  `;
+
+  // Titulares on invoices where this person is beneficiario (critical navigation).
+  const titulares = await db`
+    SELECT t.id, t.full_name, t.identity_number, t.phone,
+           count(DISTINCT i.id)::int AS invoice_count,
+           max(bip.parentesco) AS parentesco
+    FROM avila.invoice_person bip
+    JOIN avila.invoice i ON i.id = bip.invoice_id
+    JOIN avila.invoice_person tip
+      ON tip.invoice_id = bip.invoice_id
+     AND tip.role = 'titular'
+     AND tip.person_id <> bip.person_id
+    JOIN avila.person t ON t.id = tip.person_id
+    WHERE bip.person_id = ${id}::uuid
+      AND bip.role = 'beneficiario'
+    GROUP BY t.id, t.full_name, t.identity_number, t.phone
+    ORDER BY lower(coalesce(t.full_name, '')), t.identity_number
+  `;
+  const primaryTitular = titulares[0] ?? null;
+
   const sourceFilesPrimary = await db`
     SELECT DISTINCT ON (sf.id)
            sf.id, sf.file_label, sf.extension, sf.pages, sf.invoice_id, i.invoice_number
@@ -136,6 +173,8 @@ export default async function PersonaDetailPage({
 
   const relatedTotal =
     invoices.length +
+    titulares.length +
+    beneficiaries.length +
     sourceFiles.length +
     authTotal +
     identityDocs.length +
@@ -174,10 +213,50 @@ export default async function PersonaDetailPage({
         description={identityLine}
       />
 
+      {primaryTitular ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-[#0A2A6B]/15 bg-white px-5 py-4 shadow-sm">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium tracking-wider text-[#5BB2F5] uppercase">
+              Titular del expediente
+            </div>
+            <div className="mt-0.5 text-base font-medium text-[#0A2A6B]">
+              {primaryTitular.full_name || primaryTitular.identity_number || "Titular"}
+            </div>
+            <div className="text-xs text-slate-500">
+              {[
+                primaryTitular.identity_number
+                  ? `Cédula ${primaryTitular.identity_number}`
+                  : null,
+                primaryTitular.parentesco
+                  ? `Parentesco: ${primaryTitular.parentesco}`
+                  : null,
+                `${primaryTitular.invoice_count} factura${
+                  primaryTitular.invoice_count === 1 ? "" : "s"
+                }`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          </div>
+          <Link
+            href={`/personas/${primaryTitular.id}`}
+            className="btn-green-gradient rounded-full px-5 py-2.5 text-xs font-medium text-white"
+          >
+            Ver titular
+          </Link>
+        </div>
+      ) : null}
+
       {relatedTotal > 8 ? (
         <SectionNav
           items={[
+            ...(titulares.length > 0
+              ? [{ id: "titulares", label: "Titulares", count: titulares.length }]
+              : []),
             { id: "facturas", label: "Facturas", count: invoices.length },
+            ...(beneficiaries.length > 0
+              ? [{ id: "beneficiarios", label: "Beneficiarios", count: beneficiaries.length }]
+              : []),
             { id: "archivos", label: "Archivos", count: sourceFiles.length },
             { id: "autorizaciones", label: "Autorizaciones", count: authTotal },
             { id: "identidad", label: "Identidad", count: identityDocs.length },
@@ -203,6 +282,20 @@ export default async function PersonaDetailPage({
             <div className="text-xs tracking-wider text-slate-400 uppercase">Teléfono</div>
             <div>{person.phone || "—"}</div>
           </div>
+          {primaryTitular ? (
+            <div>
+              <div className="text-xs tracking-wider text-slate-400 uppercase">Titular</div>
+              <Link
+                href={`/personas/${primaryTitular.id}`}
+                className="font-medium text-[#033CA0] hover:underline"
+              >
+                {primaryTitular.full_name || primaryTitular.identity_number}
+                {primaryTitular.identity_number
+                  ? ` · V-${primaryTitular.identity_number}`
+                  : ""}
+              </Link>
+            </div>
+          ) : null}
           <div className="sm:col-span-2">
             <div className="text-xs tracking-wider text-slate-400 uppercase">Dirección</div>
             <div>{person.address || "—"}</div>
@@ -215,6 +308,37 @@ export default async function PersonaDetailPage({
           ) : null}
         </CardContent>
       </Card>
+
+      {titulares.length > 0 ? (
+        <RelationSection
+          id="titulares"
+          title="Titulares"
+          count={titulares.length}
+          emptyTitle="Sin titular vinculado"
+          emptyHint="No hay titular en las facturas donde esta persona es beneficiario."
+        >
+          <div className="space-y-2">
+            {titulares.map((t) => (
+              <EntityRow
+                key={t.id}
+                href={`/personas/${t.id}`}
+                title={t.full_name || t.identity_number || "Sin nombre"}
+                badges={[
+                  "Titular",
+                  ...(t.parentesco ? [String(t.parentesco)] : []),
+                ]}
+                meta={[
+                  t.identity_number ? `Cédula ${t.identity_number}` : null,
+                  t.phone ? `Tel. ${t.phone}` : null,
+                  `${t.invoice_count} factura${t.invoice_count === 1 ? "" : "s"}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            ))}
+          </div>
+        </RelationSection>
+      ) : null}
 
       <RelationSection
         id="facturas"
@@ -235,6 +359,36 @@ export default async function PersonaDetailPage({
           ))}
         </div>
       </RelationSection>
+
+      {beneficiaries.length > 0 ? (
+        <RelationSection
+          id="beneficiarios"
+          title="Beneficiarios"
+          count={beneficiaries.length}
+          emptyTitle="Sin beneficiarios"
+          emptyHint="No hay otros personas con rol beneficiario en las facturas donde esta persona es titular."
+        >
+          <div className="space-y-2">
+            {beneficiaries.map((b) => (
+              <EntityRow
+                key={b.id}
+                href={`/personas/${b.id}`}
+                title={b.full_name || b.identity_number || "Sin nombre"}
+                badges={[
+                  "Beneficiario",
+                  ...(b.parentesco ? [String(b.parentesco)] : []),
+                ]}
+                meta={[
+                  b.identity_number ? `Cédula ${b.identity_number}` : null,
+                  `${b.invoice_count} factura${b.invoice_count === 1 ? "" : "s"}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            ))}
+          </div>
+        </RelationSection>
+      ) : null}
 
       <RelationSection
         id="archivos"

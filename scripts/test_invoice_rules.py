@@ -310,6 +310,34 @@ class DocumentTypeTests(unittest.TestCase):
         self.assertEqual(dtype, "carnet")
         self.assertEqual(evidence, "carnet_bdv")
 
+    def test_id_collage_sheet_maps(self):
+        dtype, evidence = classify_document(
+            "Gestión Profesional de Salud Ávila, C.A\nDOCUMENTOS DE IDENTIFICACION\n"
+            "MATHEUS ANDARA\nHelber J. Matheus A.\n13.996.036\nVP Servicios\nBDV"
+        )
+        self.assertEqual(dtype, "documentos_identificacion")
+        self.assertEqual(evidence, "documentos_identificacion")
+
+    def test_acta_nacimiento_not_cedula(self):
+        dtype, evidence = classify_document(
+            "REPÚBLICA BOLIVARIANA DE VENEZUELA\nCONSEJO NACIONAL ELECTORAL\n"
+            "COMISIÓN DE REGISTRO CIVIL Y ELECTORAL\nREGISTRO CIVIL MUNICIPAL\n"
+            "UNIDAD DE REGISTRO CIVIL HOSPITALARIO\nActa N° 08\n"
+            "AARON GABRIEL MATHEUS BLANCO\nHELBER JOSE MATHEUS ANDARA\n"
+            "titular de la Cedula de identidad N° V-13.996.036\nVENEZOLANA"
+        )
+        self.assertEqual(dtype, "acta_nacimiento")
+        self.assertEqual(evidence, "acta_nacimiento")
+
+    def test_plastic_cedula_still_maps_when_no_acta(self):
+        dtype, evidence = classify_document(
+            "REPUBLICA BOLIVARIANA DE VENEZUELA\nCEDULA DE IDENTIDAD\n"
+            "APELLIDOS MATHEUS ANDARA\nNOMBRES HELBER JOSE\n"
+            "V-13.996.036\nVENEZOLANO\nF. EXPEDIC 02-2024"
+        )
+        self.assertEqual(dtype, "cedula_identidad")
+        self.assertEqual(evidence, "cedula_card")
+
     def test_egreso_from_path(self):
         dtype, _ = classify_document("texto clinico", backup_path="FACTURAS/EGRESO EJEMPLO FACT 1000.pdf")
         self.assertEqual(dtype, "egreso")
@@ -327,6 +355,13 @@ class DocumentTypeTests(unittest.TestCase):
             "SCANER SEGURO MIRANDA/CARTA AVAL FACT 19263 NELSON VALERA/FACT 19263 NELSON VALERA.pdf"
         )
         self.assertEqual(name, "Nelson Valera")
+        self.assertIsNone(cedula)
+
+    def test_titular_from_glued_fact_number_stem(self):
+        name, cedula = extract_titular_from_path(
+            "FACTURAS/FACT 7394AARON MATHEUS.pdf"
+        )
+        self.assertEqual(name, "Aaron Matheus")
         self.assertIsNone(cedula)
 
     def test_titular_from_fact_path_with_cedula(self):

@@ -512,15 +512,27 @@ def _upsert_document(
         )
         inv_number = cur.fetchone()["invoice_number"]
 
-        if document_type in {"cedula_identidad", "pasaporte", "carnet"} and text:
+        if document_type in {
+            "cedula_identidad",
+            "pasaporte",
+            "carnet",
+            "documentos_identificacion",
+        } and text:
             person_id = upsert_person_from_text(cur, text)
             if person_id:
-                # Plastic ID / carnet CI is the insurer titular; demote path-only names.
+                # Plastic ID / carnet / ID collage CI is the insurer titular.
                 promote_ci_person_as_titular(cur, invoice_id, person_id)
                 # Path patient name (e.g. FACT … AARON) → beneficiario when different.
                 path_name, _path_ci = extract_titular_from_path(relative)
                 if path_name:
                     _link_path_name_as_beneficiario(cur, invoice_id, path_name, person_id)
+        elif document_type == "acta_nacimiento" and text:
+            # Birth certificate names the child (path patient), not a new titular.
+            path_name, _path_ci = extract_titular_from_path(relative)
+            if path_name:
+                person_id, _ = upsert_by_name(cur, full_name=path_name)
+                if person_id:
+                    link_invoice_person(cur, invoice_id, person_id, "beneficiario")
         if document_type == "factura_fiscal" and text:
             ensure_invoice_titular(
                 cur,

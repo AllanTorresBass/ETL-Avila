@@ -43,8 +43,10 @@ See [schema-relationships.md](../output/invoices/schema-relationships.md).
 | Code | Spanish label | Detection |
 | --- | --- | --- |
 | `factura_fiscal` | Factura fiscal | Fiscal page judge |
-| `cedula_identidad` | Cédula de identidad | Plastic card cues (`CEDULA DE IDENTIDAD` + fields/CNE); not siniestro/planilla forms |
+| `cedula_identidad` | Cédula de identidad | Plastic card cues (`CEDULA DE IDENTIDAD` + card fields); not siniestro forms or actas |
 | `carnet` | Carnet | Employer badge (e.g. BDV); crops stored separately from collage pages |
+| `documentos_identificacion` | Documentos de identificación | GPS cover sheet mounting cédula + carnet (not “otro anexo”) |
+| `acta_nacimiento` | Acta de nacimiento | Registro civil / birth certificate (not a cédula) |
 | `pasaporte` | Pasaporte | Passport card cues (rare) |
 | `egreso` | Egreso | Path / OCR |
 | `ingreso` | Ingreso | Path / OCR |

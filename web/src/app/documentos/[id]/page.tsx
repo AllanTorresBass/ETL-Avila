@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
 import { UploadStatusBadge } from "@/components/upload-status-badge";
 import { DocumentPreview } from "@/components/document-preview";
-import { DOCUMENT_TYPE_LABELS, sql } from "@/lib/db";
+import { DOCUMENT_TYPE_LABELS, ROLE_LABELS, sql } from "@/lib/db";
 import { formatInvoiceNumber } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +45,20 @@ export default async function DocumentoDetailPage({
       `
     : [];
 
+  const invoicePeople = doc.invoice_id
+    ? await db`
+        SELECT p.id, p.full_name, p.identity_number, ip.role::text AS role
+        FROM avila.invoice_person ip
+        JOIN avila.person p ON p.id = ip.person_id
+        WHERE ip.invoice_id = ${doc.invoice_id}::uuid
+        ORDER BY CASE ip.role
+          WHEN 'titular' THEN 0
+          WHEN 'beneficiario' THEN 1
+          ELSE 2
+        END, p.full_name
+      `
+    : [];
+
   const currentIdx = siblings.findIndex((s) => s.id === doc.id);
   const prev = currentIdx > 0 ? siblings[currentIdx - 1] : null;
   const next =
@@ -52,6 +66,17 @@ export default async function DocumentoDetailPage({
 
   const typeLabel = DOCUMENT_TYPE_LABELS[doc.document_type] || doc.document_type;
   const canPreview = doc.upload_status === "uploaded" && Boolean(doc.blob_url || doc.blob_pathname);
+  const titular = invoicePeople.find((p) => p.role === "titular") || null;
+  const profileTarget =
+    (doc.person_id
+      ? { id: doc.person_id as string, name: doc.full_name || doc.identity_number || "persona" }
+      : null) ||
+    (titular
+      ? {
+          id: titular.id as string,
+          name: titular.full_name || titular.identity_number || "titular",
+        }
+      : null);
 
   const crumbItems = [
     { href: "/", label: "Inicio" },
@@ -76,26 +101,40 @@ export default async function DocumentoDetailPage({
         description={`Página ${doc.page_index}${doc.invoice_number ? ` · ${formatInvoiceNumber(doc.invoice_number)}` : ""}`}
       />
 
-      {(prev || next) && (
-        <div className="flex flex-wrap gap-2">
-          {prev ? (
-            <Link
-              href={`/documentos/${prev.id}`}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
-            >
-              ← Página {prev.page_index}
-            </Link>
-          ) : null}
-          {next ? (
-            <Link
-              href={`/documentos/${next.id}`}
-              className="btn-green-gradient rounded-full px-4 py-2 text-xs font-medium text-white"
-            >
-              Página {next.page_index} →
-            </Link>
-          ) : null}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {prev ? (
+          <Link
+            href={`/documentos/${prev.id}`}
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
+          >
+            ← Página {prev.page_index}
+          </Link>
+        ) : null}
+        {next ? (
+          <Link
+            href={`/documentos/${next.id}`}
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
+          >
+            Página {next.page_index} →
+          </Link>
+        ) : null}
+        {profileTarget ? (
+          <Link
+            href={`/personas/${profileTarget.id}`}
+            className="btn-green-gradient rounded-full px-4 py-2 text-xs font-medium text-white"
+          >
+            Ver perfil · {profileTarget.name}
+          </Link>
+        ) : null}
+        {titular && profileTarget && titular.id !== profileTarget.id ? (
+          <Link
+            href={`/personas/${titular.id}`}
+            className="rounded-full border border-[#0A2A6B]/20 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
+          >
+            Titular · {titular.full_name || titular.identity_number}
+          </Link>
+        ) : null}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="overflow-hidden rounded-3xl border-slate-100 shadow-sm">
@@ -158,17 +197,44 @@ export default async function DocumentoDetailPage({
               )}
             </div>
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Persona</div>
+              <div className="text-xs tracking-wider text-slate-400 uppercase">
+                Persona en este documento
+              </div>
               {doc.person_id ? (
-                <Link href={`/personas/${doc.person_id}`} className="text-[#033CA0]">
+                <Link href={`/personas/${doc.person_id}`} className="font-medium text-[#033CA0]">
                   {doc.full_name || doc.identity_number || "Ver persona"}
+                </Link>
+              ) : titular ? (
+                <Link href={`/personas/${titular.id}`} className="font-medium text-[#033CA0]">
+                  {titular.full_name || titular.identity_number}{" "}
+                  <span className="font-normal text-slate-500">(titular del paquete)</span>
                 </Link>
               ) : (
                 <span className="text-slate-500">
-                  Sin vínculo directo — revisa la factura del paquete
+                  Sin vínculo — revisa las personas de la factura
                 </span>
               )}
             </div>
+            {invoicePeople.length > 0 ? (
+              <div>
+                <div className="text-xs tracking-wider text-slate-400 uppercase">
+                  Personas del expediente
+                </div>
+                <ul className="mt-1 space-y-1">
+                  {invoicePeople.map((person) => (
+                    <li key={`${person.id}-${person.role}`}>
+                      <Link
+                        href={`/personas/${person.id}`}
+                        className="text-[#033CA0] hover:underline"
+                      >
+                        {ROLE_LABELS[person.role] || person.role}:{" "}
+                        {person.full_name || person.identity_number || "Ver persona"}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <div>
               <div className="text-xs tracking-wider text-slate-400 uppercase">Archivo fuente</div>
               {doc.source_file_id ? (
