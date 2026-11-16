@@ -26,10 +26,19 @@ export default async function FacturaDetailPage({
   if (!invoice) notFound();
 
   const people = await db`
-    SELECT p.id, p.identity_number, p.full_name, ip.role::text AS role
+    SELECT p.id, p.identity_number, p.full_name, ip.role::text AS role, ip.parentesco
     FROM avila.invoice_person ip
     JOIN avila.person p ON p.id = ip.person_id
     WHERE ip.invoice_id = ${id}::uuid
+    ORDER BY CASE ip.role WHEN 'titular' THEN 0 WHEN 'beneficiario' THEN 1 ELSE 2 END, p.full_name
+  `;
+  const authLines = await db`
+    SELECT id, clave_rms, diagnosis, service_description, amount_bs, amount_usd,
+           person_id, service_date
+    FROM avila.authorization_line
+    WHERE invoice_id = ${id}::uuid
+    ORDER BY coalesce(service_date, created_at) DESC
+    LIMIT 20
   `;
   const files = await db`
     SELECT id, file_label, extension, pages, rule_id
@@ -73,7 +82,14 @@ export default async function FacturaDetailPage({
                   className="flex justify-between hover:text-[#033CA0]"
                 >
                   <span>{p.full_name || p.identity_number || p.id.slice(0, 8)}</span>
-                  <span className="text-slate-500">{p.role}</span>
+                  <span className="text-slate-500">
+                    {p.role === "titular"
+                      ? "Titular"
+                      : p.role === "beneficiario"
+                        ? "Beneficiario"
+                        : "Sin rol claro"}
+                    {p.parentesco ? ` · ${p.parentesco}` : ""}
+                  </span>
                 </Link>
               ))
             )}
@@ -101,6 +117,28 @@ export default async function FacturaDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {authLines.length > 0 ? (
+        <Card className="rounded-3xl border-slate-100 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-medium">Autorizaciones / líneas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {authLines.map((line) => (
+              <div key={line.id} className="flex justify-between gap-3">
+                <span>
+                  {line.clave_rms || "Sin clave"}
+                  {line.diagnosis ? ` · ${line.diagnosis}` : ""}
+                </span>
+                <span className="text-slate-500">
+                  {line.amount_usd != null ? `USD ${line.amount_usd}` : ""}
+                  {line.amount_bs != null ? ` · BS ${line.amount_bs}` : ""}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div>
         <h2 className="mb-3 text-xl font-medium">Páginas del paquete</h2>

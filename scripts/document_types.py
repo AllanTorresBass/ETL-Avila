@@ -54,6 +54,17 @@ _ORDEN = re.compile(r"ORDEN\s+DE\s+SERVICIO|SOLICITUD\s+DE\s+SERVICIO|\bAPS\b")
 _IDENTITY_NUMBER = re.compile(
     r"(?:V|E)\s*-?\s*(\d{6,9})\b|\bC\.?\s*I\.?\s*:?\s*(?:V|E)?\s*-?\s*(\d{6,9})\b"
 )
+_PASSPORT_NUMBER = re.compile(r"\bP[A-Z]?\s*-?\s*([A-Z0-9]{6,12})\b")
+_RIF_NUMBER = re.compile(r"\b([VEJPG])\s*-?\s*(\d{7,9})\-?(\d)?\b")
+# Venezuelan cédula cards print APELLIDOS then NOMBRES (OCR order varies).
+_CEDULA_APELLIDOS = re.compile(
+    r"APELLIDOS?\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{1,40})",
+    re.IGNORECASE,
+)
+_CEDULA_NOMBRES = re.compile(
+    r"NOMBRES?\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{1,40})",
+    re.IGNORECASE,
+)
 # Path stems often look like: FACT 19263 NELSON VALERA or FACT 7806 AMALI LAREZ 30.107.906
 _FACT_PREFIX = re.compile(
     r"^(?:FACT(?:URA)?|FAC)\s*(\d{3,6})\b",
@@ -170,17 +181,51 @@ def classify_document(
 
 
 def extract_identity_number(text: str | None) -> tuple[str, str] | None:
-    """Return (identity_type, identity_number) or None. Digits only in the number."""
+    """Return (identity_type, identity_number) or None. Digits only for cédula/RIF."""
     if not text:
         return None
     folded = fold(text)
     match = _IDENTITY_NUMBER.search(folded)
-    if not match:
+    if match:
+        number = match.group(1) or match.group(2)
+        if number:
+            return "cedula", number
+    # Passport page: avoid matching fiscal "C.I., R.I.F. o PASAPORTE" alone.
+    if _PASAPORTE_CARD.search(folded) and "FACTURA" not in folded[:200]:
+        pm = _PASSPORT_NUMBER.search(folded)
+        if pm:
+            return "pasaporte", pm.group(1)
+    # Provider/person RIF when no cédula (rare for patients).
+    if "CEDULA" not in folded and "C.I" not in folded:
+        rm = _RIF_NUMBER.search(folded)
+        if rm and rm.group(1) in {"J", "G"}:
+            digits = rm.group(2) + (rm.group(3) or "")
+            return "rif", f"{rm.group(1)}-{digits}"
+    return None
+
+
+def extract_name_from_cedula_ocr(text: str | None) -> str | None:
+    """Best-effort full name from a photographed cédula card."""
+    if not text:
         return None
-    number = match.group(1) or match.group(2)
-    if not number:
+    folded = fold(text)
+    if not _CEDULA_CARD.search(folded):
         return None
-    return "cedula", number
+    apellidos = None
+    nombres = None
+    am = _CEDULA_APELLIDOS.search(folded)
+    if am:
+        apellidos = _normalize_person_name(am.group(1))
+    nm = _CEDULA_NOMBRES.search(folded)
+    if nm:
+        nombres = _normalize_person_name(nm.group(1))
+    if apellidos and nombres:
+        return f"{nombres} {apellidos}".strip()
+    if apellidos:
+        return apellidos
+    if nombres:
+        return nombres
+    return None
 
 
 def _normalize_person_name(raw: str) -> str:

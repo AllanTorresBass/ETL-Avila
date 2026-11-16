@@ -19,12 +19,17 @@ export default async function PersonasPage({
   const offset = (page - 1) * DEFAULT_PAGE_SIZE;
   const db = sql();
   const query = q.trim();
+  const like = `%${query}%`;
 
   const [countRow] = query
     ? await db`
-        SELECT count(*)::int AS n FROM avila.person p
-        WHERE identity_number ILIKE ${"%" + query + "%"}
-           OR coalesce(full_name, '') ILIKE ${"%" + query + "%"}
+        SELECT count(DISTINCT p.id)::int AS n
+        FROM avila.person p
+        LEFT JOIN avila.authorization_line al ON al.person_id = p.id
+        WHERE p.identity_number ILIKE ${like}
+           OR coalesce(p.full_name, '') ILIKE ${like}
+           OR coalesce(p.phone, '') ILIKE ${like}
+           OR coalesce(al.clave_rms, '') ILIKE ${like}
       `
     : await db`SELECT count(*)::int AS n FROM avila.person`;
 
@@ -33,18 +38,26 @@ export default async function PersonasPage({
   const people = query
     ? await db`
         SELECT p.id, p.identity_type::text AS identity_type, p.identity_number, p.full_name,
+               p.phone, p.birth_date,
                coalesce(dc.docs, 0)::int AS docs
         FROM avila.person p
         LEFT JOIN (
           SELECT person_id, count(*)::int AS docs FROM avila.document GROUP BY person_id
         ) dc ON dc.person_id = p.id
-        WHERE p.identity_number ILIKE ${"%" + query + "%"}
-           OR coalesce(p.full_name, '') ILIKE ${"%" + query + "%"}
+        WHERE p.id IN (
+          SELECT p2.id FROM avila.person p2
+          LEFT JOIN avila.authorization_line al ON al.person_id = p2.id
+          WHERE p2.identity_number ILIKE ${like}
+             OR coalesce(p2.full_name, '') ILIKE ${like}
+             OR coalesce(p2.phone, '') ILIKE ${like}
+             OR coalesce(al.clave_rms, '') ILIKE ${like}
+        )
         ORDER BY p.identity_number NULLS LAST
         LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
       `
     : await db`
         SELECT p.id, p.identity_type::text AS identity_type, p.identity_number, p.full_name,
+               p.phone, p.birth_date,
                coalesce(dc.docs, 0)::int AS docs
         FROM avila.person p
         LEFT JOIN (
@@ -58,7 +71,7 @@ export default async function PersonasPage({
     <div className="space-y-6">
       <PageHeader
         title="Personas"
-        description="Cliente = titular o beneficiario identificado por cédula."
+        description="Cliente = titular o beneficiario. Busca por cédula, nombre, teléfono o clave RMS."
       />
       <form className="flex max-w-md flex-wrap gap-2">
         <label className="sr-only" htmlFor="q">
@@ -68,7 +81,7 @@ export default async function PersonasPage({
           id="q"
           name="q"
           defaultValue={q}
-          placeholder="Buscar por cédula o nombre"
+          placeholder="Cédula, nombre, teléfono o clave"
           className="rounded-xl border-slate-200"
         />
         <button type="submit" className="btn-green-gradient rounded-full px-5 py-2 text-xs font-medium text-white">
@@ -91,6 +104,14 @@ export default async function PersonasPage({
                   <div className="mt-1 text-xs text-slate-500">
                     {person.identity_type}: {person.identity_number || "—"}
                   </div>
+                  {(person.phone || person.birth_date) && (
+                    <div className="mt-1 text-xs text-slate-500">
+                      {person.phone || "Sin teléfono"}
+                      {person.birth_date
+                        ? ` · ${String(person.birth_date).slice(0, 10)}`
+                        : ""}
+                    </div>
+                  )}
                   <div className="mt-3 text-xs text-[#033CA0]">{person.docs} documentos</div>
                 </CardContent>
               </Card>

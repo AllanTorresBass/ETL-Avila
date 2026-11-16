@@ -28,6 +28,7 @@ from document_types import (
     account_code_from_label,
     classify_document,
     extract_identity_number,
+    extract_name_from_cedula_ocr,
     extract_titular_from_ocr,
     extract_titular_from_path,
 )
@@ -243,29 +244,97 @@ def upsert_person_from_text(cur, text: str) -> str | None:
     if not found:
         return None
     identity_type, identity_number = found
+    full_name = extract_name_from_cedula_ocr(text)
     cur.execute(
         """
-        INSERT INTO avila.person (identity_type, identity_number)
-        VALUES (%s::avila.identity_type, %s)
-        ON CONFLICT (identity_type, identity_number) DO UPDATE
-          SET updated_at = now()
+        INSERT INTO avila.person (identity_type, identity_number, full_name)
+        VALUES (%s::avila.identity_type, %s, %s)
+        ON CONFLICT (identity_type, identity_number) DO UPDATE SET
+          full_name = coalesce(EXCLUDED.full_name, avila.person.full_name),
+          updated_at = now()
         RETURNING id
         """,
-        (identity_type, identity_number),
+        (identity_type, identity_number, full_name),
     )
-    return cur.fetchone()["id"]
+    person_id = cur.fetchone()["id"]
+    if full_name:
+        # Absorb provisional same-name rows into this CI person.
+        cur.execute(
+            """
+            SELECT id FROM avila.person
+            WHERE id <> %s
+              AND identity_number IS NULL
+              AND provisional_key IS NOT NULL
+              AND lower(full_name) = lower(%s)
+            """,
+            (person_id, full_name),
+        )
+        for orphan in cur.fetchall():
+            cur.execute(
+                """
+                UPDATE avila.invoice_person SET person_id = %s
+                WHERE person_id = %s
+                  AND NOT EXISTS (
+                    SELECT 1 FROM avila.invoice_person x
+                    WHERE x.invoice_id = avila.invoice_person.invoice_id
+                      AND x.person_id = %s
+                  )
+                """,
+                (person_id, orphan["id"], person_id),
+            )
+            cur.execute("DELETE FROM avila.invoice_person WHERE person_id = %s", (orphan["id"],))
+            cur.execute(
+                "UPDATE avila.document SET person_id = %s WHERE person_id = %s",
+                (person_id, orphan["id"]),
+            )
+            cur.execute("DELETE FROM avila.person WHERE id = %s", (orphan["id"],))
+    return person_id
+
+
+def _titular_ci_for_invoice(cur, invoice_id: str) -> str | None:
+    cur.execute(
+        """
+        SELECT p.identity_number
+        FROM avila.invoice_person ip
+        JOIN avila.person p ON p.id = ip.person_id
+        WHERE ip.invoice_id = %s AND ip.role = 'titular'
+        LIMIT 1
+        """,
+        (invoice_id,),
+    )
+    row = cur.fetchone()
+    return row["identity_number"] if row else None
 
 
 def link_invoice_person(cur, invoice_id: str, person_id: str, role: str = "unknown") -> None:
+    # Upgrade unknown → beneficiario when a titular already exists with a different CI.
+    if role == "unknown":
+        cur.execute(
+            "SELECT identity_number FROM avila.person WHERE id = %s",
+            (person_id,),
+        )
+        pers = cur.fetchone()
+        titular_ci = _titular_ci_for_invoice(cur, invoice_id)
+        if pers and pers.get("identity_number") and titular_ci:
+            if pers["identity_number"] == titular_ci:
+                role = "titular"
+            else:
+                role = "beneficiario"
+        elif pers and pers.get("identity_number") and not titular_ci:
+            role = "titular"
     cur.execute(
         """
-        INSERT INTO avila.invoice_person (invoice_id, person_id, role)
-        VALUES (%s, %s, %s::avila.invoice_person_role)
+        INSERT INTO avila.invoice_person (invoice_id, person_id, role, source)
+        VALUES (%s, %s, %s::avila.invoice_person_role, 'ocr')
         ON CONFLICT (invoice_id, person_id) DO UPDATE
           SET role = CASE
             WHEN EXCLUDED.role = 'titular' THEN 'titular'::avila.invoice_person_role
+            WHEN avila.invoice_person.role = 'unknown'
+              AND EXCLUDED.role IN ('beneficiario', 'titular')
+              THEN EXCLUDED.role
             ELSE avila.invoice_person.role
-          END
+          END,
+          source = coalesce(avila.invoice_person.source, EXCLUDED.source)
         """,
         (invoice_id, person_id, role),
     )
@@ -303,13 +372,27 @@ def load_inventory(limit: int = 0, paths: list[str] | None = None) -> list[dict]
     return rows
 
 
-def process_file(conn, row: dict, *, upload: bool) -> dict:
+def process_file(conn, row: dict, *, upload: bool, metadata_only: bool = False) -> dict:
     stats = {"pages": 0, "uploaded": 0, "failed": 0, "skipped": 0}
     relative = row["path"]
     with conn.cursor() as cur:
         invoice_id = upsert_invoice(cur, row)
         source_id = upsert_source_file(cur, row, invoice_id)
         conn.commit()
+        if metadata_only:
+            cur.execute(
+                """
+                SELECT count(*)::int AS n,
+                       count(*) FILTER (WHERE upload_status = 'uploaded')::int AS up
+                FROM avila.document WHERE source_file_id = %s
+                """,
+                (source_id,),
+            )
+            counts = cur.fetchone()
+            if counts and counts["n"] > 0 and counts["n"] == counts["up"]:
+                # Person/titular already refreshed via upsert_invoice; skip re-render.
+                stats["skipped"] += counts["n"]
+                return stats
 
     cache = _read_cache(relative) if cache_path(relative).is_file() else None
     images, render_error, tmp = render_pages(relative)
@@ -490,6 +573,11 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="Max source files to process")
     parser.add_argument("--paths-file", type=str, default="", help="Newline-separated backup paths")
     parser.add_argument("--no-upload", action="store_true", help="Insert DB rows without Blob put")
+    parser.add_argument(
+        "--metadata-only",
+        action="store_true",
+        help="Skip re-render/Blob when all pages for a file are already uploaded",
+    )
     parser.add_argument("--install-blob", action="store_true", help="npm install @vercel/blob in scripts/")
     args = parser.parse_args()
 
@@ -513,7 +601,12 @@ def main() -> None:
     totals = {"pages": 0, "uploaded": 0, "failed": 0, "skipped": 0}
     try:
         for index, row in enumerate(rows, start=1):
-            stats = process_file(conn, row, upload=not args.no_upload)
+            stats = process_file(
+                conn,
+                row,
+                upload=not args.no_upload,
+                metadata_only=args.metadata_only,
+            )
             for key in totals:
                 totals[key] += stats[key]
             if index % 10 == 0 or index == len(rows):

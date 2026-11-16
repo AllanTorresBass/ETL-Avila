@@ -29,9 +29,10 @@ Inventory-era packet counts: about **7,200** invoice packets, **9,484** candidat
 | Entity | Owns | Notes |
 | --- | --- | --- |
 | `avila.account` | Payer | Canonical codes such as `la_previsora` |
-| `avila.person` | Client (titular) | Created from the path/OCR name for each invoice; cédula when present |
-| `avila.invoice` | Case number | One row per `invoice_number` (or synthetic `range:…`) |
-| `avila.invoice_person` | Role link | Always includes `titular` when a name can be resolved; optional `beneficiario` |
+| `avila.person` | Client | Identity + contact (`full_name`, CI, `birth_date`, `phone`, `address`); filled from workbooks then OCR/path |
+| `avila.invoice` | Case number | One row per `invoice_number` (or synthetic `range:…`); may get `control_number` / `issue_date` from registers |
+| `avila.invoice_person` | Role link | `titular` / `beneficiario` / `unknown` + optional `parentesco` and `source` |
+| `avila.authorization_line` | Service / auth row | CLAVE, diagnosis, amounts, dates from sábana/relación/cintillo/claves |
 | `avila.source_file` | Packet / supporting file | Unique `backup_path` |
 | `avila.document` | One page | Unique Blob pathname; type + evidence tokens |
 
@@ -69,9 +70,11 @@ erDiagram
   SourceFile ||--o{ Document : splits_into
   Person ||--o{ Document : owns
   Invoice ||--o{ Document : belongs_to
+  Invoice ||--o{ AuthorizationLine : authorizes
+  Person ||--o{ AuthorizationLine : patient_on
 ```
 
-Example: packet `FACT 12843.pdf` → several `document` rows (factura, informe, cédula, …) → each with its own Blob URL → person linked when a cédula page yields an identity number.
+Example: packet `FACT 12843.pdf` → several `document` rows (factura, informe, cédula, …) → each with its own Blob URL → person linked when a cédula page yields an identity number. Workbook rows enrich the same person with phone/DOB and attach `authorization_line` rows (CLAVE, diagnosis, amounts).
 
 ## 6. Split rule and Blob pathname
 
@@ -189,9 +192,20 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 - Prefer a **private** Blob store (`BLOB_ACCESS=private`). OCR JSON stays on disk, not in Neon.
 - Marketing: visitor fields stay in React state and leave only via `wa.me/584121716058`.
 
-## 14. Roadmap
+## 14. Person enrichment loop
+
+1. Apply `sql/003_person_enrichment.sql` (demographics + `authorization_line`).
+2. Inventory: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment inventory`
+3. Load: `PYTHONPATH=scripts .venv/bin/python -m workbook_enrichment run --apply [--family sabana|claves|relacion|amp]`
+4. OCR/path still fills gaps via `upload_documents_to_blob.py` / `backfill_titulares.py` (cédula name extraction, titular vs beneficiario role).
+5. Reader `/personas/[id]` shows contact fields and authorization lines.
+
+Baseline notes: `output/invoices/person-enrichment-baseline.md`.
+
+## 15. Roadmap
 
 - Miranda scanner lots without FACT context.
-- Fill persons from sábana / relación / cintillo workbooks.
+- Improve cintillo workbooks that are image-only (OCR sheet embeds).
 - Migrate remaining public Blob objects into the private store (re-upload with `BLOB_ACCESS=private`).
 - Tighten Clerk org / invite-only signup in production.
+- Skip re-render when only person metadata refresh is needed.

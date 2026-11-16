@@ -81,6 +81,15 @@ def main() -> None:
                     },
                     ocr_text,
                 )
+                # Mark provenance on titular link when column exists.
+                cur.execute(
+                    """
+                    UPDATE avila.invoice_person
+                    SET source = coalesce(source, %s)
+                    WHERE invoice_id = %s AND role = 'titular'
+                    """,
+                    ("path" if not ocr_text else "ocr", invoice_id),
+                )
                 linked += 1
                 if linked % 100 == 0:
                     conn.commit()
