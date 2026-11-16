@@ -25,7 +25,9 @@ output/invoices/*.pid
 # OS / editor
 .DS_Store
 *.log
-.cursor/
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**/
 .vercel/
 web/.clerk/
 web/.DS_Store

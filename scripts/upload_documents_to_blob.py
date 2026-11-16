@@ -32,7 +32,7 @@ from document_types import (
     extract_titular_from_ocr,
     extract_titular_from_path,
 )
-from person_upsert import upsert_by_ci, upsert_by_name, upsert_titular
+from person_upsert import fold_person_name, upsert_by_ci, upsert_by_name, upsert_titular
 from env_load import load_env
 from ocr_invoice_pages import (
     BACKUP,
@@ -117,12 +117,33 @@ def upsert_titular_person(
     return upsert_titular(cur, full_name=full_name, identity_number=identity_number)
 
 
+def _names_refer_to_same_person(a: str | None, b: str | None) -> bool:
+    """True when the shorter folded token set is contained in the longer (min 2 tokens)."""
+    fa = set(fold_person_name(a or "").split())
+    fb = set(fold_person_name(b or "").split())
+    if len(fa) < 2 or len(fb) < 2:
+        return False
+    shorter, longer = (fa, fb) if len(fa) <= len(fb) else (fb, fa)
+    return shorter <= longer
+
+
 def _link_path_name_as_beneficiario(
     cur, invoice_id: str, name: str, titular_id: str
 ) -> str | None:
     """When the FACT path names a patient different from the CI titular."""
+    cur.execute(
+        "SELECT full_name, identity_number FROM avila.person WHERE id = %s::uuid",
+        (titular_id,),
+    )
+    titular = cur.fetchone()
+    if titular and _names_refer_to_same_person(name, titular.get("full_name")):
+        return None
     path_person_id, _ = upsert_by_name(cur, full_name=name)
     if not path_person_id or str(path_person_id) == str(titular_id):
+        return None
+    if titular and _names_refer_to_same_person(
+        name, titular.get("full_name")
+    ):
         return None
     link_invoice_person(cur, invoice_id, path_person_id, "beneficiario")
     cur.execute(

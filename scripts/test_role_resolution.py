@@ -22,12 +22,24 @@ class RoleResolutionTests(unittest.TestCase):
 
     def test_path_beneficiario_skips_same_person(self):
         cur = MagicMock()
+        cur.fetchone.return_value = {
+            "full_name": "HELBER JOSE MATHEUS ANDARA",
+            "identity_number": "13996036",
+        }
+        result = _link_path_name_as_beneficiario(
+            cur, "inv-1", "Helber Matheus", "helber-id"
+        )
+        self.assertIsNone(result)
+
+    def test_path_beneficiario_skips_identical_id(self):
+        cur = MagicMock()
+        cur.fetchone.return_value = {"full_name": "Other Person", "identity_number": None}
         with patch(
             "upload_documents_to_blob.upsert_by_name",
             return_value=("helber-id", "exists"),
         ):
             result = _link_path_name_as_beneficiario(
-                cur, "inv-1", "Helber Jose", "helber-id"
+                cur, "inv-1", "Someone Else", "helber-id"
             )
         self.assertIsNone(result)
 
