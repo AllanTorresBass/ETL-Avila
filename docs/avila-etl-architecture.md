@@ -243,7 +243,10 @@ Each script is dry-run first, then `--apply`. All of them record `etl_run`, prov
 | 4 Scanner OCR | `ocr_invoice_pages.py --scope scan [--folder …]` | Resumable OCR cache + `scan-pages.csv` |
 | 4 Segment | `segment_scan_packets.py --reviews` | `scan-packets.csv`; low-confidence packets → `segment_review` |
 | 4 Load | `upload_documents_to_blob.py --scan-packets [CSV] --shard i/n` | Packets ≥ `--min-confidence` load as `scan_packet`; then rerun phase 3 Auth |
-| 5 Review | Reader `/revision` | Staff decisions, recorded as `review` provenance |
+| 5 Roles | `role_inventory.py` then `fiscal_extract.py --missing-titular --link-roles --roles-only` | Measure gaps; fill titulares from fiscal OCR on invoices that still lack one |
+| 5 Roles | `role_linkage.py beneficiario\|propagate\|workbook\|all` | Path/fiscal beneficiario harvest; pair propagation; sabana relink |
+| 5 Roles | `repair_corpus_person_roles.py` | CI from identity pages → titular; `multiple_ci` → review queue |
+| 5 Review | Reader `/revision` | Staff decisions, recorded as `review` provenance; auth accept also links beneficiario |
 
 Scanner-lot discovery: scanner files are inventory rows with `rule_id = scan_outside_invoice`. The scanner writes one image per page, in capture order: fiscal sheet, then the claim form, then informe and other attachments. A fiscal page opens a packet, and the pages after it belong to that packet until the next different fiscal sheet.
 

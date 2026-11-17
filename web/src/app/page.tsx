@@ -28,7 +28,23 @@ export default async function HomePage() {
       (SELECT count(*)::int FROM avila.person p
          WHERE NOT EXISTS (SELECT 1 FROM avila.invoice_person ip WHERE ip.person_id = p.id)) AS persons_no_invoice,
       (SELECT count(*)::int FROM avila.review_item WHERE status = 'open') AS open_reviews,
-      (SELECT count(*)::int FROM avila.source_file WHERE rule_id = 'scan_packet') AS scan_files
+      (SELECT count(*)::int FROM avila.source_file WHERE rule_id = 'scan_packet') AS scan_files,
+      (SELECT count(*)::int FROM avila.invoice i
+         WHERE NOT EXISTS (
+           SELECT 1 FROM avila.invoice_person tip
+           WHERE tip.invoice_id = i.id AND tip.role = 'titular'
+         )) AS invoices_no_titular,
+      (SELECT count(*)::int FROM avila.invoice i
+         WHERE EXISTS (
+           SELECT 1 FROM avila.invoice_person tip
+           WHERE tip.invoice_id = i.id AND tip.role = 'titular'
+         ) AND EXISTS (
+           SELECT 1 FROM avila.invoice_person bip
+           WHERE bip.invoice_id = i.id AND bip.role = 'beneficiario'
+         )) AS invoices_with_beneficiario,
+      (SELECT count(*)::int FROM avila.review_item
+         WHERE status = 'open'
+           AND kind IN ('ci_conflict', 'multiple_ci', 'workbook_titular')) AS open_role_reviews
   `;
   const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "—");
   const byType = await db`
@@ -118,6 +134,16 @@ export default async function HomePage() {
             label={`Facturas con titular por CI · ${pct(kpi.invoices_ci_titular, counts.invoices)}`}
             value={kpi.invoices_ci_titular}
           />
+          <Link href="/facturas">
+            <StatCard label="Facturas sin titular" value={kpi.invoices_no_titular} />
+          </Link>
+          <StatCard
+            label={`Facturas con beneficiario · ${pct(kpi.invoices_with_beneficiario, counts.invoices)}`}
+            value={kpi.invoices_with_beneficiario}
+          />
+          <Link href="/revision">
+            <StatCard label="Roles por revisar" value={kpi.open_role_reviews} />
+          </Link>
           <Link href="/personas">
             <StatCard label="Personas sin factura" value={kpi.persons_no_invoice} />
           </Link>

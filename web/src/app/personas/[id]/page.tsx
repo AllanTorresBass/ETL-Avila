@@ -190,6 +190,24 @@ export default async function PersonaDetailPage({
     IDENTITY_TYPE_LABELS[person.identity_type] || person.identity_type;
   const identityLine = `${identityType}: ${person.identity_number || "—"}`;
 
+  const roleCounts = new Map<string, number>();
+  for (const inv of invoices) {
+    if (inv.role !== "titular" && inv.role !== "beneficiario") continue;
+    roleCounts.set(inv.role, (roleCounts.get(inv.role) || 0) + 1);
+  }
+  const headerBadges = (["titular", "beneficiario"] as const)
+    .filter((role) => roleCounts.has(role))
+    .map((role) => {
+      const n = roleCounts.get(role) || 0;
+      return {
+        label: `${roleLabel(role)} · ${n} factura${n === 1 ? "" : "s"}`,
+        className:
+          role === "titular"
+            ? "rounded-full bg-[#0A2A6B] px-3 py-1 text-xs font-medium text-white"
+            : "rounded-full bg-[#033CA0]/10 px-3 py-1 text-xs font-medium text-[#033CA0]",
+      };
+    });
+
   const relatedTotal =
     invoices.length +
     titulares.length +
@@ -231,6 +249,7 @@ export default async function PersonaDetailPage({
         eyebrow="Persona"
         title={person.full_name || "Sin nombre"}
         description={identityLine}
+        badges={headerBadges}
       />
 
       {primaryTitular ? (

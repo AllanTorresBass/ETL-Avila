@@ -68,6 +68,8 @@ When the user names a person, CI, or FACT set — or when identity/role mislabel
 
 ### 5. Roles
 
+- Measure gaps with `role_inventory.py`, then fill titulares via `fiscal_extract.py --missing-titular --roles-only --link-roles` and identity pages via `repair_corpus_person_roles.py`.
+- Harvest / propagate beneficiarios with `role_linkage.py` (`beneficiario`, `propagate`, `workbook`, or `all`).
 - Ensure CI person is `titular` on each invoice via `try_promote_ci_titular` (it links the different path name as `beneficiario` too).
 - Any outcome other than `promoted` (`workbook_titular`, `ci_conflict`) or a `multiple_ci` page is a **review item** — see Stop / escalate.
 - Set `parentesco` when known (e.g. hijo).
