@@ -24,6 +24,13 @@ _CREDITO_FISCAL = re.compile(r"\bCREDITO\s+FISCAL\b")
 _FORMA_LIBRE = re.compile(r"\bFORMA\s+LIBRE\b")
 # OCR glues "N° DE CONTROL" into one token. A bare CONTROL also appears on slips.
 _DECONTROL = re.compile(r"DECONTROL")
+# Insurer claim forms print "FACTURA N°" boxes and the provider RIF but are not
+# the fiscal sheet.
+_CLAIM_FORM = re.compile(
+    r"LARACION\s+DE\s+SINIESTRO|SOLICITUD\s+(?:DE\s+)?CARTA\s+AVAL|"
+    r"SOLICITUD\s+DE\s+REEMBOLSO|PLANILLA\s+DE\s+(?:SINIESTRO|REEMBOLSO|RECLAMO)|"
+    r"\bNO\.?\s*RECLAMO\b|NRO\s+PPTO\s*/\s*FACTURA"
+)
 
 
 def judge_page(text: str) -> tuple[str, str]:
@@ -52,6 +59,8 @@ def judge_page(text: str) -> tuple[str, str]:
     forma_libre = forma or original
     # A preliquidación cites the invoice number. It is not the fiscal sheet
     # unless it also carries the forma libre markers.
+    if _CLAIM_FORM.search(folded) and not (_CREDITO_FISCAL.search(folded) or _FORMA_LIBRE.search(folded)):
+        return "attachment", "claim_form"
     if _COMPROBANTE.search(folded) and not forma_libre:
         return "attachment", "comprobante"
     if _INFORME.search(folded) and not (control and forma_libre):

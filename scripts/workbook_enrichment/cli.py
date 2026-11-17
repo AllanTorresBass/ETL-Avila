@@ -12,7 +12,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
-from workbook_enrichment.db import connect, find_invoice_id  # noqa: E402
+import provenance  # noqa: E402
+from workbook_enrichment.db import connect, database_url, find_invoice_id  # noqa: E402
 from workbook_enrichment.discover import (  # noqa: E402
     BACKUP,
     discover,
@@ -38,6 +39,28 @@ def cmd_inventory(args: argparse.Namespace) -> None:
     print(f"Wrote {out}")
 
 
+def _process_row(cur, relative, sheet, row_number, row, dry_run: bool, stats: Counter) -> None:
+    people = resolve_people_from_row(cur, row, dry_run=dry_run)
+    for act in people["actions"]:
+        stats[act] += 1
+    invoice_id = find_invoice_id(cur, row.get("invoice_number"))
+    stats["invoice_matched" if invoice_id else "invoice_unmatched"] += 1
+    for act in apply_row_links(cur, invoice_id=invoice_id, people=people, row=row, dry_run=dry_run):
+        stats[f"link:{act}"] += 1
+    person_for_line = people.get("beneficiario_id") or people.get("titular_id")
+    act = upsert_authorization_line(
+        cur,
+        row=row,
+        source_file=relative,
+        sheet=sheet,
+        row_number=row_number,
+        invoice_id=invoice_id,
+        person_id=person_for_line,
+        dry_run=dry_run,
+    )
+    stats[f"line:{act}"] += 1
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     dry_run = not args.apply
     stats: Counter[str] = Counter()
@@ -52,6 +75,12 @@ def cmd_run(args: argparse.Namespace) -> None:
         paths = [BACKUP / args.path]
 
     conn = connect()
+    provenance.start_run(
+        database_url(),
+        "workbook_enrichment.run",
+        {k: v for k, v in vars(args).items() if k != "func"},
+        apply=not dry_run,
+    )
     try:
         with conn.cursor() as cur:
             for index, path in enumerate(paths, start=1):
@@ -62,36 +91,8 @@ def cmd_run(args: argparse.Namespace) -> None:
                     for sheet, row_number, row in iter_normalized_rows(path, relative):
                         stats["rows"] += 1
                         file_rows += 1
-                        people = resolve_people_from_row(cur, row, dry_run=dry_run)
-                        for act in people["actions"]:
-                            stats[act] += 1
-                        invoice_id = find_invoice_id(cur, row.get("invoice_number"))
-                        if invoice_id:
-                            stats["invoice_matched"] += 1
-                        else:
-                            stats["invoice_unmatched"] += 1
-                        for act in apply_row_links(
-                            cur,
-                            invoice_id=invoice_id,
-                            people=people,
-                            row=row,
-                            dry_run=dry_run,
-                        ):
-                            stats[f"link:{act}"] += 1
-                        person_for_line = people.get("beneficiario_id") or people.get(
-                            "titular_id"
-                        )
-                        act = upsert_authorization_line(
-                            cur,
-                            row=row,
-                            source_file=relative,
-                            sheet=sheet,
-                            row_number=row_number,
-                            invoice_id=invoice_id,
-                            person_id=person_for_line,
-                            dry_run=dry_run,
-                        )
-                        stats[f"line:{act}"] += 1
+                        with provenance.source("workbook", f"{relative}:{sheet}:{row_number}"):
+                            _process_row(cur, relative, sheet, row_number, row, dry_run, stats)
                 except Exception as exc:  # noqa: BLE001
                     stats["file_errors"] += 1
                     print(f"ERROR {relative}: {exc}", flush=True)
@@ -109,6 +110,7 @@ def cmd_run(args: argparse.Namespace) -> None:
                 conn.rollback()
     finally:
         conn.close()
+        provenance.finish_run(database_url(), dict(stats))
 
     report = {
         "mode": "apply" if args.apply else "dry-run",

@@ -93,10 +93,22 @@ avila/invoices/{invoice_number_or_range}/{source_file_sha}/{page_index:03d}-{doc
 
 ## 7. Neon schema
 
-- SQL: `sql/001_schema.sql`, `sql/002_seed_accounts.sql`
+- SQL, applied in order: `001_schema`, `002_seed_accounts`, `003_person_enrichment`, `004_carnet_document_type`, `005_identity_document_types`, `006_provenance_review`, `007_person_name_folded`, `008_invoice_fiscal_fields`
 - Schema name: `avila` (avoids colliding with auth `public.account` and other apps on the same Neon project)
-- Apply with `DATABASE_URL_UNPOOLED`
+- Apply with `DATABASE_URL_UNPOOLED`. `ALTER TABLE` waits for any open ETL transaction on the same table, so apply migrations between runs.
 - Check: `python3 scripts/load_neon_schema_check.py`
+
+### Provenance and review
+
+| Table | Holds |
+| --- | --- |
+| `etl_run` | One row per script run: script, args, git sha, `dry`/`apply`, start/finish, counters |
+| `field_provenance` | One row per changed field: entity + id, field, old/new **value hashes** (never values), source kind + ref, rule id, confidence, run |
+| `review_item` | Decisions the ETL will not make alone (`duplicate_candidate`, `ci_conflict`, `workbook_titular`, `multiple_ci`, `dob_conflict`, `auth_match`, `segment_review`, `acta_titular`), deduped by `dedupe_key`, `open` → `accepted`/`rejected` |
+
+`invoice_person.source` is a closed vocabulary (`workbook`, `path`, `ocr`, `ocr_cedula`, `fiscal_ocr`, `scan_packet`, `auth_match`, `resolver`, `review`, `case_evidence`, `manual`, `legacy_unknown`). `legacy_unknown` is the weakest source and any later evidence may replace it.
+
+Every apply script calls `provenance.start_run` / `finish_run` and writes a counts-only report to `output/runs/{run_id}.md` (git-ignored). Writes made inside `provenance.source(kind, ref)` inherit that source in `field_provenance`.
 
 ## 8. Blob conventions
 
@@ -133,9 +145,10 @@ App root: `web/`
 
 | Path | Purpose |
 | --- | --- |
-| `/` | Dashboard counts (deep-links into filtered lists, incl. `upload_status=failed`) |
+| `/` | Dashboard counts (deep-links into filtered lists, incl. `upload_status=failed`) plus link-quality KPIs: authorization lines with invoice, invoices with a CI titular, people with no invoice, open review items, scanner files loaded |
 | `/personas` | Person directory: `q`, `has_ci`, `has_phone`, `role`, `account` + pagination |
-| `/personas/[id]` | Relation hub: contacto, facturas, archivos fuente (via invoices), autorizaciones, docs identidad + expediente |
+| `/personas/[id]` | Relation hub: contacto, facturas, archivos fuente (via invoices), autorizaciones, docs identidad + expediente, **Historial** (`field_provenance`: source, rule, date, confidence) |
+| `/revision` | Review queue: pills by kind and status; Aceptar / Rechazar are Server Actions that close the item and write `review` provenance (accept merges duplicates, promotes the CI titular, or links the authorization line) |
 | `/facturas` | Invoice directory: `q`, `account`, `year`, `month`, `has_person` + pagination |
 | `/facturas/[id]` | Resumen + personas + autorizaciones + archivos + páginas (`?file=` filters pages) |
 | `/documentos` | `q`, `type`, `upload_status`, `account` + pagination |
@@ -188,6 +201,16 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 - Presupuesto files are not `factura_fiscal`.
 - Ilegible pages get `document_type = ilegible` and may have no image body (amber badge in reader).
 - Failed Blob uploads surface as “Fallido — reintentar carga”; preview falls back to an error state without exposing backup paths.
+- Claim forms (declaración de siniestro, solicitud de carta aval / reembolso, reclamo letters) print a “FACTURA N°” box; `judge_page` returns `attachment/claim_form` unless the page also has crédito fiscal / forma libre markers.
+- A patient report with an APS footer is `informe_medico`, not `orden_servicio`, unless it is titled as an order.
+- A cédula plus a BDV carnet on one untitled page is the ID collage (`documentos_identificacion`, evidence `collage_untitled`).
+- The `CARTA AVAL` scanner folder name is the last fallback, after every OCR rule.
+- Workbook `FECHA DE NACIMIENTO` belongs to the beneficiary only when it follows a beneficiary name/CI column; otherwise it is the titular's. The person row is fill-only for DOB; a different incoming DOB opens a `dob_conflict` review.
+- Scanner packets often have an unreadable invoice-number box but a readable control number; the loader resolves those through `invoice.control_number`. A control number that maps to zero or several invoices is skipped, not guessed.
+- Two people with different cédulas are never merged, by the resolver or the review queue.
+- Some scanner files named `.PDF` are JPEGs. The loader and `blob_put.mjs` sniff the leading bytes, so they upload as `image/jpeg`. Empty 235-byte PDFs have no page and stay `failed / no_image`.
+- Workbook authorization dates in 1899/1900 are blank cells; the matcher treats any date before 2000 as missing.
+- Authorization workbooks are mostly 2023–2025 while the invoice corpus is 2025–2026, and their claves do not overlap. Most lines therefore have no candidate invoice, which is expected, not a matcher failure.
 
 ## 13. Privacy
 
@@ -206,13 +229,33 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 5. Path/OCR gap fill via `upload_documents_to_blob.py` / `backfill_titulares.py`. Workbook titulars with CI/contact are not overwritten by weak path names. Use `--metadata-only` when refreshing links without re-rendering Blob pages. Role rule: a plastic ID / carnet CI on the packet is titular; a different FACT path name becomes `beneficiario` (not a second titular).
 6. Shared helpers live in `scripts/person_upsert.py`. Reader `/personas/[id]` shows contact fields and authorization lines.
 
+### Phase order for a full refresh
+
+Each script is dry-run first, then `--apply`. All of them record `etl_run`, provenance and review items.
+
+| Phase | Script | Output |
+| --- | --- | --- |
+| 1 Types | `reclassify_identity_pages.py --all --quiet` | Corrected `document_type`; acta demotions open `acta_titular` |
+| 1 DOB | `repair_workbook_birth_dates.py` | Clears or sets DOBs that were copied from the wrong workbook column |
+| 2 People | `identity_resolver.py` | Auto-merges only score ≥ 0.95 with equal DOB and no titular/beneficiario overlap; 0.75–0.95 → `duplicate_candidate` |
+| 3 Fiscal | `fiscal_extract.py --link-roles` | Fill-only control number, issue date, totals, clave; fiscal titular CI via `try_promote_ci_titular`; patient → beneficiario |
+| 3 Auth | `match_auth_lines.py` | Links `authorization_line.invoice_id` at score ≥ 0.70 with a 0.15 margin; 0.45+ → `auth_match` |
+| 4 Scanner OCR | `ocr_invoice_pages.py --scope scan [--folder …]` | Resumable OCR cache + `scan-pages.csv` |
+| 4 Segment | `segment_scan_packets.py --reviews` | `scan-packets.csv`; low-confidence packets → `segment_review` |
+| 4 Load | `upload_documents_to_blob.py --scan-packets [CSV] --shard i/n` | Packets ≥ `--min-confidence` load as `scan_packet`; then rerun phase 3 Auth |
+| 5 Review | Reader `/revision` | Staff decisions, recorded as `review` provenance |
+
+Scanner-lot discovery: scanner files are inventory rows with `rule_id = scan_outside_invoice`. The scanner writes one image per page, in capture order: fiscal sheet, then the claim form, then informe and other attachments. A fiscal page opens a packet, and the pages after it belong to that packet until the next different fiscal sheet.
+
+Scanner load: the loader is bound by Neon round trips, not CPU, so run 32–64 shards in parallel from one shell that ends with `wait` (shards started with a bare `&` die when the launching shell exits). Each packet commits on its own, so a shard can be stopped and rerun. A rare `UniqueViolation` from two shards touching the same invoice clears on retry: put that packet in its own CSV and rerun it.
+
 Baseline / cleanup notes: `output/invoices/person-enrichment-baseline.md`, `output/invoices/person-cleanup-report.md`.
 
-Worked example (titular CI vs path patient, document naming, reader links): [case-helber-aaron-matheus.md](./case-helber-aaron-matheus.md). Agent playbook: [`.cursor/skills/avila-etl-persons/`](../.cursor/skills/avila-etl-persons/SKILL.md).
+Worked example (titular CI vs path patient, document naming, reader links): [case-titular-beneficiario.md](./case-titular-beneficiario.md). Agent playbook: [`.cursor/skills/avila-etl-persons/`](../.cursor/skills/avila-etl-persons/SKILL.md).
 
 ## 15. Roadmap
 
-- Miranda scanner lots without FACT context.
+- Scanner packets whose fiscal sheet has neither a readable invoice number nor a control number (still orphaned).
 - Improve cintillo workbooks that are image-only (OCR sheet embeds).
 - Migrate remaining public Blob objects into the private store (re-upload with `BLOB_ACCESS=private`).
 - Tighten Clerk org / invite-only signup in production.

@@ -8,17 +8,21 @@ import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
 import { SectionNav } from "@/components/section-nav";
 import { IDENTITY_TYPE_LABELS, sql } from "@/lib/db";
+import { FIELD_LABELS, SOURCE_KIND_LABELS } from "@/lib/review";
 import {
   formatAccount,
   formatDate,
   formatInvoiceNumber,
   formatMoney,
+  formatSourceFileTitle,
+  formatSourcePages,
   roleLabel,
 } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 const AUTH_PAGE_SIZE = 20;
+const HISTORY_LIMIT = 50;
 
 export default async function PersonaDetailPage({
   params,
@@ -100,7 +104,8 @@ export default async function PersonaDetailPage({
 
   const sourceFilesPrimary = await db`
     SELECT DISTINCT ON (sf.id)
-           sf.id, sf.file_label, sf.extension, sf.pages, sf.invoice_id, i.invoice_number
+           sf.id, sf.file_label, sf.extension, sf.pages, sf.backup_path,
+           sf.invoice_id, i.invoice_number, sf.rule_id
     FROM avila.source_file sf
     JOIN avila.invoice i ON i.id = sf.invoice_id
     WHERE sf.invoice_id IN (
@@ -111,7 +116,8 @@ export default async function PersonaDetailPage({
 
   const sourceFilesFallback = await db`
     SELECT DISTINCT ON (sf.id)
-           sf.id, sf.file_label, sf.extension, sf.pages, sf.invoice_id, i.invoice_number
+           sf.id, sf.file_label, sf.extension, sf.pages, sf.backup_path,
+           sf.invoice_id, i.invoice_number, sf.rule_id
     FROM avila.document d
     JOIN avila.source_file sf ON sf.id = d.source_file_id
     LEFT JOIN avila.invoice i ON i.id = sf.invoice_id
@@ -134,7 +140,9 @@ export default async function PersonaDetailPage({
     const an = a.invoice_number || "";
     const bn = b.invoice_number || "";
     if (an !== bn) return an.localeCompare(bn);
-    return (a.file_label || "").localeCompare(b.file_label || "");
+    const ap = a.backup_path || a.file_label || "";
+    const bp = b.backup_path || b.file_label || "";
+    return ap.localeCompare(bp);
   });
 
   const lines = await db`
@@ -167,6 +175,17 @@ export default async function PersonaDetailPage({
     ORDER BY i.invoice_number, d.page_index, d.document_type
   `;
 
+  const history = await db`
+    SELECT fp.id, fp.entity, fp.field, fp.source_kind, fp.source_ref, fp.rule_id,
+           fp.confidence, fp.reason, fp.created_at, r.script
+    FROM avila.field_provenance fp
+    LEFT JOIN avila.etl_run r ON r.id = fp.run_id
+    WHERE (fp.entity = 'person' AND fp.entity_id = ${id})
+       OR (fp.entity = 'invoice_person' AND fp.entity_id = ANY(${invoices.map((i) => `${i.id}:${id}`)}))
+    ORDER BY fp.created_at DESC, fp.id DESC
+    LIMIT ${HISTORY_LIMIT}
+  `;
+
   const identityType =
     IDENTITY_TYPE_LABELS[person.identity_type] || person.identity_type;
   const identityLine = `${identityType}: ${person.identity_number || "—"}`;
@@ -178,7 +197,8 @@ export default async function PersonaDetailPage({
     sourceFiles.length +
     authTotal +
     identityDocs.length +
-    expedienteDocs.length;
+    expedienteDocs.length +
+    history.length;
 
   const expedienteByInvoice = new Map<
     string,
@@ -261,6 +281,7 @@ export default async function PersonaDetailPage({
             { id: "autorizaciones", label: "Autorizaciones", count: authTotal },
             { id: "identidad", label: "Identidad", count: identityDocs.length },
             { id: "expediente", label: "Expediente", count: expedienteDocs.length },
+            { id: "historial", label: "Historial", count: history.length },
           ]}
         />
       ) : null}
@@ -406,13 +427,16 @@ export default async function PersonaDetailPage({
                   ? `/facturas/${f.invoice_id}?file=${f.id}#paginas`
                   : undefined
               }
-              title={`${f.file_label}${f.extension ? ` ${f.extension}` : ""}`}
-              meta={
+              title={formatSourceFileTitle(f.backup_path, f.file_label, f.extension)}
+              meta={[
                 f.invoice_number
                   ? formatInvoiceNumber(f.invoice_number)
-                  : "Sin factura vinculada"
-              }
-              trailing={`${f.pages ?? "?"} pág`}
+                  : "Sin factura vinculada",
+                f.rule_id || null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              trailing={formatSourcePages(f.pages)}
             />
           ))}
         </div>
@@ -535,6 +559,45 @@ export default async function PersonaDetailPage({
             </div>
           ))}
         </div>
+      </RelationSection>
+
+      <RelationSection
+        id="historial"
+        title="Historial"
+        count={history.length}
+        emptyTitle="Sin historial"
+        emptyHint="Los cambios hechos por el ETL o por la revisión se registran aquí con su fuente y regla."
+      >
+        <ol className="space-y-2">
+          {history.map((h) => (
+            <li
+              key={h.id}
+              className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm"
+            >
+              <div className="flex flex-wrap justify-between gap-2">
+                <span className="font-medium text-[#0A2A6B]">
+                  {FIELD_LABELS[h.field] || h.field}
+                </span>
+                <span className="text-xs text-slate-500">{formatDate(h.created_at)}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                <span className="rounded-full bg-[#033CA0]/10 px-2 py-0.5 text-[#033CA0]">
+                  {SOURCE_KIND_LABELS[h.source_kind] || h.source_kind}
+                </span>
+                <span>Regla {h.rule_id}</span>
+                {h.confidence != null ? (
+                  <span>Confianza {Number(h.confidence).toFixed(2)}</span>
+                ) : null}
+                {h.script ? <span>{h.script}</span> : null}
+              </div>
+              {h.source_ref || h.reason ? (
+                <div className="mt-1 break-all text-xs text-slate-400">
+                  {[h.source_ref, h.reason].filter(Boolean).join(" · ")}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ol>
       </RelationSection>
     </div>
   );

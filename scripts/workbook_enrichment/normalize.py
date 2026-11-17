@@ -132,10 +132,16 @@ def parse_invoice_number(value: Any) -> str | None:
 
 
 def map_headers(headers: list[Any]) -> dict[int, str]:
-    """Map column index → canonical field. Duplicate CEDULA → beneficiario_ci on 2nd hit."""
+    """Map column index → canonical field.
+
+    Duplicate CEDULA → beneficiario_ci on 2nd hit. A FECHA DE NACIMIENTO column
+    belongs to whoever's columns precede it: after BENEFICIARIO / CI BENEFICIARIO
+    it is the beneficiary's (Miranda sábanas have only that one), otherwise the
+    titular's. ``birth_date`` therefore always means the titular's DOB.
+    """
     out: dict[int, str] = {}
     seen_ci_label = 0
-    seen_birth = 0
+    seen_beneficiario = False
     for idx, header in enumerate(headers):
         folded = fold_header(header)
         if not folded:
@@ -145,8 +151,9 @@ def map_headers(headers: list[Any]) -> dict[int, str]:
             seen_ci_label += 1
             field = "titular_ci" if seen_ci_label == 1 else "beneficiario_ci"
         elif folded == "FECHA DE NACIMIENTO":
-            seen_birth += 1
-            field = "birth_date" if seen_birth == 1 else "beneficiario_birth_date"
+            field = "beneficiario_birth_date" if seen_beneficiario else "birth_date"
+        if field in {"beneficiario_name", "beneficiario_ci"}:
+            seen_beneficiario = True
         if not field:
             continue
         if field in out.values() and field not in {
@@ -176,7 +183,6 @@ def row_dict(headers: list[Any], values: list[Any]) -> dict[str, Any]:
 
     birth = parse_date(raw.get("birth_date"))
     ben_birth = parse_date(raw.get("beneficiario_birth_date"))
-    # Prefer beneficiary DOB on person when roles differ; store titular DOB on titular person
 
     return {
         "titular_name": clean_name(raw.get("titular_name")),

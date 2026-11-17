@@ -6,7 +6,7 @@ User asks to fix a person, FACT packet, mislabeled cédula/acta/collage, or titu
 
 1. Read [SKILL.md](SKILL.md) and run phases 1–8.
 2. Use [reference.md](reference.md) for classify precedence, CLI, and SQL templates.
-3. For a full PHI walkthrough already completed in-repo, see [docs/case-helber-aaron-matheus.md](../../../docs/case-helber-aaron-matheus.md) — do not copy cédulas or Neon UUIDs into the skill or commit messages.
+3. For a completed walkthrough see the anonymized [docs/case-titular-beneficiario.md](../../../docs/case-titular-beneficiario.md); real values stay in the git-ignored `output/persons/{NAME}/case-notes.md`.
 
 ## Anonymized walkthrough (path patient ≠ plastic CI)
 
@@ -43,6 +43,10 @@ User asks to fix a person, FACT packet, mislabeled cédula/acta/collage, or titu
 ## Anti-patterns
 
 - Treating FACT path name as titular when a different CI appears on plastic ID pages.
+- Calling `promote_ci_person_as_titular` directly instead of `try_promote_ci_titular` (skips the workbook / CI-conflict guard).
+- Picking the first CI on a collage that mounts two cards.
+- Creating a person from a RIF found on an identity page.
+- Real names or cédulas in tests, docs, or commit messages.
 - Promoting parent/registrar CI from acta OCR to `invoice_person.titular`.
 - Writing BDV/clinic letterhead phones onto `avila.person.phone`.
 - Committing cédula/carnet PNG crops or full FACT PDFs from the dossier.

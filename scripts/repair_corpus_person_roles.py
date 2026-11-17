@@ -1,9 +1,11 @@
 """Corpus-wide titular/beneficiario repair from identity pages + FACT path.
 
-For each invoice that has cedula/carnet/collage/pasaporte pages (or a CI on
-those pages' OCR), promote the CI person as titular and demote a different
-path patient name to beneficiario. Skips swapping when the current titular is
-workbook-sourced with CI/phone/DOB and the page CI differs.
+For each invoice that has cedula/carnet/collage/pasaporte pages with exactly one
+personal CI, promote that CI person as titular and link a different path patient
+name as beneficiario. Uses the loader's shared guard (try_promote_ci_titular):
+workbook titulars with CI/phone/DOB and existing plastic-ID titulars with another
+CI are never swapped — those invoices, and packets with several CIs, are listed
+for human review instead.
 
 Dry-run by default; pass --apply to commit.
 """
@@ -19,13 +21,18 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from document_types import extract_identity_number, extract_titular_from_path
+from document_types import (
+    extract_all_cedulas,
+    extract_name_from_cedula_ocr,
+    extract_titular_from_path,
+)
 from env_load import load_env
 from ocr_invoice_pages import _read_cache
 from person_upsert import upsert_by_ci
 from upload_documents_to_blob import (
-    _link_path_name_as_beneficiario,
-    promote_ci_person_as_titular,
+    _titular_ci_for_invoice,
+    titular_promotion_blocker,
+    try_promote_ci_titular,
 )
 
 IDENTITY_TYPES = (
@@ -57,10 +64,12 @@ def main() -> int:
     stats = {
         "invoices": 0,
         "promoted": 0,
-        "beneficiario_linked": 0,
-        "skipped_workbook_conflict": 0,
         "skipped_no_ci": 0,
+        "review_workbook_titular": 0,
+        "review_ci_conflict": 0,
+        "review_multiple_ci": 0,
     }
+    review: list[tuple[str, str]] = []
 
     with psycopg.connect(url, row_factory=dict_row) as conn:
         with conn.cursor() as cur:
@@ -82,7 +91,9 @@ def main() -> int:
                 cur.execute(
                     """
                     SELECT d.page_index, d.document_type::text AS document_type,
-                           d.person_id, sf.backup_path, p.identity_number AS linked_ci
+                           d.person_id, sf.backup_path,
+                           CASE WHEN p.identity_type = 'cedula'
+                                THEN p.identity_number END AS linked_ci
                     FROM avila.document d
                     JOIN avila.source_file sf ON sf.id = d.source_file_id
                     LEFT JOIN avila.person p ON p.id = d.person_id
@@ -97,83 +108,78 @@ def main() -> int:
                 if not docs:
                     continue
 
-                ci_digits = None
+                cis: list[str] = []
+                ci_name = None
                 backup_path = docs[0]["backup_path"]
                 for doc in docs:
                     backup_path = doc["backup_path"] or backup_path
-                    if doc.get("linked_ci"):
-                        ci_digits = doc["linked_ci"]
-                        break
+                    if doc.get("linked_ci") and doc["linked_ci"] not in cis:
+                        cis.append(doc["linked_ci"])
                     cache = _read_cache(doc["backup_path"])
                     if not cache:
                         continue
                     text = _page_text(cache, int(doc["page_index"]))
-                    identity = extract_identity_number(text)
-                    if identity and identity[0] == "cedula":
-                        ci_digits = identity[1]
-                        break
+                    for ci in extract_all_cedulas(text):
+                        if ci not in cis:
+                            cis.append(ci)
+                    ci_name = ci_name or extract_name_from_cedula_ocr(text)
 
-                if not ci_digits:
+                if not cis:
                     stats["skipped_no_ci"] += 1
                     continue
+                ci_digits = cis[0]
+                if len(cis) > 1:
+                    # Collages often mount titular + patient cards together. The
+                    # current titular's CI among them is the clear insured; any
+                    # other mix has no clear insured → escalate (skill rule).
+                    current = _titular_ci_for_invoice(cur, str(inv["invoice_id"]))
+                    if current not in cis:
+                        stats["review_multiple_ci"] += 1
+                        review.append((inv["invoice_number"], "multiple_ci"))
+                        continue
+                    ci_digits = current
+                    ci_name = None  # OCR name may belong to the other card
+                path_name, path_ci = extract_titular_from_path(backup_path or "")
 
-                # Workbook conflict guard
-                cur.execute(
-                    """
-                    SELECT ip.source, p.id, p.identity_number, p.phone, p.birth_date
-                    FROM avila.invoice_person ip
-                    JOIN avila.person p ON p.id = ip.person_id
-                    WHERE ip.invoice_id = %s AND ip.role = 'titular'
-                    LIMIT 1
-                    """,
-                    (inv["invoice_id"],),
+                person_id, action = upsert_by_ci(
+                    cur,
+                    identity_number=ci_digits,
+                    full_name=ci_name,
+                    identity_type="cedula",
+                    dry_run=not args.apply,
                 )
-                existing = cur.fetchone()
-                if (
-                    existing
-                    and existing.get("source") == "workbook"
-                    and existing.get("identity_number")
-                    and existing["identity_number"] != ci_digits
-                    and (existing.get("phone") or existing.get("birth_date"))
-                ):
-                    stats["skipped_workbook_conflict"] += 1
+                if person_id is None:
+                    # Dry-run and the CI person does not exist yet.
+                    stats["promoted"] += 1
                     if not args.quiet:
-                        print(
-                            f"{inv['invoice_number']}: skip workbook conflict "
-                            f"{existing['identity_number']} vs page CI {ci_digits}"
-                        )
-                    continue
-
-                person_id, _ = upsert_by_ci(
-                    cur, identity_number=ci_digits, identity_type="cedula"
-                )
-                if not person_id:
-                    stats["skipped_no_ci"] += 1
+                        print(f"{inv['invoice_number']}: would create CI person + promote")
                     continue
 
                 if not args.apply:
-                    path_name, _ = extract_titular_from_path(backup_path or "")
-                    if not args.quiet:
-                        print(
-                            f"{inv['invoice_number']}: would promote CI {ci_digits}"
-                            + (f" + beneficiario {path_name!r}" if path_name else "")
-                        )
-                    stats["promoted"] += 1
-                    if path_name:
-                        stats["beneficiario_linked"] += 1
+                    reason = titular_promotion_blocker(
+                        cur, str(inv["invoice_id"]), str(person_id)
+                    )
+                    if reason:
+                        stats[f"review_{reason}"] += 1
+                        review.append((inv["invoice_number"], reason))
+                    else:
+                        stats["promoted"] += 1
+                        if not args.quiet:
+                            print(f"{inv['invoice_number']}: would promote ({action})")
                     continue
 
-                promote_ci_person_as_titular(
-                    cur, str(inv["invoice_id"]), str(person_id)
+                outcome = try_promote_ci_titular(
+                    cur,
+                    str(inv["invoice_id"]),
+                    str(person_id),
+                    path_name=path_name,
+                    path_ci=path_ci,
                 )
+                if outcome != "promoted":
+                    stats[f"review_{outcome}"] += 1
+                    review.append((inv["invoice_number"], outcome))
+                    continue
                 stats["promoted"] += 1
-                path_name, _ = extract_titular_from_path(backup_path or "")
-                if path_name:
-                    linked = _link_path_name_as_beneficiario(
-                        cur, str(inv["invoice_id"]), path_name, str(person_id)
-                    )
-                    if linked:
-                        stats["beneficiario_linked"] += 1
 
                 # Attach identity docs without person_id to the CI person
                 cur.execute(
@@ -194,6 +200,10 @@ def main() -> int:
         else:
             conn.rollback()
             print("dry-run", stats)
+    if review:
+        print(f"needs titular review ({len(review)}):")
+        for number, reason in review:
+            print(f"  FACT {number}: {reason}")
     return 0
 
 

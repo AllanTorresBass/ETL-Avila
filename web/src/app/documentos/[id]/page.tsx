@@ -9,7 +9,7 @@ import { RelationSection } from "@/components/relation-section";
 import { UploadStatusBadge } from "@/components/upload-status-badge";
 import { DocumentPreview } from "@/components/document-preview";
 import { DOCUMENT_TYPE_LABELS, ROLE_LABELS, sql } from "@/lib/db";
-import { formatInvoiceNumber } from "@/lib/format";
+import { formatInvoiceNumber, formatSourceFileTitle } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,8 @@ export default async function DocumentoDetailPage({
            d.invoice_id, d.person_id, d.source_file_id,
            i.invoice_number,
            p.identity_number, p.full_name,
-           sf.file_label, sf.extension, sf.pages AS source_pages, sf.rule_id
+           sf.file_label, sf.extension, sf.pages AS source_pages, sf.rule_id,
+           sf.backup_path
     FROM avila.document d
     LEFT JOIN avila.invoice i ON i.id = d.invoice_id
     LEFT JOIN avila.person p ON p.id = d.person_id
@@ -243,14 +244,12 @@ export default async function DocumentoDetailPage({
                     href={`/facturas/${doc.invoice_id}?file=${doc.source_file_id}#paginas`}
                     className="text-[#033CA0]"
                   >
-                    {doc.file_label}
-                    {doc.extension ? ` ${doc.extension}` : ""}
+                    {formatSourceFileTitle(doc.backup_path, doc.file_label, doc.extension)}
                     {doc.source_pages != null ? ` · ${doc.source_pages} pág` : ""}
                   </Link>
                 ) : (
                   <span>
-                    {doc.file_label}
-                    {doc.extension ? ` ${doc.extension}` : ""}
+                    {formatSourceFileTitle(doc.backup_path, doc.file_label, doc.extension)}
                   </span>
                 )
               ) : (

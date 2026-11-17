@@ -32,3 +32,22 @@ export function roleLabel(role: string | null | undefined): string {
   if (!role) return ROLE_LABELS.unknown;
   return ROLE_LABELS[role] || ROLE_LABELS.unknown;
 }
+
+/** Prefer the backup basename; fall back to label + extension (scan packets are all "invoice_packet"). */
+export function formatSourceFileTitle(
+  backupPath: string | null | undefined,
+  fileLabel: string | null | undefined,
+  extension: string | null | undefined,
+): string {
+  const base = backupPath?.split(/[/\\]/).pop()?.trim();
+  if (base) return base;
+  const label = (fileLabel || "archivo").trim();
+  const ext = (extension || "").trim();
+  if (!ext) return label;
+  if (label.toLowerCase().endsWith(ext.toLowerCase())) return label;
+  return `${label}${ext.startsWith(".") ? " " : " "}${ext}`.replace(/\s+/g, " ").trim();
+}
+
+export function formatSourcePages(pages: number | null | undefined): string {
+  return pages != null ? `${pages} pág` : "? pág";
+}

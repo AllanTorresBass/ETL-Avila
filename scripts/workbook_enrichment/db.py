@@ -12,12 +12,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from env_load import load_env  # noqa: E402
 
 
-def connect():
+def database_url() -> str:
     env = load_env()
     url = env.get("DATABASE_URL_UNPOOLED") or env.get("DATABASE_URL")
     if not url:
         raise SystemExit("DATABASE_URL_UNPOOLED missing from .env")
-    return psycopg.connect(url, row_factory=dict_row)
+    return url
+
+
+def connect():
+    return psycopg.connect(database_url(), row_factory=dict_row)
 
 
 def find_invoice_id(cur, invoice_number: str | None) -> str | None:

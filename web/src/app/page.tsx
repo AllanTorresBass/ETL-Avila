@@ -18,6 +18,19 @@ export default async function HomePage() {
       (SELECT count(*)::int FROM avila.document WHERE upload_status = 'uploaded') AS uploaded,
       (SELECT count(*)::int FROM avila.document WHERE upload_status = 'failed') AS failed
   `;
+  const [kpi] = await db`
+    SELECT
+      (SELECT count(*)::int FROM avila.authorization_line) AS auth_lines,
+      (SELECT count(*)::int FROM avila.authorization_line WHERE invoice_id IS NOT NULL) AS auth_linked,
+      (SELECT count(DISTINCT ip.invoice_id)::int
+         FROM avila.invoice_person ip JOIN avila.person p ON p.id = ip.person_id
+         WHERE ip.role = 'titular' AND p.identity_type = 'cedula') AS invoices_ci_titular,
+      (SELECT count(*)::int FROM avila.person p
+         WHERE NOT EXISTS (SELECT 1 FROM avila.invoice_person ip WHERE ip.person_id = p.id)) AS persons_no_invoice,
+      (SELECT count(*)::int FROM avila.review_item WHERE status = 'open') AS open_reviews,
+      (SELECT count(*)::int FROM avila.source_file WHERE rule_id = 'scan_packet') AS scan_files
+  `;
+  const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "—");
   const byType = await db`
     SELECT document_type::text AS document_type, count(*)::int AS n
     FROM avila.document
@@ -58,6 +71,14 @@ export default async function HomePage() {
           >
             Ver documentos
           </Link>
+          {kpi.open_reviews > 0 ? (
+            <Link
+              href="/revision"
+              className="rounded-full border border-white/40 bg-[#033CA0]/55 px-5 py-2.5 text-xs font-medium text-white backdrop-blur"
+            >
+              {kpi.open_reviews.toLocaleString("es-VE")} por revisar
+            </Link>
+          ) : null}
           {counts.failed > 0 ? (
             <Link
               href="/documentos?upload_status=failed"
@@ -85,6 +106,27 @@ export default async function HomePage() {
           <StatCard label="Fallidos" value={counts.failed} />
         </Link>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium text-[#0A2A6B]">Calidad del vínculo</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            label={`Autorizaciones con factura · ${pct(kpi.auth_linked, kpi.auth_lines)}`}
+            value={`${kpi.auth_linked.toLocaleString("es-VE")} / ${kpi.auth_lines.toLocaleString("es-VE")}`}
+          />
+          <StatCard
+            label={`Facturas con titular por CI · ${pct(kpi.invoices_ci_titular, counts.invoices)}`}
+            value={kpi.invoices_ci_titular}
+          />
+          <Link href="/personas">
+            <StatCard label="Personas sin factura" value={kpi.persons_no_invoice} />
+          </Link>
+          <Link href="/revision">
+            <StatCard label="Casos por revisar" value={kpi.open_reviews} />
+          </Link>
+          <StatCard label="Archivos de escáner cargados" value={kpi.scan_files} />
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="rounded-3xl border-slate-100 shadow-sm">

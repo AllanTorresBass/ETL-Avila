@@ -16,7 +16,7 @@ Playbook for repairing **people + identity pages + invoice roles** in the Ávila
 ## Read first
 
 1. [docs/avila-etl-architecture.md](../../../docs/avila-etl-architecture.md) — schema, document types, enrichment loop.
-2. [docs/case-helber-aaron-matheus.md](../../../docs/case-helber-aaron-matheus.md) — worked titular/beneficiario example (PHI; do not copy ids or cédulas into commits or skill notes).
+2. [docs/case-titular-beneficiario.md](../../../docs/case-titular-beneficiario.md) — anonymized worked titular/beneficiario example. Real names/ids for a case live only in the git-ignored dossier `output/persons/{NAME}/case-notes.md`.
 3. This folder: [reference.md](reference.md) (precedence, CLI, SQL) · [examples.md](examples.md) (anonymized walkthrough).
 
 ## Hard rules
@@ -25,9 +25,16 @@ Playbook for repairing **people + identity pages + invoice roles** in the Ávila
 - Plastic ID / carnet / ID-collage **CI** → **titular**. A different FACT **path patient name** → **beneficiario**.
 - Workbook titular with CI / phone / DOB is protected from weak path overwrites.
 - Never promote a CI that only appears **inside an acta de nacimiento** (parents/registrar) to titular.
+- A **RIF is never a person**: identity pages only yield a cédula/pasaporte (`extract_personal_identity`, `identity_page_ci`).
+- Every CI → titular change goes through **`try_promote_ci_titular`** (workbook + CI-conflict guard). Never call `promote_ci_person_as_titular` directly from new code.
 - Ignore insurer and clinic letterhead phones; only patient-labeled form / domicilio lines enrich `person.phone` / `person.address`.
-- Do not commit `Avila-backup/`, identity PNG/PDF crops, or dossier scans under `output/persons/`.
+- Do not commit `Avila-backup/`, `output/persons/`, `scripts/local_cases/`, `output/invoices/invoices.csv` / `invoice-pages.csv` (all git-ignored). No real names, cédulas, phones or Neon person ids in tracked files, tests or commit messages — use fakes (`JUAN PEREZ`, `11222333`).
 - Prefer `DATABASE_URL_UNPOOLED` for migrations and repair scripts.
+- **Provenance is required.** Every apply script calls `provenance.start_run` / `finish_run`, and every person, role, document-type or invoice field change goes through `provenance.record` (value hashes only) inside a `provenance.source(kind, ref)` block. `invoice_person.source` must be one of the closed vocabulary values; never write free text.
+- When a script is unsure, open a `review_item` (`provenance.open_review`) instead of guessing. Staff resolve it in the reader at `/revision`.
+- Person DOB is fill-only. A different DOB from another source opens `dob_conflict`; it never overwrites.
+- Merges go through `merge_person` (or the `/revision` Aceptar action). Two different cédulas are never merged.
+- An "auto-review rejected" `--apply` can still have run. Check `avila.etl_run` and `ps` before rerunning, so you don't apply twice.
 
 ## Mandatory workflow (run in order)
 
@@ -50,22 +57,26 @@ When the user names a person, CI, or FACT set — or when identity/role mislabel
 - Upsert plastic-ID person with `upsert_by_ci` ([scripts/person_upsert.py](../../../scripts/person_upsert.py)).
 - Upsert path patient / menor with `upsert_by_name` (`identity_type` unknown when no personal CI).
 - Merge same-name provisionals / junk rows via [scripts/cleanup_person_duplicates.py](../../../scripts/cleanup_person_duplicates.py) (`--apply` only after dry-run).
+- Spelling variants (Josues/Josuas, Gonzales/Gonzalez): run [scripts/identity_resolver.py](../../../scripts/identity_resolver.py) dry-run, inspect the counts, then `--apply`. Only equal-DOB high scores auto-merge; the rest become `duplicate_candidate` reviews.
 
 ### 4. Load
 
 - If packets are missing from Neon/Blob, load via [scripts/upload_documents_to_blob.py](../../../scripts/upload_documents_to_blob.py) (`BLOB_ACCESS=private`).
+- If the person's FACT only exists in a scanner lot (`rule_id = scan_outside_invoice`, mostly Seguros Miranda), OCR the folder with `ocr_invoice_pages.py --scope scan --folder …`, segment it with `segment_scan_packets.py --folder …`, then load with `upload_documents_to_blob.py --scan-packets`. See the scanner section in [reference.md](reference.md).
+- Fill fiscal fields and fiscal roles with `fiscal_extract.py --apply --link-roles`, then link authorization lines with `match_auth_lines.py` (dry-run first).
 - Optional card crops stay as their own `document` rows (`cedula_identidad` / `carnet`), not as a substitute for the collage page type.
 
 ### 5. Roles
 
-- Ensure CI person is `titular` on each invoice (`promote_ci_person_as_titular`).
-- Link different path name as `beneficiario` (`_link_path_name_as_beneficiario`); set `parentesco` when known (e.g. hijo).
+- Ensure CI person is `titular` on each invoice via `try_promote_ci_titular` (it links the different path name as `beneficiario` too).
+- Any outcome other than `promoted` (`workbook_titular`, `ci_conflict`) or a `multiple_ci` page is a **review item** — see Stop / escalate.
+- Set `parentesco` when known (e.g. hijo).
 - Confirm one titular per invoice after repair.
 
 ### 6. Types
 
-- Reclassify from OCR with [scripts/reclassify_identity_pages.py](../../../scripts/reclassify_identity_pages.py) (dry-run, then `--apply`, scoped `--invoices`).
-- Precedence: **acta → collage → carnet → plastic cédula → …** (see [reference.md](reference.md)).
+- Reclassify from OCR with [scripts/reclassify_identity_pages.py](../../../scripts/reclassify_identity_pages.py) (dry-run, then `--apply`; `--invoices` or `--all` is required). Pages that move from an ID type to `acta_nacimiento` demote a titular that only came from that page to `unknown`.
+- Precedence: **acta → collage → carnet → plastic cédula → comprobante/siniestro → pasaporte → …** (see [reference.md](reference.md)).
 - Ensure enums exist: `sql/004_carnet_document_type.sql`, `sql/005_identity_document_types.sql`.
 
 ### 7. Enrich
@@ -76,22 +87,25 @@ When the user names a person, CI, or FACT set — or when identity/role mislabel
 
 ### 8. Verify
 
-- SQL: role matrix per FACT; document types for identity pages; `person_id` on collage/acta/crops.
-- Reader: document Spanish labels; beneficiario profile shows titular banner; titular profile lists beneficiarios.
-- Tests: `PYTHONPATH=scripts .venv/bin/python -m unittest test_invoice_rules.DocumentTypeTests test_role_resolution`
+- SQL: role matrix per FACT; document types for identity pages; `person_id` on collage/acta/crops; open `review_item` rows for the person.
+- Reader: document Spanish labels; beneficiario profile shows titular banner; titular profile lists beneficiarios; **Historial** shows each change with its source and rule.
+- Run report: counters in `output/runs/{run_id}.md` (and `avila.etl_run.counters`) match what you expected.
+- Tests: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts .venv/bin/python -m unittest discover -s scripts -p 'test_*.py'` (includes `test_golden_packets`: titular + minor + acta, collage noise, claim form, spelling variant).
 - Summarize for the user: what changed, remaining gaps, and dossier path (PHI stays local).
 
 ## Stop / escalate
 
 Ask before continuing when:
 
-- Auth workbook rows have no FACT number (`authorization_line.invoice_id` cannot be auto-linked).
+- Auth workbook rows have no FACT number and `match_auth_lines.py` leaves them unlinked or as `auth_match` reviews.
 - User did not ask to model extra relatives named only on an acta.
 - Path CI conflicts with an existing **workbook** titular who has a different CI.
-- Multiple plastic CIs on one packet with no clear insured.
+- Multiple plastic CIs on one packet with no clear insured (scripts report `multiple_ci`; the current titular's CI among them counts as clear).
+- A script reports `workbook_titular` / `ci_conflict` / `titular came from an acta page`.
 
 ## Output expectations
 
 - Prefer repairing data + classification over one-off notes text.
-- Update or add a short case note under `output/persons/{NAME}/` when doing a full repair; keep scans untracked.
+- Update or add `output/persons/{NAME}/case-notes.md` when doing a full repair (ignored by git). Generalizable lessons go into the anonymized docs, never the real values.
+- Case-specific one-off scripts go in `scripts/local_cases/` (ignored), not `scripts/`.
 - Do not invent a personal CI for a menor; acta is identity proof.

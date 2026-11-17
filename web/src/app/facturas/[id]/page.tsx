@@ -13,6 +13,8 @@ import {
   formatDate,
   formatInvoiceNumber,
   formatMoney,
+  formatSourceFileTitle,
+  formatSourcePages,
   roleLabel,
 } from "@/lib/format";
 
@@ -66,9 +68,9 @@ export default async function FacturaDetailPage({
   `;
 
   const files = await db`
-    SELECT id, file_label, extension, pages, rule_id
+    SELECT id, file_label, extension, pages, rule_id, backup_path
     FROM avila.source_file WHERE invoice_id = ${id}::uuid
-    ORDER BY created_at
+    ORDER BY backup_path, created_at
   `;
 
   const docs = fileFilter
@@ -257,11 +259,11 @@ export default async function FacturaDetailPage({
             <EntityRow
               key={f.id}
               href={`/facturas/${id}?file=${f.id}#paginas`}
-              title={`${f.file_label}${f.extension ? ` ${f.extension}` : ""}`}
-              meta={[f.rule_id, fileFilter === f.id ? "Filtro activo" : null]
+              title={formatSourceFileTitle(f.backup_path, f.file_label, f.extension)}
+              meta={[f.rule_id || f.file_label, fileFilter === f.id ? "Filtro activo" : null]
                 .filter(Boolean)
                 .join(" · ")}
-              trailing={`${f.pages ?? "?"} pág`}
+              trailing={formatSourcePages(f.pages)}
             />
           ))}
         </div>
@@ -278,8 +280,12 @@ export default async function FacturaDetailPage({
         footer={
           activeFile ? (
             <p className="pt-2 text-xs text-slate-500">
-              Filtrado por archivo: {activeFile.file_label}
-              {activeFile.extension ? ` ${activeFile.extension}` : ""}
+              Filtrado por archivo:{" "}
+              {formatSourceFileTitle(
+                activeFile.backup_path,
+                activeFile.file_label,
+                activeFile.extension,
+              )}
             </p>
           ) : null
         }
