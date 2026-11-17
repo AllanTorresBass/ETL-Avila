@@ -105,9 +105,44 @@ Ask before continuing when:
 - Multiple plastic CIs on one packet with no clear insured (scripts report `multiple_ci`; the current titular's CI among them counts as clear).
 - A script reports `workbook_titular` / `ci_conflict` / `titular came from an acta page`.
 
+## Titular Completeness (one-by-one dossiers)
+
+Goal: for **each titular**, assemble the whole information set into `output/persons/{NAME}/` (git-ignored) and close safe Neon gaps — same depth as Anayrely, not just bulk role links.
+
+### Queue
+
+```bash
+PYTHONPATH=scripts .venv/bin/python scripts/titular_queue.py
+PYTHONPATH=scripts .venv/bin/python scripts/titular_queue.py --next P0
+```
+
+Cohorts: **P0** CI + beneficiario + missing DOB/phone → **P1** CI self-only missing contact → **P2** ID docs but empty CI → **P3** name-only. Progress (counts only) in `output/persons/_queue/progress.md`; full queue PHI in `queue.jsonl`.
+
+### Export
+
+```bash
+PYTHONPATH=scripts .venv/bin/python scripts/export_person_dossier.py --ci 19610384
+# or --person-id UUID | --name "…"
+# optional: --copy-pages  --workbook
+```
+
+Writes README + completeness score, Neon CSVs, `page-analysis.json`, `page-manifest.csv`, `load-paths.txt`, `case-notes.md`. Pure export is read-only on Neon.
+
+### Serial loop (one titular fully before the next)
+
+1. `titular_queue.py --next P0` → pick person.
+2. `export_person_dossier.py` baseline.
+3. Gap-detect from score / README Gaps.
+4. Repair only what is missing (phases 3–8 above).
+5. Re-export; mark queue status via re-running `titular_queue.py` (`done` when score ≥ 80 and no blocking reviews).
+6. `local_cases/` only when parameterized repair cannot express the edge.
+
+Do not parallelize PHI-heavy crop/vision without a human gate. Blockers (`ci_conflict`, `multiple_ci`, `dob_conflict`, `workbook_titular`) stop automation for that person until `/revision` accept.
+
 ## Output expectations
 
 - Prefer repairing data + classification over one-off notes text.
 - Update or add `output/persons/{NAME}/case-notes.md` when doing a full repair (ignored by git). Generalizable lessons go into the anonymized docs, never the real values.
 - Case-specific one-off scripts go in `scripts/local_cases/` (ignored), not `scripts/`.
 - Do not invent a personal CI for a menor; acta is identity proof.
+- Prefer `export_person_dossier.py` over ad-hoc chat dumps for Neon CSVs / page-analysis.
