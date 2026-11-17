@@ -12,6 +12,8 @@ through ``try_promote_ci_titular`` with source ``fiscal_ocr``.
 
   PYTHONPATH=scripts .venv/bin/python scripts/fiscal_extract.py              # dry-run
   PYTHONPATH=scripts .venv/bin/python scripts/fiscal_extract.py --apply [--link-roles]
+  PYTHONPATH=scripts .venv/bin/python scripts/fiscal_extract.py --apply --link-roles --missing-titular
+  PYTHONPATH=scripts .venv/bin/python scripts/fiscal_extract.py --apply --link-roles --roles-only
 """
 
 from __future__ import annotations
@@ -41,8 +43,15 @@ _ISSUE_DATE = re.compile(rf"FECHA\s+DE\s+EMISI[O0]N\W{{0,4}}{_DATE}")
 _ANY_DATE = re.compile(rf"\bFECHA\b\W{{0,4}}{_DATE}")
 _NAME = r"([A-Z][A-Z .'\-]{2,60}?)"
 _CI = r"(?:(?:[VE]\s*-?\s*)|(?:C\.?\s*I\.?\W{0,3}[VE]?\s*-?\s*))(\d{1,2}\.?\d{3}\.?\d{3}|\d{6,9})\b"
-_TITULAR = re.compile(rf"TITULAR\s*:?\s*{_NAME}\s*(?:{_CI})?\s*$", re.M)
-_PACIENTE = re.compile(rf"PACIENTE\s*:?\s*{_NAME}\s*(?:{_CI})?\s*$", re.M)
+# Name runs until CI digits or a known next label / end of line (OCR often glues fields).
+_TITULAR = re.compile(
+    rf"TITULAR\s*:?\s*{_NAME}\s*(?:{_CI})?(?=\s*$|\s*(?:PACIENTE|TOMADOR|CLAVE|ORDEN|FACTUR)|\n)",
+    re.M,
+)
+_PACIENTE = re.compile(
+    rf"PACIENTE\s*:?\s*{_NAME}\s*(?:{_CI})?(?=\s*$|\s*(?:TOMADOR|CLAVE|ORDEN|FACTUR|MOTIVO)|\n)",
+    re.M,
+)
 _CLAVE = re.compile(
     r"\b(?:ORDEN|CLAVE(?:\s+RMS)?|N\W?\s*AUTORIZACI[O0]N|AUTORIZACI[O0]N)\s*(?:N\W{0,2})?\s*:?\s*([A-Z0-9][A-Z0-9\-]{3,20})"
 )
@@ -186,14 +195,23 @@ def service_lines(folded: str) -> list[str]:
 # --- CLI -------------------------------------------------------------------
 
 
-def _fiscal_pages(cur) -> dict[str, list[dict]]:
-    cur.execute(
+def _fiscal_pages(cur, *, missing_titular: bool = False) -> dict[str, list[dict]]:
+    missing_sql = ""
+    if missing_titular:
+        missing_sql = """
+          AND NOT EXISTS (
+            SELECT 1 FROM avila.invoice_person tip
+            WHERE tip.invoice_id = i.id AND tip.role = 'titular'
+          )
         """
+    cur.execute(
+        f"""
         SELECT d.invoice_id::text AS invoice_id, i.invoice_number, d.page_index, sf.backup_path
         FROM avila.document d
         JOIN avila.invoice i ON i.id = d.invoice_id
         JOIN avila.source_file sf ON sf.id = d.source_file_id
         WHERE d.document_type = 'factura_fiscal' AND d.page_index < 900
+        {missing_sql}
         ORDER BY d.invoice_id, sf.backup_path, d.page_index
         """
     )
@@ -264,15 +282,46 @@ def write_invoice_fields(
 
 def link_fiscal_roles(cur, invoice_id: str, fields: FiscalFields, stats: Counter) -> None:
     from person_upsert import upsert_by_ci, upsert_by_name
-    from upload_documents_to_blob import link_invoice_person, try_promote_ci_titular
+    from upload_documents_to_blob import (
+        _names_refer_to_same_person,
+        link_invoice_person,
+        try_promote_ci_titular,
+    )
 
     titular_id = None
     if fields.titular_ci:
         titular_id, _ = upsert_by_ci(cur, identity_number=fields.titular_ci, full_name=fields.titular_name)
         outcome = try_promote_ci_titular(cur, invoice_id, titular_id, source="fiscal_ocr")
         stats[f"titular:{outcome}"] += 1
+    elif fields.titular_name:
+        # OCR often drops the CI digits; still attach a name-only titular when none exists.
+        cur.execute(
+            """
+            SELECT 1 FROM avila.invoice_person
+            WHERE invoice_id = %s::uuid AND role = 'titular' LIMIT 1
+            """,
+            (invoice_id,),
+        )
+        if cur.fetchone():
+            stats["titular:already_present"] += 1
+        else:
+            titular_id, _ = upsert_by_name(cur, full_name=fields.titular_name)
+            if titular_id:
+                link_invoice_person(
+                    cur,
+                    invoice_id,
+                    titular_id,
+                    "titular",
+                    source="fiscal_ocr",
+                    rule_id="fiscal_titular_name",
+                )
+                stats["titular:name_only"] += 1
     patient_is_titular = bool(
         fields.patient_ci and fields.patient_ci == fields.titular_ci
+    ) or bool(
+        fields.patient_name
+        and fields.titular_name
+        and _names_refer_to_same_person(fields.patient_name, fields.titular_name)
     ) or bool(fields.patient_name and fields.patient_name == fields.titular_name)
     if patient_is_titular or not fields.patient_name:
         return
@@ -313,9 +362,37 @@ def _extract_invoice(cur, invoice_id: str, rows: list[dict], before, args, stats
             stats[f"has:{name}"] += 1
     out.write(json.dumps({"invoice_id": invoice_id, **asdict(fields)}, default=str, ensure_ascii=False) + "\n")
     with provenance.source("ocr", f"{rows[0]['backup_path']}#{rows[0]['page_index']}"):
-        write_invoice_fields(cur, invoice_id, fields, stats, before)
+        if not getattr(args, "roles_only", False):
+            write_invoice_fields(cur, invoice_id, fields, stats, before)
         if args.link_roles:
             link_fiscal_roles(cur, invoice_id, fields, stats)
+            # Path stem as last-resort titular when fiscal OCR has no name/CI.
+            cur.execute(
+                """
+                SELECT 1 FROM avila.invoice_person
+                WHERE invoice_id = %s::uuid AND role = 'titular' LIMIT 1
+                """,
+                (invoice_id,),
+            )
+            if not cur.fetchone():
+                from document_types import extract_titular_from_path
+                from person_upsert import upsert_by_ci, upsert_by_name
+                from upload_documents_to_blob import link_invoice_person, try_promote_ci_titular
+
+                path_name, path_ci = extract_titular_from_path(rows[0]["backup_path"] or "")
+                if path_ci:
+                    pid, _ = upsert_by_ci(cur, identity_number=path_ci, full_name=path_name)
+                    outcome = try_promote_ci_titular(
+                        cur, invoice_id, pid, path_name=path_name, path_ci=path_ci, source="path"
+                    )
+                    stats[f"path_titular:{outcome}"] += 1
+                elif path_name:
+                    pid, _ = upsert_by_name(cur, full_name=path_name)
+                    if pid:
+                        link_invoice_person(
+                            cur, invoice_id, pid, "titular", source="path", rule_id="path_titular_fallback"
+                        )
+                        stats["path_titular:name"] += 1
 
 
 def main() -> int:
@@ -328,8 +405,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--link-roles", action="store_true")
+    parser.add_argument(
+        "--missing-titular",
+        action="store_true",
+        help="Only invoices that still lack a titular role",
+    )
+    parser.add_argument(
+        "--roles-only",
+        action="store_true",
+        help="Re-read OCR for roles; do not rewrite invoice fiscal columns",
+    )
     parser.add_argument("--limit", type=int, default=0)
     args = parser.parse_args()
+    if args.roles_only and not args.link_roles:
+        parser.error("--roles-only requires --link-roles")
     env = load_env()
     url = env.get("DATABASE_URL_UNPOOLED") or env["DATABASE_URL"]
     provenance.start_run(url, "fiscal_extract", vars(args), apply=args.apply)
@@ -338,18 +427,26 @@ def main() -> int:
     with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur, EXTRACT_JSONL.open(
         "w", encoding="utf-8"
     ) as out:
-        pages = _fiscal_pages(cur)
+        pages = _fiscal_pages(cur, missing_titular=args.missing_titular)
         current = _invoice_fields(cur)
         items = list(pages.items())[: args.limit or None]
-        with conn.pipeline():
-            for invoice_id, rows in items:
-                _extract_invoice(cur, invoice_id, rows, current.get(invoice_id), args, stats, out)
+        # Avoid conn.pipeline() for long role runs — Neon can hang flushing a huge batch.
+        for invoice_id, rows in items:
+            _extract_invoice(cur, invoice_id, rows, current.get(invoice_id), args, stats, out)
+            if args.apply and stats["invoices"] % 50 == 0:
+                conn.commit()
+                print(
+                    f"fiscal progress invoices={stats['invoices']}/{len(items)} "
+                    f"path_promoted={stats.get('path_titular:promoted', 0)} "
+                    f"path_name={stats.get('path_titular:name', 0)}",
+                    flush=True,
+                )
         if args.apply:
             conn.commit()
         else:
             conn.rollback()
     provenance.finish_run(url, dict(stats))
-    print("apply" if args.apply else "dry-run", dict(sorted(stats.items())))
+    print("apply" if args.apply else "dry-run", dict(sorted(stats.items())), flush=True)
     return 0
 
 

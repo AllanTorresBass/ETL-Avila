@@ -63,14 +63,16 @@ Use project `.venv` and `PYTHONPATH=scripts`. Prefer unpooled DB URL from `env_l
 | `person_upsert.py` | CI / name upsert + absorb | imported by loader / repairs |
 | `upload_documents_to_blob.py` | Load pages → Neon + Blob | follow script `--help`; private Blob |
 | `reclassify_identity_pages.py` | OCR-cache reclassify + role relink | `… --all --suspect-only --quiet [--apply]` or `--invoices a,b,c` (one is required) |
-| `repair_corpus_person_roles.py` | Corpus CI titular + path beneficiario | `… --quiet` (read-only dry-run) then `--apply`; prints `needs titular review` |
+| `repair_corpus_person_roles.py` | Corpus CI titular + path beneficiario | `… --quiet` then `--apply`; opens `multiple_ci` reviews |
+| `role_inventory.py` | Counts-only role gap report → `output/runs/` | no flags |
+| `role_linkage.py` | Beneficiario harvest / pair propagate / workbook relink | `beneficiario\|propagate\|workbook\|all [--apply]` |
 | `cleanup_person_duplicates.py` | Junk + provisional merge | dry-run then `--apply` |
 | `scripts/local_cases/*` | **Case-specific** one-off repairs (git-ignored, PHI) | pattern only; prefer generic phases for new people |
 | `workbook_enrichment` | Register workbooks first | `python -m workbook_enrichment …` |
 | `backfill_titulares.py` | Path/OCR titular gap fill | after workbook load; only replaces `legacy_unknown` sources |
 | `repair_workbook_birth_dates.py` | Undo DOBs from the wrong workbook column | dry-run then `--apply` |
 | `identity_resolver.py` | Fuzzy duplicates → merge or `duplicate_candidate` | dry-run then `--apply` |
-| `fiscal_extract.py` | Control no., date, totals, clave, fiscal titular/patient | `--apply --link-roles` (needs `sql/008`) |
+| `fiscal_extract.py` | Control no., date, totals, clave, fiscal titular/patient | `--apply --link-roles`; `--missing-titular` / `--roles-only` for role backfill |
 | `match_auth_lines.py` | Score auth lines against invoices | dry-run then `--apply` (`--relink` to rescore linked lines) |
 | `ocr_invoice_pages.py` | OCR cache; `--scope scan` for scanner lots | `--scope scan --folder "SCANER SEGURO MIRANDA" [--workers N]` (resumable) |
 | `segment_scan_packets.py` | Group scanner pages into packets | `--folder …` then `--reviews` to open `segment_review` |
@@ -78,7 +80,7 @@ Use project `.venv` and `PYTHONPATH=scripts`. Prefer unpooled DB URL from `env_l
 
 ## Phase order and provenance
 
-Run order for a corpus refresh: reclassify → DOB repair → resolver → fiscal extract → auth matcher → scanner OCR → segment → scanner load → auth matcher again → `/revision`. Each step does a dry-run then `--apply`, and each writes an `etl_run` row plus a counts-only report at `output/runs/{run_id}.md`.
+Run order for a corpus refresh: reclassify → DOB repair → resolver → fiscal extract → auth matcher → scanner OCR → segment → scanner load → auth matcher again → **role inventory → fiscal `--missing-titular --roles-only --link-roles` → `role_linkage.py all` → `repair_corpus_person_roles.py`** → `/revision`. Each step does a dry-run then `--apply`, and each writes an `etl_run` row plus a counts-only report at `output/runs/{run_id}.md`.
 
 Provenance pattern for new code:
 

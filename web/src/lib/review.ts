@@ -27,7 +27,7 @@ export const ACCEPT_EFFECT: Record<string, string> = {
   duplicate_candidate: "Aceptar fusiona la segunda persona en la primera.",
   ci_conflict: "Aceptar hace titular a la persona de la cédula y deja al anterior como beneficiario.",
   workbook_titular: "Aceptar hace titular a la persona de la cédula y deja al anterior como beneficiario.",
-  auth_match: "Aceptar vincula la línea de autorización con la factura propuesta.",
+  auth_match: "Aceptar vincula la autorización con la factura y, si falta, enlaza a la persona como beneficiario.",
   multiple_ci: "Aceptar marca la página como revisada; el titular no cambia.",
   acta_titular: "Aceptar confirma que el titular del acta no era el asegurado.",
   dob_conflict: "Aceptar confirma la fecha guardada; la otra fuente se ignora.",

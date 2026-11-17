@@ -26,6 +26,7 @@ from document_types import (
     extract_name_from_cedula_ocr,
     extract_titular_from_path,
 )
+import provenance
 from env_load import load_env
 from ocr_invoice_pages import _read_cache
 from person_upsert import upsert_by_ci
@@ -61,6 +62,7 @@ def main() -> int:
 
     env = load_env()
     url = env.get("DATABASE_URL_UNPOOLED") or env["DATABASE_URL"]
+    provenance.start_run(url, "repair_corpus_person_roles", vars(args), apply=args.apply)
     stats = {
         "invoices": 0,
         "promoted": 0,
@@ -136,63 +138,73 @@ def main() -> int:
                     if current not in cis:
                         stats["review_multiple_ci"] += 1
                         review.append((inv["invoice_number"], "multiple_ci"))
+                        if args.apply:
+                            provenance.open_review(
+                                cur,
+                                kind="multiple_ci",
+                                dedupe_key=f"multiple_ci:{inv['invoice_id']}:repair",
+                                invoice_id=str(inv["invoice_id"]),
+                                evidence={"cis": len(cis), "rule": "repair_corpus"},
+                                score=1.0,
+                            )
                         continue
                     ci_digits = current
                     ci_name = None  # OCR name may belong to the other card
                 path_name, path_ci = extract_titular_from_path(backup_path or "")
 
-                person_id, action = upsert_by_ci(
-                    cur,
-                    identity_number=ci_digits,
-                    full_name=ci_name,
-                    identity_type="cedula",
-                    dry_run=not args.apply,
-                )
-                if person_id is None:
-                    # Dry-run and the CI person does not exist yet.
-                    stats["promoted"] += 1
-                    if not args.quiet:
-                        print(f"{inv['invoice_number']}: would create CI person + promote")
-                    continue
-
-                if not args.apply:
-                    reason = titular_promotion_blocker(
-                        cur, str(inv["invoice_id"]), str(person_id)
+                with provenance.source("ocr", backup_path or f"invoice:{inv['invoice_number']}"):
+                    person_id, action = upsert_by_ci(
+                        cur,
+                        identity_number=ci_digits,
+                        full_name=ci_name,
+                        identity_type="cedula",
+                        dry_run=not args.apply,
                     )
-                    if reason:
-                        stats[f"review_{reason}"] += 1
-                        review.append((inv["invoice_number"], reason))
-                    else:
+                    if person_id is None:
+                        # Dry-run and the CI person does not exist yet.
                         stats["promoted"] += 1
                         if not args.quiet:
-                            print(f"{inv['invoice_number']}: would promote ({action})")
-                    continue
+                            print(f"{inv['invoice_number']}: would create CI person + promote")
+                        continue
 
-                outcome = try_promote_ci_titular(
-                    cur,
-                    str(inv["invoice_id"]),
-                    str(person_id),
-                    path_name=path_name,
-                    path_ci=path_ci,
-                )
-                if outcome != "promoted":
-                    stats[f"review_{outcome}"] += 1
-                    review.append((inv["invoice_number"], outcome))
-                    continue
-                stats["promoted"] += 1
+                    if not args.apply:
+                        reason = titular_promotion_blocker(
+                            cur, str(inv["invoice_id"]), str(person_id)
+                        )
+                        if reason:
+                            stats[f"review_{reason}"] += 1
+                            review.append((inv["invoice_number"], reason))
+                        else:
+                            stats["promoted"] += 1
+                            if not args.quiet:
+                                print(f"{inv['invoice_number']}: would promote ({action})")
+                        continue
 
-                # Attach identity docs without person_id to the CI person
-                cur.execute(
-                    """
-                    UPDATE avila.document
-                    SET person_id = %s::uuid, updated_at = now()
-                    WHERE invoice_id = %s
-                      AND document_type::text = ANY(%s)
-                      AND person_id IS NULL
-                      AND page_index < 900
-                    """,
-                    (person_id, inv["invoice_id"], list(IDENTITY_TYPES)),
-                )
+                    outcome = try_promote_ci_titular(
+                        cur,
+                        str(inv["invoice_id"]),
+                        str(person_id),
+                        path_name=path_name,
+                        path_ci=path_ci,
+                    )
+                    if outcome != "promoted":
+                        stats[f"review_{outcome}"] += 1
+                        review.append((inv["invoice_number"], outcome))
+                        continue
+                    stats["promoted"] += 1
+
+                    # Attach identity docs without person_id to the CI person
+                    cur.execute(
+                        """
+                        UPDATE avila.document
+                        SET person_id = %s::uuid, updated_at = now()
+                        WHERE invoice_id = %s
+                          AND document_type::text = ANY(%s)
+                          AND person_id IS NULL
+                          AND page_index < 900
+                        """,
+                        (person_id, inv["invoice_id"], list(IDENTITY_TYPES)),
+                    )
 
         if args.apply:
             conn.commit()
@@ -204,6 +216,7 @@ def main() -> int:
         print(f"needs titular review ({len(review)}):")
         for number, reason in review:
             print(f"  FACT {number}: {reason}")
+    provenance.finish_run(url, stats)
     return 0
 
 

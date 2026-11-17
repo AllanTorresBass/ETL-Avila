@@ -167,6 +167,7 @@ export async function resolveReview(formData: FormData): Promise<void> {
     ) {
       effects.push(...promoteQueries(db, item.invoice_id, item.person_id, reviewer, id));
     } else if (item.kind === "auth_match" && item.authorization_line_id && item.invoice_id) {
+      const personId = item.person_id;
       effects.push(
         db`
           UPDATE avila.authorization_line SET invoice_id = ${item.invoice_id}::uuid, updated_at = now()
@@ -177,6 +178,29 @@ export async function resolveReview(formData: FormData): Promise<void> {
           "review_auth_match", reviewer, id,
         ),
       );
+      // Mirror auto-link: attach the auth person as beneficiario when missing.
+      if (personId) {
+        effects.push(
+          db`
+            INSERT INTO avila.invoice_person (invoice_id, person_id, role, source)
+            VALUES (${item.invoice_id}::uuid, ${personId}::uuid, 'beneficiario', 'auth_match')
+            ON CONFLICT (invoice_id, person_id) DO UPDATE SET
+              role = CASE
+                WHEN avila.invoice_person.role = 'titular' THEN avila.invoice_person.role
+                WHEN avila.invoice_person.role = 'unknown' THEN 'beneficiario'
+                ELSE avila.invoice_person.role
+              END,
+              source = CASE
+                WHEN avila.invoice_person.source = 'legacy_unknown' THEN 'auth_match'
+                ELSE avila.invoice_person.source
+              END
+          `,
+          prov(
+            db, "invoice_person", `${item.invoice_id}:${personId}`, "role", "beneficiario",
+            "review_auth_match_beneficiario", reviewer, id,
+          ),
+        );
+      }
     }
   }
   await db.transaction([close, ...effects]);
