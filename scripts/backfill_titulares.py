@@ -85,7 +85,7 @@ def main() -> None:
                 cur.execute(
                     """
                     UPDATE avila.invoice_person
-                    SET source = coalesce(source, %s)
+                    SET source = CASE WHEN source = 'legacy_unknown' THEN %s ELSE source END
                     WHERE invoice_id = %s AND role = 'titular'
                     """,
                     ("path" if not ocr_text else "ocr", invoice_id),

@@ -32,3 +32,15 @@ output/invoices/*.pid
 web/.clerk/
 web/.DS_Store
 **/.DS_Store
+# Person dossiers, case-specific repairs and corpus inventories (PHI: names, CIs, scans)
+output/persons/
+scripts/local_cases/
+output/invoices/invoices.csv
+output/invoices/invoice-pages.csv
+output/invoices/pilot-paths.txt
+output/invoices/*.json
+output/invoices/*.jsonl
+output/invoices/scan-*.csv
+output/invoices/scan-*.txt
+# ETL run reports (counts only, but per-machine)
+output/runs/

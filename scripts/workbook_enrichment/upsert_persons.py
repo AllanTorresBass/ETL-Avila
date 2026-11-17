@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from person_upsert import upsert_by_ci, upsert_by_name  # noqa: E402
+from person_upsert import fold_person_name, upsert_by_ci, upsert_by_name  # noqa: E402
 
 
 def upsert_person_by_ci(
@@ -52,6 +52,34 @@ def upsert_person_by_name(
     )
 
 
+def _is_titular_label(parentesco: str | None) -> bool:
+    return bool(parentesco) and fold_person_name(parentesco) in {"titular", "el titular", "mismo"}
+
+
+def row_is_titular_self(row: dict[str, Any]) -> bool:
+    """The beneficiary on this row is the titular (same CI, same name, or PARENTESCO TITULAR)."""
+    if row.get("titular_ci") and row.get("beneficiario_ci"):
+        return row["titular_ci"] == row["beneficiario_ci"]
+    names_match = bool(
+        row.get("titular_name")
+        and row.get("beneficiario_name")
+        and fold_person_name(row["titular_name"]) == fold_person_name(row["beneficiario_name"])
+    )
+    if names_match and not row.get("beneficiario_ci"):
+        return True
+    no_other = not row.get("beneficiario_name") and not row.get("beneficiario_ci")
+    return _is_titular_label(row.get("parentesco")) and (names_match or no_other)
+
+
+def titular_birth_date(row: dict[str, Any], *, same_person: bool):
+    """DOB to write on the titular: its own column, else the beneficiary column when that is the titular."""
+    if row.get("birth_date"):
+        return row["birth_date"]
+    if same_person:
+        return row.get("beneficiario_birth_date")
+    return None
+
+
 def resolve_people_from_row(
     cur,
     row: dict[str, Any],
@@ -65,13 +93,15 @@ def resolve_people_from_row(
 
     phone = row.get("phone")
     address = row.get("address")
+    same_person = row_is_titular_self(row)
+    titular_birth = titular_birth_date(row, same_person=same_person)
 
     if row.get("titular_ci"):
         titular_id, act = upsert_person_by_ci(
             cur,
             identity_number=row["titular_ci"],
             full_name=row.get("titular_name"),
-            birth_date=row.get("birth_date"),
+            birth_date=titular_birth,
             phone=phone if not row.get("beneficiario_ci") else None,
             address=address if not row.get("beneficiario_ci") else None,
             dry_run=dry_run,
@@ -81,24 +111,13 @@ def resolve_people_from_row(
         titular_id, act = upsert_person_by_name(
             cur,
             full_name=row["titular_name"],
-            birth_date=row.get("birth_date"),
+            birth_date=titular_birth,
             phone=phone if not row.get("beneficiario_name") else None,
             address=address if not row.get("beneficiario_name") else None,
             invoice_number=row.get("invoice_number"),
             dry_run=dry_run,
         )
         actions.append(f"titular:{act}")
-
-    same_person = (
-        row.get("titular_ci")
-        and row.get("beneficiario_ci")
-        and row["titular_ci"] == row["beneficiario_ci"]
-    ) or (
-        row.get("titular_name")
-        and row.get("beneficiario_name")
-        and row["titular_name"].casefold() == row["beneficiario_name"].casefold()
-        and not row.get("beneficiario_ci")
-    )
 
     if same_person:
         beneficiario_id = titular_id
@@ -108,7 +127,7 @@ def resolve_people_from_row(
             cur,
             identity_number=row["beneficiario_ci"],
             full_name=row.get("beneficiario_name"),
-            birth_date=row.get("beneficiario_birth_date") or row.get("birth_date"),
+            birth_date=row.get("beneficiario_birth_date"),
             phone=phone,
             address=address,
             dry_run=dry_run,
@@ -118,7 +137,7 @@ def resolve_people_from_row(
         beneficiario_id, act = upsert_person_by_name(
             cur,
             full_name=row["beneficiario_name"],
-            birth_date=row.get("beneficiario_birth_date") or row.get("birth_date"),
+            birth_date=row.get("beneficiario_birth_date"),
             phone=phone,
             address=address,
             invoice_number=row.get("invoice_number"),

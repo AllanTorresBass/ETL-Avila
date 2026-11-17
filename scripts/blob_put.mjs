@@ -25,12 +25,9 @@ const preferred = process.env.BLOB_ACCESS === "public" ? "public" : "private";
 const fallback = preferred === "private" ? "public" : "private";
 
 const body = readFileSync(filePath);
-const contentType =
-  filePath.toLowerCase().endsWith(".jpg") || filePath.toLowerCase().endsWith(".jpeg")
-    ? "image/jpeg"
-    : filePath.toLowerCase().endsWith(".png")
-      ? "image/png"
-      : "application/octet-stream";
+const isJpeg = body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff;
+const isPng = body.subarray(0, 4).toString("latin1") === "\x89PNG";
+const contentType = isJpeg ? "image/jpeg" : isPng ? "image/png" : "application/octet-stream";
 
 async function putWithAccess(access) {
   return put(pathname, body, {

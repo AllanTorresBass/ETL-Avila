@@ -10,7 +10,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from document_types import (
     classify_document,
+    extract_all_cedulas,
     extract_identity_number,
+    extract_personal_identity,
+    extract_titular_from_ocr,
     extract_titular_from_path,
 )
 from invoice_pages import judge_page
@@ -291,7 +294,7 @@ class DocumentTypeTests(unittest.TestCase):
     def test_cedula_card_maps(self):
         dtype, evidence = classify_document(
             "REPUBLICA BOLIVARIANA DE VENEZUELA\nCEDULA DE IDENTIDAD\n"
-            "APELLIDOS MATHEUS\nNOMBRES HELBER\nV-12.345.678\nVENEZOLANO"
+            "APELLIDOS PEREZ\nNOMBRES JUAN\nV-12.345.678\nVENEZOLANO"
         )
         self.assertEqual(dtype, "cedula_identidad")
         self.assertEqual(evidence, "cedula_card")
@@ -299,13 +302,13 @@ class DocumentTypeTests(unittest.TestCase):
     def test_siniestro_form_is_not_cedula(self):
         dtype, _ = classify_document(
             "DECLARACION DE SINIESTRO DE HCM\nDATOS DEL TITULAR\n"
-            "HELBER JOSE MATHEUS\nBENEFICIARIO AARON MATHEUS\nREPUBLICA BOLIVARIANA"
+            "JUAN JOSE PEREZ\nBENEFICIARIO LUIS PEREZ\nREPUBLICA BOLIVARIANA"
         )
         self.assertNotEqual(dtype, "cedula_identidad")
 
     def test_carnet_bdv_maps(self):
         dtype, evidence = classify_document(
-            "BANCO DE VENEZUELA\nHelber J. Matheus A.\n13.996.036\nVP Servicios\nCARNET"
+            "BANCO DE VENEZUELA\nJuan J. Perez A.\n11.222.333\nVP Servicios\nCARNET"
         )
         self.assertEqual(dtype, "carnet")
         self.assertEqual(evidence, "carnet_bdv")
@@ -313,18 +316,35 @@ class DocumentTypeTests(unittest.TestCase):
     def test_id_collage_sheet_maps(self):
         dtype, evidence = classify_document(
             "Gestión Profesional de Salud Ávila, C.A\nDOCUMENTOS DE IDENTIFICACION\n"
-            "MATHEUS ANDARA\nHelber J. Matheus A.\n13.996.036\nVP Servicios\nBDV"
+            "PEREZ GOMEZ\nJuan J. Perez A.\n11.222.333\nVP Servicios\nBDV"
         )
         self.assertEqual(dtype, "documentos_identificacion")
         self.assertEqual(evidence, "documentos_identificacion")
+
+    def test_id_collage_with_ocr_noise_between_words_maps(self):
+        dtype, _ = classify_document(
+            "Gestión Profesional de Salud Ávila, C.A\npl a DOCUMENTOS DE\n"
+            "aa a En > IDENTIFICACION\nPBDV\nJuan J. Perez A.",
+            backup_path="SCANER SEGURO MIRANDA/CARTA AVAL/FACT 12345 ANA PEREZ.pdf",
+        )
+        self.assertEqual(dtype, "documentos_identificacion")
+
+    def test_solicitud_carta_aval_form_is_not_cedula(self):
+        dtype, evidence = classify_document(
+            "Gobierno Bolivariano de Venezuela\nSOLICITUD CARTA AVAL\n"
+            "Apellidos y Nombres del Titular Cédula de identidad/RIF\n"
+            "Juan Perez 11222333\nInforme Médico (Indicando Diagnóstico)"
+        )
+        self.assertEqual(dtype, "carta_aval")
+        self.assertEqual(evidence, "solicitud_carta_aval")
 
     def test_acta_nacimiento_not_cedula(self):
         dtype, evidence = classify_document(
             "REPÚBLICA BOLIVARIANA DE VENEZUELA\nCONSEJO NACIONAL ELECTORAL\n"
             "COMISIÓN DE REGISTRO CIVIL Y ELECTORAL\nREGISTRO CIVIL MUNICIPAL\n"
             "UNIDAD DE REGISTRO CIVIL HOSPITALARIO\nActa N° 08\n"
-            "AARON GABRIEL MATHEUS BLANCO\nHELBER JOSE MATHEUS ANDARA\n"
-            "titular de la Cedula de identidad N° V-13.996.036\nVENEZOLANA"
+            "LUIS ANDRES PEREZ DIAZ\nJUAN JOSE PEREZ GOMEZ\n"
+            "titular de la Cedula de identidad N° V-11.222.333\nVENEZOLANA"
         )
         self.assertEqual(dtype, "acta_nacimiento")
         self.assertEqual(evidence, "acta_nacimiento")
@@ -332,11 +352,37 @@ class DocumentTypeTests(unittest.TestCase):
     def test_plastic_cedula_still_maps_when_no_acta(self):
         dtype, evidence = classify_document(
             "REPUBLICA BOLIVARIANA DE VENEZUELA\nCEDULA DE IDENTIDAD\n"
-            "APELLIDOS MATHEUS ANDARA\nNOMBRES HELBER JOSE\n"
-            "V-13.996.036\nVENEZOLANO\nF. EXPEDIC 02-2024"
+            "APELLIDOS PEREZ GOMEZ\nNOMBRES JUAN JOSE\n"
+            "V-11.222.333\nVENEZOLANO\nF. EXPEDIC 02-2024"
         )
         self.assertEqual(dtype, "cedula_identidad")
         self.assertEqual(evidence, "cedula_card")
+
+    def test_siniestro_with_pasaporte_label_is_comprobante(self):
+        dtype, evidence = classify_document(
+            "REPUBLICA BOLIVARIANA DE VENEZUELA\nDECLARACION DE SINIESTRO\n"
+            "NOMBRE DEL ASEGURADO\nC.I. O PASAPORTE V-12345678\nDIAGNOSTICO"
+        )
+        self.assertEqual(dtype, "comprobante")
+        self.assertEqual(evidence, "declaracion_siniestro")
+
+    def test_passport_card_still_maps(self):
+        dtype, _ = classify_document(
+            "REPUBLICA BOLIVARIANA DE VENEZUELA\nPASAPORTE\nAPELLIDOS PEREZ\nNOMBRES JUAN"
+        )
+        self.assertEqual(dtype, "pasaporte")
+
+    def test_bare_registro_civil_in_informe_is_not_acta(self):
+        dtype, _ = classify_document(
+            "INFORME MEDICO\nPaciente recien nacido, registro civil de Caracas"
+        )
+        self.assertNotEqual(dtype, "acta_nacimiento")
+
+    def test_registro_civil_with_presentante_is_acta(self):
+        dtype, _ = classify_document(
+            "REGISTRO CIVIL MUNICIPAL\nEl presentante declara\nFOLIO 12"
+        )
+        self.assertEqual(dtype, "acta_nacimiento")
 
     def test_egreso_from_path(self):
         dtype, _ = classify_document("texto clinico", backup_path="FACTURAS/EGRESO EJEMPLO FACT 1000.pdf")
@@ -346,36 +392,127 @@ class DocumentTypeTests(unittest.TestCase):
         dtype, _ = classify_document("COMPROBANTE DE AUTORIZACION\nRIF J-302020476")
         self.assertEqual(dtype, "comprobante")
 
+    def test_claim_form_with_factura_box_is_not_fiscal(self):
+        text = "DECLARACION DE SINIESTRO\nFACTURA N° 12345\nRIF J-123456789\nNOMBRE DEL ASEGURADO"
+        self.assertEqual(judge_page(text), ("attachment", "claim_form"))
+        dtype, _ = classify_document(text)
+        self.assertEqual(dtype, "comprobante")
+
+    def test_truncated_siniestro_and_reclamo_letter_are_not_fiscal(self):
+        self.assertEqual(judge_page("LARACION DE SINIESTRO DE HCM N*001 478\nFACTURA N 12")[0], "attachment")
+        self.assertEqual(
+            judge_page("SEGUROS EJEMPLO NRO PPTO/FACTURA: N/A\nNO.RECLAMO: 1234567\nNO.CLAVE: 1234567")[0],
+            "attachment",
+        )
+
+    def test_insurer_carta_aval_letter_is_carta_aval(self):
+        text = (
+            "Nro Póliza: 1234 Seguros Ejemplo Nro Ppto/Factura: N/A CARTA AVAL\n"
+            "Fecha Emisión: 01/02/2025 Señores G.P.S. GESTION PROFESIONAL DE SALUD"
+        )
+        self.assertEqual(classify_document(text), ("carta_aval", "carta_aval_letter"))
+
+    def test_siniestro_with_carta_aval_checkbox_stays_comprobante(self):
+        text = "LARACION DE SINIESTRO DE HCM\n[ ] Clave de Emergencia [x] Carta Aval\nFACTURA N 12"
+        self.assertEqual(classify_document(text), ("comprobante", "declaracion_siniestro"))
+
+    def test_solicitud_carta_aval_with_factura_word_is_not_fiscal(self):
+        label, _ = judge_page("SOLICITUD DE CARTA AVAL\nNRO FACTURA\nRIF J-123456789")
+        self.assertEqual(label, "attachment")
+
+    def test_real_fiscal_sheet_still_fiscal(self):
+        label, _ = judge_page("FACTURA\nN° DE CONTROL 00-1234\nRIF J-123456789\nFORMA LIBRE")
+        self.assertEqual(label, "fiscal_invoice")
+
+    def test_patient_report_with_aps_footer_is_informe(self):
+        dtype, evidence = classify_document(
+            "NOMBRE DEL PACIENTE: JUAN PEREZ\nEDAD 40\nDIAGNOSTICO: GRIPE\nAPS Ávila"
+        )
+        self.assertEqual((dtype, evidence), ("informe_medico", "patient_report"))
+
+    def test_titled_service_order_stays_orden(self):
+        dtype, _ = classify_document(
+            "ORDEN DE SERVICIO\nNOMBRE DEL PACIENTE: JUAN PEREZ\nDIAGNOSTICO: GRIPE\nAPS"
+        )
+        self.assertEqual(dtype, "orden_servicio")
+
+    def test_bare_aps_slip_is_orden(self):
+        dtype, _ = classify_document("APS\nAUTORIZADO\nCONSULTA")
+        self.assertEqual(dtype, "orden_servicio")
+
+    def test_cedula_plus_bdv_carnet_untitled_is_collage(self):
+        dtype, evidence = classify_document(
+            "REPUBLICA BOLIVARIANA DE VENEZUELA\nCEDULA DE IDENTIDAD\nAPELLIDOS PEREZ\n"
+            "NOMBRES JUAN\nV-11.222.333\nBANCO DE VENEZUELA\nVP Servicios\nCARNET"
+        )
+        self.assertEqual((dtype, evidence), ("documentos_identificacion", "collage_untitled"))
+
+    def test_solicitud_checklist_mentioning_carnet_is_carta_aval(self):
+        dtype, _ = classify_document(
+            "SOLICITUD DE CARTA AVAL\nRequisitos: Informe Médico, copia del CARNET\nDiagnóstico"
+        )
+        self.assertEqual(dtype, "carta_aval")
+
+    def test_carta_aval_folder_is_last_resort(self):
+        path = "SCANER/CARTA AVAL/FACT 12345 ANA PEREZ.pdf"
+        self.assertEqual(classify_document("texto sin pistas", backup_path=path), ("carta_aval", "carta_aval_folder"))
+        self.assertEqual(classify_document("PRESUPUESTO\nTOTAL", backup_path=path)[0], "presupuesto")
+        self.assertEqual(classify_document("RAYOS X TORAX", backup_path=path)[0], "imagenologia")
+
     def test_extract_cedula_digits(self):
         found = extract_identity_number("CEDULA DE IDENTIDAD\nV-12345678\nNOMBRE")
         self.assertEqual(found, ("cedula", "12345678"))
 
+    def test_extract_dotted_cedula(self):
+        self.assertEqual(
+            extract_identity_number("C.I. N° V-11.222.333"), ("cedula", "11222333")
+        )
+
+    def test_word_ending_in_v_or_e_is_not_cedula(self):
+        self.assertIsNone(extract_identity_number("TELEFONO 0212 5551234 SERVICE 1234567"))
+
+    def test_rif_is_never_a_personal_identity(self):
+        text = "DOCUMENTOS DE IDENTIFICACION\nGPS AVILA RIF J-123456789"
+        self.assertEqual(extract_identity_number(text), ("rif", "J-123456789"))
+        self.assertIsNone(extract_personal_identity(text))
+
+    def test_all_cedulas_dedupes_dotted_and_plain(self):
+        self.assertEqual(
+            extract_all_cedulas("V-11.222.333 madre C.I. 22.333.444 V-11222333"),
+            ["11222333", "22333444"],
+        )
+
+    def test_titular_from_ocr_ignores_rif(self):
+        name, cedula = extract_titular_from_ocr("TITULAR: JUAN PEREZ\nRIF J-123456789")
+        self.assertEqual(name, "Juan Perez")
+        self.assertIsNone(cedula)
+
     def test_titular_from_fact_path_with_name(self):
         name, cedula = extract_titular_from_path(
-            "SCANER SEGURO MIRANDA/CARTA AVAL FACT 19263 NELSON VALERA/FACT 19263 NELSON VALERA.pdf"
+            "SCANER SEGURO MIRANDA/CARTA AVAL FACT 19263 PEDRO ROJAS/FACT 19263 PEDRO ROJAS.pdf"
         )
-        self.assertEqual(name, "Nelson Valera")
+        self.assertEqual(name, "Pedro Rojas")
         self.assertIsNone(cedula)
 
     def test_titular_from_glued_fact_number_stem(self):
         name, cedula = extract_titular_from_path(
-            "FACTURAS/FACT 7394AARON MATHEUS.pdf"
+            "FACTURAS/FACT 7394LUIS PEREZ.pdf"
         )
-        self.assertEqual(name, "Aaron Matheus")
+        self.assertEqual(name, "Luis Perez")
         self.assertIsNone(cedula)
 
     def test_titular_from_fact_path_with_cedula(self):
         name, cedula = extract_titular_from_path(
-            "SCANER SEGURO MIRANDA/FACT 7806 AMALI LAREZ 30.107.906.pdf"
+            "SCANER SEGURO MIRANDA/FACT 7806 ANA TORO 20.333.444.pdf"
         )
-        self.assertEqual(name, "Amali Larez")
-        self.assertEqual(cedula, "30107906")
+        self.assertEqual(name, "Ana Toro")
+        self.assertEqual(cedula, "20333444")
 
     def test_titular_from_folder_when_file_is_egreso(self):
         name, cedula = extract_titular_from_path(
-            "FACT 24200 MARIA RUZZA/EGRESO MARIA RUZZA.pdf"
+            "FACT 24200 CARMEN SOSA/EGRESO CARMEN SOSA.pdf"
         )
-        self.assertEqual(name, "Maria Ruzza")
+        self.assertEqual(name, "Carmen Sosa")
         self.assertIsNone(cedula)
 
     def test_titular_ignores_org_folder_and_bare_first_name(self):
@@ -390,16 +527,16 @@ class DocumentTypeTests(unittest.TestCase):
 
     def test_titular_strips_campaign_noise_before_person(self):
         name, cedula = extract_titular_from_path(
-            "CORPOELEC/PRESUPUESTO CATARATAS ESTANISLAO BARRIOS.pdf"
+            "CORPOELEC/PRESUPUESTO CATARATAS RAMON SILVA.pdf"
         )
-        self.assertEqual(name, "Estanislao Barrios")
+        self.assertEqual(name, "Ramon Silva")
         self.assertIsNone(cedula)
 
     def test_titular_strips_leading_invoice_number(self):
         name, cedula = extract_titular_from_path(
-            "SCANER SEGURO MIRANDA/19263 NELSON VALERA/IMG.pdf"
+            "SCANER SEGURO MIRANDA/19263 PEDRO ROJAS/IMG.pdf"
         )
-        self.assertEqual(name, "Nelson Valera")
+        self.assertEqual(name, "Pedro Rojas")
         self.assertIsNone(cedula)
 
     def test_batch_folder_facturas_noviembre_is_not_a_person(self):
@@ -410,8 +547,8 @@ class DocumentTypeTests(unittest.TestCase):
         self.assertIsNone(cedula)
 
     def test_fact_stem_still_resolves_titular(self):
-        name, cedula = extract_titular_from_path("FACT 19263 NELSON VALERA.pdf")
-        self.assertEqual(name, "Nelson Valera")
+        name, cedula = extract_titular_from_path("FACT 19263 PEDRO ROJAS.pdf")
+        self.assertEqual(name, "Pedro Rojas")
         self.assertIsNone(cedula)
 
 

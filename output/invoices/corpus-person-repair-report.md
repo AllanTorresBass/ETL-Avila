@@ -5,7 +5,7 @@
 
 ## Scope
 
-Applied the Helber/Aaron approach across loaded Neon documents (not a full re-upload of `Avila-backup`).
+Applied the titular-CI / path-beneficiario approach across loaded Neon documents (not a full re-upload of `Avila-backup`).
 
 | Metric | Before (approx.) | After |
 | --- | ---: | ---: |
@@ -26,7 +26,7 @@ Applied the Helber/Aaron approach across loaded Neon documents (not a full re-up
    - 926 invoices with identity-typed docs; **121** CI titular promotions; **21** path beneficiarios (after later cleanup).  
    - **805** skipped: no reliable CI on page OCR / linked person (weak collage OCR).
 3. **Cleanup** — removed **6** false beneficiarios whose path name was the same person as the titular (e.g. short form of titular name).
-4. **Guard** — `_link_path_name_as_beneficiario` now skips name-subset matches so path `Helber Matheus` does not become a second person under CI titular Helber Jose Matheus Andara.
+4. **Guard** — `_link_path_name_as_beneficiario` now skips name-subset matches so a short path name (two tokens) does not become a second person under the same CI titular with a longer legal name.
 
 ## Remaining gaps
 

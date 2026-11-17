@@ -56,18 +56,27 @@ _CEDULA_CARD_FIELDS = re.compile(
 )
 _FORM_NOT_CEDULA = re.compile(
     r"DECLARACION\s+DE\s+SINIESTRO|\bPLANILLA\b|\bINFORME\s*:|\bDATOS\s+DEL\s+TITULAR\b|"
-    r"\bDATOS\s+DE\s+LA\s+POLIZA\b|\bBENEFICIARIO\b.+\bTITULAR\b"
+    r"\bDATOS\s+DE\s+LA\s+POLIZA\b|\bBENEFICIARIO\b.+\bTITULAR\b|"
+    r"CEDULA\s+DE\s+IDENTIDAD\s*/\s*RIF|APELLIDOS\s+Y\s+NOMBRES\s+DEL\b|"
+    r"SOLICITUD\s+(?:DE\s+)?CARTA\s+AVAL"
 )
+_SOLICITUD_CARTA = re.compile(r"SOLICITUD\s+(?:DE\s+)?CARTA\s+AVAL")
+_CARTA_AVAL_LETTER = re.compile(r"\bCARTA\s+AVAL\b")
+# Strong cues are enough on their own. A bare "registro civil" also shows up in
+# clinical text, so it only counts next to an acta-specific word.
 _ACTA_NACIMIENTO = re.compile(
-    r"ACTA\s+(?:DE\s+)?NACIMIENTO|\bREGISTRO\s+CIVIL\b|"
+    r"ACTA\s+(?:DE\s+)?NACIMIENTO|"
     r"UNIDAD\s+DE\s+REGISTRO\s+CIVIL|PRESENTACI[OÓ]N\s+DEL\s+NACIDO|"
     r"COMISI[OÓ]N\s+DE\s+REGISTRO\s+(?:CIVIL|ENVIL)|"
     r"\bACTA\s+N[°º\.Y]?\s*\d+"
 )
+_REGISTRO_CIVIL = re.compile(r"\bREGISTRO\s+CIVIL\b")
+_ACTA_SUPPORT = re.compile(r"\bACTA\b|\bPRESENTANTE\b|\bFOLIO\b|\bLIBRO\b")
 _CARNET_BDV = re.compile(
     r"BANCO\s+DE\s+VENEZUELA|\bBDV\b.+\bVP\b|\bCARNET\b|\bVP\s+SERVICIOS\b"
 )
-_ID_COLLAGE = re.compile(r"DOCUMENTOS?\s+DE\s+IDENTIFICACION")
+# Scanned cover sheets often put OCR noise between "DE" and "IDENTIFICACION".
+_ID_COLLAGE = re.compile(r"DOCUMENTOS?\s+DE\s+(?:\S+\s+){0,4}?IDENTIFICACION")
 _PASAPORTE_CARD = re.compile(r"\bPASAPORTE\b")
 _EGRESO = re.compile(r"\bEGRESO\b|\bENGRESO\b")
 _INGRESO = re.compile(r"\bINGRESO\b")
@@ -76,8 +85,19 @@ _IMG = re.compile(r"\bRAYOS\b|\bECOGRAF|\bULTRASON|\bIMAGENOLOG")
 _CARTA = re.compile(r"CARTA\s*AVAL")
 _PRESUPUESTO = re.compile(r"\bPRESUPUESTO\b|\bPROFORMA\b")
 _ORDEN = re.compile(r"ORDEN\s+DE\s+SERVICIO|SOLICITUD\s+DE\s+SERVICIO|\bAPS\b")
+_ORDEN_TITLE = re.compile(r"ORDEN\s+DE\s+SERVICIO|SOLICITUD\s+DE\s+SERVICIO")
+_PATIENT_REPORT = re.compile(
+    r"INFORME\s+MEDICO|"
+    r"(?:NOMBRE\s+DEL\s+PACIENTE|\bPACIENTE\s*:).{0,600}?\bDIAGNOSTICO\b|"
+    r"\bDIAGNOSTICO\b.{0,600}?(?:NOMBRE\s+DEL\s+PACIENTE|\bPACIENTE\s*:)",
+    re.S,
+)
+# Cédula digits, plain (12345678) or dotted (12.345.678). The V/E prefix must not
+# be the tail of a word ("SERVICE 1234567" is not a cédula).
+_CI_DIGITS = r"(\d{1,2}\.\d{3}\.\d{3}|\d{6,9})(?![\d.]*\d)"
 _IDENTITY_NUMBER = re.compile(
-    r"(?:V|E)\s*-?\s*(\d{6,9})\b|\bC\.?\s*I\.?\s*:?\s*(?:V|E)?\s*-?\s*(\d{6,9})\b"
+    rf"(?<![A-Z0-9])(?:V|E)\s*-?\s*{_CI_DIGITS}"
+    rf"|\bC\.?\s*I\.?\s*(?:N[°º]?\s*)?:?\s*(?:V|E)?\s*-?\s*{_CI_DIGITS}"
 )
 _PASSPORT_NUMBER = re.compile(r"\bP[A-Z]?\s*-?\s*([A-Z0-9]{6,12})\b")
 _RIF_NUMBER = re.compile(r"\b([VEJPG])\s*-?\s*(\d{7,9})\-?(\d)?\b")
@@ -90,9 +110,9 @@ _CEDULA_NOMBRES = re.compile(
     r"NOMBRES?\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{1,40})",
     re.IGNORECASE,
 )
-# Path stems often look like: FACT 19263 NELSON VALERA or FACT 7806 AMALI LAREZ 30.107.906
+# Path stems often look like: FACT 19263 PEDRO ROJAS or FACT 7806 ANA TORO 20.333.444
 _FACT_PREFIX = re.compile(
-    # Allow glued stems like "FACT 7394AARON …" (no boundary after the digits).
+    # Allow glued stems like "FACT 7394LUIS …" (no boundary after the digits).
     r"^(?:FACT(?:URA)?|FAC)\s*(\d{3,6})(?!\d)",
     re.IGNORECASE,
 )
@@ -102,7 +122,8 @@ _ROLE_PREFIX = re.compile(
     re.IGNORECASE,
 )
 _TITULAR_OCR = re.compile(
-    r"TITULAR\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s.'-]{2,60})",
+    # Name stays on the TITULAR line; the next line is usually RIF / C.I. / address.
+    r"TITULAR[ \t]*[:\-]?[ \t]*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ \t.'-]{2,60})",
     re.IGNORECASE,
 )
 _NOISE_TOKENS = {
@@ -179,7 +200,9 @@ def classify_document(
     # Birth certificate / civil registry — often under the same GPS cover sheet
     # as ID collage pages; must win before cédula (actas quote "cédula de identidad"
     # for parents and print CNE / República / venezolano|a).
-    if _ACTA_NACIMIENTO.search(folded):
+    if _ACTA_NACIMIENTO.search(folded) or (
+        _REGISTRO_CIVIL.search(folded) and _ACTA_SUPPORT.search(folded)
+    ):
         return "acta_nacimiento", "acta_nacimiento"
 
     # GPS cover sheet that mounts plastic IDs (cédula + carnet side by side).
@@ -187,11 +210,14 @@ def classify_document(
         return "documentos_identificacion", "documentos_identificacion"
 
     # Employee badge / carnet crop (standalone page, not the collage sheet).
-    if _CARNET_BDV.search(folded) and (
+    if not _SOLICITUD_CARTA.search(folded) and _CARNET_BDV.search(folded) and (
         "CARNET" in folded or "VP " in folded or "SERVICIOS" in folded
     ):
         if not _CEDULA_TITLE.search(folded):
             return "carnet", "carnet_bdv"
+        # Cédula and bank carnet photographed together without the cover title.
+        if not _FORM_NOT_CEDULA.search(folded):
+            return "documentos_identificacion", "collage_untitled"
 
     # Plastic cédula card only — claim forms and actas print República / C.I.
     if not _FORM_NOT_CEDULA.search(folded) and (
@@ -203,22 +229,40 @@ def classify_document(
     ):
         return "cedula_identidad", "cedula_card"
 
+    # Insurer request form; its checklist mentions "Informe médico".
+    if _SOLICITUD_CARTA.search(folded):
+        return "carta_aval", "solicitud_carta_aval"
+
+    # Claim forms print "C.I. o PASAPORTE" and República — settle them before
+    # the passport check so they never become identity pages.
+    if (
+        evidence in {"comprobante", "claim_form"}
+        or "COMPROBANTE" in folded
+        or "LARACION DE SINIESTRO" in folded
+    ):
+        if "LARACION DE SINIESTRO" in folded:
+            return "comprobante", "declaracion_siniestro"
+        # Insurer letter "CARTA AVAL … Nro Ppto/Factura"; siniestro forms only tick a Carta Aval box.
+        if evidence == "claim_form" and _CARTA_AVAL_LETTER.search(folded):
+            return "carta_aval", "carta_aval_letter"
+        return "comprobante", "claim_form" if evidence == "claim_form" else "comprobante"
+
     # Passport as a photographed page is rare. The fiscal form also prints
     # "C.I., R.I.F. o PASAPORTE" — ignore that when the page is already fiscal.
-    if _PASAPORTE_CARD.search(folded) and "FACTURA" not in folded[:200]:
+    if (
+        _PASAPORTE_CARD.search(folded)
+        and "FACTURA" not in folded[:200]
+        and not _FORM_NOT_CEDULA.search(folded)
+        and not re.search(r"C\.?\s*I\.?\s*,?\s*(?:R\.?I\.?F\.?\s*)?O\s+PASAPORTE", folded)
+    ):
         if "REPUBLICA" in folded or "PASAPORTE" in folded[:400]:
             return "pasaporte", "pasaporte_card"
-
-    if (
-        evidence == "comprobante"
-        or "COMPROBANTE" in folded
-        or "DECLARACION DE SINIESTRO" in folded
-    ):
-        return "comprobante", (
-            "declaracion_siniestro" if "DECLARACION DE SINIESTRO" in folded else "comprobante"
-        )
+    # The APS footer rides on many reports; only a titled order is an orden.
+    orden_title = _ORDEN_TITLE.search(folded)
+    if _PATIENT_REPORT.search(folded) and not orden_title:
+        return "informe_medico", "patient_report"
     if evidence == "informe" or (_ORDEN.search(folded) is None and "INFORME" in folded):
-        if _ORDEN.search(folded):
+        if orden_title or (_ORDEN.search(folded) and "INFORME" not in folded):
             return "orden_servicio", "orden_servicio"
         return "informe_medico", "informe"
     if _ORDEN.search(folded):
@@ -232,20 +276,15 @@ def classify_document(
         return "laboratorio", "laboratorio"
     if _IMG.search(folded):
         return "imagenologia", "imagenologia"
-    if _CARTA.search(folded) or _CARTA.search(path_folded):
+    if _CARTA.search(folded):
         return "carta_aval", "carta_aval"
     if _PRESUPUESTO.search(folded) or _PRESUPUESTO.search(stem):
         return "presupuesto", "presupuesto"
     if evidence == "clinical_terms":
-        if _LAB.search(folded):
-            return "laboratorio", "laboratorio"
-        if _IMG.search(folded):
-            return "imagenologia", "imagenologia"
-        if _EGRESO.search(folded):
-            return "egreso", "egreso"
-        if _INGRESO.search(folded):
-            return "ingreso", "ingreso"
         return "otro_anexo", "clinical_terms"
+    # Folder name is the weakest cue: a CARTA AVAL folder also holds IDs, reports, actas.
+    if _CARTA.search(path_folded):
+        return "carta_aval", "carta_aval_folder"
     return "otro_anexo", evidence or "no_factura_heading"
 
 
@@ -258,7 +297,7 @@ def extract_identity_number(text: str | None) -> tuple[str, str] | None:
     if match:
         number = match.group(1) or match.group(2)
         if number:
-            return "cedula", number
+            return "cedula", number.replace(".", "")
     # Passport page: avoid matching fiscal "C.I., R.I.F. o PASAPORTE" alone.
     if _PASAPORTE_CARD.search(folded) and "FACTURA" not in folded[:200]:
         pm = _PASSPORT_NUMBER.search(folded)
@@ -271,6 +310,33 @@ def extract_identity_number(text: str | None) -> tuple[str, str] | None:
             digits = rm.group(2) + (rm.group(3) or "")
             return "rif", f"{rm.group(1)}-{digits}"
     return None
+
+
+PERSONAL_IDENTITY_TYPES = ("cedula", "pasaporte")
+
+
+def extract_personal_identity(text: str | None) -> tuple[str, str] | None:
+    """Like extract_identity_number, but never a RIF.
+
+    Use this wherever the result may become a person or an invoice titular:
+    a RIF on an identity page is the provider/clinic, not the insured.
+    """
+    found = extract_identity_number(text)
+    if found and found[0] in PERSONAL_IDENTITY_TYPES:
+        return found
+    return None
+
+
+def extract_all_cedulas(text: str | None) -> list[str]:
+    """Every distinct cédula on a page, in reading order (digits only)."""
+    if not text:
+        return []
+    seen: list[str] = []
+    for match in _IDENTITY_NUMBER.finditer(fold(text)):
+        number = (match.group(1) or match.group(2) or "").replace(".", "")
+        if number and number not in seen:
+            seen.append(number)
+    return seen
 
 
 def extract_name_from_cedula_ocr(text: str | None) -> str | None:
@@ -343,7 +409,7 @@ def extract_titular_from_path(relative_path: str) -> tuple[str | None, str | Non
         text = raw
         text = _FACT_PREFIX.sub("", text)
         text = _ROLE_PREFIX.sub("", text)
-        # Drop a leading invoice number glued to the name (7394AARON → AARON).
+        # Drop a leading invoice number glued to the name (7394LUIS → LUIS).
         text = re.sub(r"^\d{3,6}(?=[A-Za-zÁÉÍÓÚÑáéíóúñ])", "", text)
         # Drop a trailing dotted cédula from the name span.
         text = re.sub(r"(?:V|E)?\s*-?\s*\d{1,2}(?:[.\s]\d{3}){2}\s*$", "", text, flags=re.I)
@@ -376,7 +442,8 @@ def extract_titular_from_ocr(text: str | None) -> tuple[str | None, str | None]:
         if not name:
             name = None
     identity = extract_identity_number(text)
-    cedula = identity[1] if identity else None
+    # A RIF on the fiscal page is the provider or tomador company, never the titular.
+    cedula = identity[1] if identity and identity[0] == "cedula" else None
     return name, cedula
 
 

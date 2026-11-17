@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import provenance  # noqa: E402
 
 
 def link_invoice_person(
@@ -17,6 +22,11 @@ def link_invoice_person(
 ) -> str:
     if dry_run:
         return "dry_link"
+    cur.execute(
+        "SELECT role::text AS role FROM avila.invoice_person WHERE invoice_id = %s AND person_id = %s",
+        (invoice_id, person_id),
+    )
+    prior = cur.fetchone()
     if role == "titular":
         # One titular per invoice — drop prior titular links for other persons
         cur.execute(
@@ -42,6 +52,19 @@ def link_invoice_person(
           source = coalesce(EXCLUDED.source, avila.invoice_person.source)
         """,
         (invoice_id, person_id, role, parentesco, source),
+    )
+    cur.execute(
+        "SELECT role::text AS role FROM avila.invoice_person WHERE invoice_id = %s AND person_id = %s",
+        (invoice_id, person_id),
+    )
+    provenance.record(
+        cur,
+        entity="invoice_person",
+        entity_id=f"{invoice_id}:{person_id}",
+        field="role",
+        old=prior["role"] if prior else None,
+        new=cur.fetchone()["role"],
+        rule_id=f"workbook_{role}",
     )
     return "linked"
 

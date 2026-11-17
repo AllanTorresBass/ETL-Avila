@@ -47,6 +47,8 @@ PAGE_FIELDS = [
 ]
 
 TARGET_LABELS = {"invoice_packet", "needs_page_check"}
+SCAN_RULE = "scan_outside_invoice"
+SCAN_PAGE_CSV = OUT_DIR / "scan-pages.csv"
 
 
 def cache_path(relative: str) -> Path:
@@ -224,19 +226,53 @@ def ocr_file(relative: str) -> dict:
     return record
 
 
-def _load_targets() -> list[dict]:
+def _load_targets(
+    scope: str = "invoice",
+    *,
+    folder: str = "",
+    year: str = "",
+    month: str = "",
+) -> list[dict]:
+    """Inventory rows for one OCR scope.
+
+    ``invoice``: packets and FACT-range scans. ``scan``: scanner images outside
+    any FACT folder (rule ``scan_outside_invoice``), one per duplicate group,
+    sorted by path so a packet's pages stay contiguous in the cache walk.
+    """
     rows = []
+    seen_groups: set[str] = set()
+    needle = folder.casefold()
     with INVENTORY.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
-            if row["label"] in TARGET_LABELS:
-                rows.append(row)
+            if scope == "invoice":
+                if row["label"] in TARGET_LABELS:
+                    rows.append(row)
+                continue
+            if row["rule_id"] != SCAN_RULE:
+                continue
+            if needle and needle not in row["path"].casefold():
+                continue
+            if year and row.get("year") != year:
+                continue
+            if month and (row.get("month") or "").casefold() != month.casefold():
+                continue
+            group = row.get("duplicate_group") or ""
+            if group:
+                if group in seen_groups:
+                    continue
+                seen_groups.add(group)
+            rows.append(row)
+    if scope == "scan":
+        rows.sort(key=lambda r: r["path"])
     return rows
 
 
 def _write_cache(relative: str, record: dict) -> None:
     target = cache_path(relative)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(target)
 
 
 def _read_cache(relative: str) -> dict | None:
@@ -275,8 +311,8 @@ def rows_from_record(file_row: dict, record: dict) -> list[dict]:
     return out
 
 
-def write_page_csv(file_rows: list[dict]) -> None:
-    with PAGE_CSV.open("w", newline="", encoding="utf-8") as handle:
+def write_page_csv(file_rows: list[dict], out: Path = PAGE_CSV) -> None:
+    with out.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=PAGE_FIELDS)
         writer.writeheader()
         for file_row in file_rows:
@@ -291,14 +327,24 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="OCR invoice packets and candidate scans")
     parser.add_argument("--limit", type=int, default=0, help="OCR at most this many files that are not cached yet")
+    parser.add_argument(
+        "--scope",
+        choices=("invoice", "scan"),
+        default="invoice",
+        help="invoice: packets + FACT-range scans; scan: scanner files outside FACT folders",
+    )
+    parser.add_argument("--folder", default="", help="scan scope: path substring filter")
+    parser.add_argument("--year", default="", help="scan scope: inventory year (e.g. 2025)")
+    parser.add_argument("--month", default="", help="scan scope: inventory month name")
+    parser.add_argument("--workers", type=int, default=0)
     args = parser.parse_args()
     if not INVENTORY.is_file():
         sys.exit(f"Missing inventory: {INVENTORY}")
-    targets = _load_targets()
-    uncached = [row["path"] for row in targets if _read_cache(row["path"]) is None]
+    targets = _load_targets(args.scope, folder=args.folder, year=args.year, month=args.month)
+    uncached = [row["path"] for row in targets if not cache_path(row["path"]).is_file()]
     pending = uncached[: args.limit] if args.limit else uncached
     print(f"Targets {len(targets):,}; uncached {len(uncached):,}; this run {len(pending):,}")
-    workers = min(8, os.cpu_count() or 4)
+    workers = args.workers or min(8, os.cpu_count() or 4)
     done = 0
     if pending:
         with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -316,8 +362,12 @@ def main() -> None:
                 _write_cache(relative, record)
                 done += 1
                 if done % 100 == 0 or done == len(pending):
-                    print(f"OCR {done:,}/{len(pending):,}")
-    by_path = {row["path"]: row for row in targets}
+                    print(f"OCR {done:,}/{len(pending):,}", flush=True)
+    if args.scope == "scan":
+        if not (args.folder or args.year or args.month):
+            write_page_csv(targets, SCAN_PAGE_CSV)
+            print("Wrote", SCAN_PAGE_CSV)
+        return
     write_page_csv(targets)
     fiscal = attachment = unreadable = 0
     with PAGE_CSV.open(newline="", encoding="utf-8") as handle:

@@ -24,6 +24,19 @@ export async function requireStaffPage() {
   }
 }
 
+/** For Server Actions — reachable by direct POST, so check every call. Returns the reviewer email. */
+export async function requireStaffAction(): Promise<string> {
+  const session = await auth();
+  if (!session.userId) {
+    throw new Error("UNAUTHORIZED");
+  }
+  if (!(await emailAllowed())) {
+    throw new Error("FORBIDDEN_STAFF");
+  }
+  const user = await currentUser();
+  return user?.primaryEmailAddress?.emailAddress?.toLowerCase() || session.userId;
+}
+
 /** For Route Handlers — returns a Response when unauthorized. */
 export async function requireStaffApi(): Promise<NextResponse | null> {
   const session = await auth();

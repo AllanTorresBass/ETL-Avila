@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Ávila GPS">
+  <defs>
+    <linearGradient id="g" x1="6" y1="4" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A2A6B"/>
+      <stop offset="1" stop-color="#0A1F4D"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <!-- Peak mark -->
+  <path
+    fill="#5BB2F5"
+    d="M16 6.5 22.8 18.2H19.4L16 11.9l-3.4 6.3H9.2L16 6.5Z"
+  />
+  <!-- Base bar / cross accent -->
+  <rect x="10" y="20.2" width="12" height="2.4" rx="1.2" fill="#6CC24A"/>
+  <circle cx="16" cy="24.6" r="2.2" fill="#6CC24A"/>
+</svg>

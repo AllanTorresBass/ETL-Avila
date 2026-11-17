@@ -12,6 +12,7 @@ const links = [
   { href: "/personas", label: "Personas" },
   { href: "/facturas", label: "Facturas" },
   { href: "/documentos", label: "Documentos" },
+  { href: "/revision", label: "Revisión" },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
