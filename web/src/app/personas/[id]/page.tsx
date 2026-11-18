@@ -250,6 +250,36 @@ export default async function PersonaDetailPage({
     }
   }
 
+  const facturaBlocks = new Map<
+    string,
+    {
+      id: string;
+      title: string;
+      href: string;
+      roles: string[];
+      parentesco: string | null;
+      account: string | null;
+    }
+  >();
+  for (const inv of invoices) {
+    const role = roleLabel(inv.role);
+    const parentesco = inv.parentesco ? String(inv.parentesco) : null;
+    const existing = facturaBlocks.get(inv.id);
+    if (existing) {
+      if (!existing.roles.includes(role)) existing.roles.push(role);
+      if (!existing.parentesco && parentesco) existing.parentesco = parentesco;
+    } else {
+      facturaBlocks.set(inv.id, {
+        id: inv.id,
+        title: formatInvoiceNumber(inv.invoice_number),
+        href: `/facturas/${inv.id}`,
+        roles: [role],
+        parentesco,
+        account: inv.account ? String(inv.account) : null,
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -406,17 +436,23 @@ export default async function PersonaDetailPage({
         emptyTitle="Sin facturas vinculadas"
         emptyHint="Esta persona aún no aparece en invoice_person. Revisa autorizaciones o carga más paquetes."
       >
-        <div className="space-y-2">
-          {invoices.map((inv) => (
-            <EntityRow
-              key={`${inv.id}-${inv.role}`}
-              href={`/facturas/${inv.id}`}
-              title={formatInvoiceNumber(inv.invoice_number)}
-              badges={[roleLabel(inv.role)]}
-              meta={[inv.parentesco, formatAccount(inv.account)].filter(Boolean).join(" · ")}
-            />
-          ))}
-        </div>
+        <DocumentGallery
+          blocks={[...facturaBlocks.values()].map((block) => ({
+            id: block.id,
+            title: block.title,
+            href: block.href,
+            meta: [block.roles.join(", "), block.parentesco, formatAccount(block.account)]
+              .filter(Boolean)
+              .join(" · "),
+            docs: (expedienteByInvoice.get(block.id)?.docs ?? []).map((d) => ({
+              id: d.id,
+              documentType: d.document_type,
+              pageIndex: d.page_index,
+              uploadStatus: d.upload_status,
+              subtitle: formatInvoiceNumber(d.invoice_number),
+            })),
+          }))}
+        />
       </RelationSection>
 
       {beneficiaries.length > 0 ? (

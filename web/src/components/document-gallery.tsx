@@ -17,6 +17,7 @@ export type GalleryDoc = {
 export type GalleryBlock = {
   id: string;
   title?: string;
+  meta?: string;
   href?: string;
   docs: GalleryDoc[];
 };
@@ -107,15 +108,31 @@ export function DocumentGallery({ blocks }: { blocks: GalleryBlock[] }) {
       <div className="space-y-6">
         {blocks.map((block) => (
           <div key={block.id} className="space-y-3">
-            {block.title ? (
+            {block.title || block.meta ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-medium text-[#0A2A6B]">{block.title}</h3>
-                {block.href ? (
-                  <Link href={block.href} className="text-xs font-medium text-[#033CA0]">
-                    Ver factura
-                  </Link>
-                ) : null}
+                <div className="min-w-0">
+                  {block.title ? (
+                    <h3 className="text-sm font-medium">
+                      {block.href ? (
+                        <Link
+                          href={block.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#033CA0] hover:underline"
+                        >
+                          {block.title}
+                        </Link>
+                      ) : (
+                        <span className="text-[#0A2A6B]">{block.title}</span>
+                      )}
+                    </h3>
+                  ) : null}
+                  {block.meta ? <p className="text-xs text-slate-500">{block.meta}</p> : null}
+                </div>
               </div>
+            ) : null}
+            {block.docs.length === 0 ? (
+              <p className="text-sm text-slate-500">Sin páginas cargadas para esta factura.</p>
             ) : null}
             <div className="space-y-5">
               {groupByType(block.docs).map(([type, docs]) => (
