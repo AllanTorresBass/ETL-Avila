@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { EmptyState } from "@/components/empty-state";
 
 export function RelationSection({
@@ -11,6 +12,7 @@ export function RelationSection({
   moreHref,
   moreLabel = "Ver todos",
   footer,
+  collapsible = false,
   children,
 }: {
   id?: string;
@@ -21,8 +23,30 @@ export function RelationSection({
   moreHref?: string;
   moreLabel?: string;
   footer?: ReactNode;
+  collapsible?: boolean;
   children?: ReactNode;
 }) {
+  const body = (
+    <>
+      {count === 0 ? <EmptyState title={emptyTitle} hint={emptyHint} /> : children}
+      {footer}
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <CollapsibleSection
+        id={id}
+        title={title}
+        count={count}
+        moreHref={moreHref}
+        moreLabel={moreLabel}
+      >
+        {body}
+      </CollapsibleSection>
+    );
+  }
+
   return (
     <section id={id} className="scroll-mt-24 space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -36,12 +60,7 @@ export function RelationSection({
           </Link>
         ) : null}
       </div>
-      {count === 0 ? (
-        <EmptyState title={emptyTitle} hint={emptyHint} />
-      ) : (
-        children
-      )}
-      {footer}
+      {body}
     </section>
   );
 }
