@@ -26,7 +26,15 @@ function clampOffset(
   };
 }
 
-export function DocumentPreview({ src, alt }: { src: string; alt: string }) {
+export function DocumentPreview({
+  src,
+  alt,
+  fill = false,
+}: {
+  src: string;
+  alt: string;
+  fill?: boolean;
+}) {
   const frameRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
   const scaleRef = useRef(1);
@@ -149,13 +157,17 @@ export function DocumentPreview({ src, alt }: { src: string; alt: string }) {
   const percent = Math.round(scale * 100);
 
   return (
-    <div className="relative bg-slate-100">
+    <div className={fill ? "relative flex h-full min-h-0 w-full flex-col bg-slate-100" : "relative bg-slate-100"}>
       <div
         ref={frameRef}
         role="region"
         tabIndex={0}
         aria-label={`Vista del documento, ${percent}%`}
-        className="max-h-[80vh] overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#033CA0]"
+        className={
+          fill
+            ? "min-h-0 flex-1 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#033CA0]"
+            : "max-h-[80vh] overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#033CA0]"
+        }
         style={{
           cursor: scale > MIN_SCALE ? (dragging ? "grabbing" : "grab") : "zoom-in",
           touchAction: scale > MIN_SCALE ? "none" : "pan-y",
@@ -172,7 +184,11 @@ export function DocumentPreview({ src, alt }: { src: string; alt: string }) {
           src={src}
           alt={alt}
           draggable={false}
-          className="max-h-[80vh] w-full bg-slate-100 object-contain select-none"
+          className={
+            fill
+              ? "h-full w-full bg-slate-100 object-contain select-none"
+              : "max-h-[80vh] w-full bg-slate-100 object-contain select-none"
+          }
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
             transformOrigin: "center center",

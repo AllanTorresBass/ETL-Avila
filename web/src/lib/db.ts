@@ -1,6 +1,8 @@
 import { neon } from "@neondatabase/serverless";
 import { ensureEnv } from "./env";
 
+export { DOCUMENT_TYPE_LABELS } from "./document-labels";
+
 export function sql() {
   ensureEnv();
   const url = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
@@ -9,26 +11,6 @@ export function sql() {
   }
   return neon(url);
 }
-
-export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  factura_fiscal: "Factura fiscal",
-  cedula_identidad: "Cédula de identidad",
-  pasaporte: "Pasaporte",
-  carnet: "Carnet",
-  documentos_identificacion: "Documentos de identificación",
-  acta_nacimiento: "Acta de nacimiento",
-  egreso: "Egreso",
-  ingreso: "Ingreso",
-  informe_medico: "Informe médico",
-  comprobante: "Comprobante",
-  carta_aval: "Carta aval",
-  presupuesto: "Presupuesto",
-  laboratorio: "Laboratorio",
-  imagenologia: "Imagenología",
-  orden_servicio: "Orden de servicio",
-  otro_anexo: "Otro anexo",
-  ilegible: "Ilegible",
-};
 
 export const UPLOAD_STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente",

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { DocumentTypeGroup } from "@/components/document-type-group";
+import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
 import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
@@ -558,13 +558,18 @@ export default async function PersonaDetailPage({
         emptyTitle="Sin documentos de identidad"
         emptyHint="Solo páginas con cédula o pasaporte vinculadas por person_id aparecen aquí."
       >
-        <DocumentTypeGroup
-          docs={identityDocs.map((d) => ({
-            id: d.id,
-            document_type: d.document_type,
-            page_index: d.page_index,
-            upload_status: d.upload_status,
-          }))}
+        <DocumentGallery
+          blocks={[
+            {
+              id: "identidad",
+              docs: identityDocs.map((d) => ({
+                id: d.id,
+                documentType: d.document_type,
+                pageIndex: d.page_index,
+                uploadStatus: d.upload_status,
+              })),
+            },
+          ]}
         />
       </RelationSection>
 
@@ -576,32 +581,20 @@ export default async function PersonaDetailPage({
         emptyTitle="Sin documentos del expediente"
         emptyHint="Páginas de facturas vinculadas (egresos, informes, fiscal) aparecerán cuando existan paquetes cargados."
       >
-        <div className="space-y-6">
-          {[...expedienteByInvoice.values()].map((group) => (
-            <div key={group.invoiceId} className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-medium text-[#0A2A6B]">
-                  {formatInvoiceNumber(group.invoiceNumber)}
-                </h3>
-                <Link
-                  href={`/facturas/${group.invoiceId}`}
-                  className="text-xs font-medium text-[#033CA0]"
-                >
-                  Ver factura
-                </Link>
-              </div>
-              <DocumentTypeGroup
-                docs={group.docs.map((d) => ({
-                  id: d.id,
-                  document_type: d.document_type,
-                  page_index: d.page_index,
-                  upload_status: d.upload_status,
-                  subtitle: formatInvoiceNumber(d.invoice_number),
-                }))}
-              />
-            </div>
-          ))}
-        </div>
+        <DocumentGallery
+          blocks={[...expedienteByInvoice.values()].map((group) => ({
+            id: group.invoiceId,
+            title: formatInvoiceNumber(group.invoiceNumber),
+            href: `/facturas/${group.invoiceId}`,
+            docs: group.docs.map((d) => ({
+              id: d.id,
+              documentType: d.document_type,
+              pageIndex: d.page_index,
+              uploadStatus: d.upload_status,
+              subtitle: formatInvoiceNumber(d.invoice_number),
+            })),
+          }))}
+        />
       </RelationSection>
 
       <RelationSection
