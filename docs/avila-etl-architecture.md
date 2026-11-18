@@ -228,6 +228,7 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 4. One-time / periodic dedupe: `PYTHONPATH=scripts .venv/bin/python cleanup_person_duplicates.py --apply` (junk folder names + merge same-name provisionals). Provisional keys are `name:{folded}` (not per-invoice).
 5. Path/OCR gap fill via `upload_documents_to_blob.py` / `backfill_titulares.py`. Workbook titulars with CI/contact are not overwritten by weak path names. Use `--metadata-only` when refreshing links without re-rendering Blob pages. Role rule: a plastic ID / carnet CI on the packet is titular; a different FACT path name becomes `beneficiario` (not a second titular).
 6. Shared helpers live in `scripts/person_upsert.py`. Reader `/personas/[id]` shows contact fields and authorization lines.
+7. Contact fill, after roles: `repair_workbook_contact.py` then `enrich_person_contact.py`. Both are fill-only. A different birth date, phone, or address opens a review and does not overwrite. Every person gets `contact_gap` (`birth_date`, `phone`, `address`), and the profile prints that reason under an empty field. Workbook phone and address stay on the titular; only the emergency-contact column is written on a beneficiario. Page text comes from the OCR cache of loaded documents and of scanner packets at confidence ≥ 0.6. A minor's phone and address are not copied from the titular.
 
 ### Phase order for a full refresh
 
@@ -247,6 +248,7 @@ Each script is dry-run first, then `--apply`. All of them record `etl_run`, prov
 | 5 Roles | `role_linkage.py beneficiario\|propagate\|workbook\|all` | Path/fiscal beneficiario harvest; pair propagation; sabana relink |
 | 5 Roles | `repair_corpus_person_roles.py` | CI from identity pages → titular; `multiple_ci` → review queue |
 | 5 Review | Reader `/revision` | Staff decisions, recorded as `review` provenance; auth accept also links beneficiario |
+| 6 Contact | `repair_workbook_contact.py` then `enrich_person_contact.py` | Fill-only phone, address, and birth date; `contact_gap` reason when a field stays empty |
 
 Scanner-lot discovery: scanner files are inventory rows with `rule_id = scan_outside_invoice`. The scanner writes one image per page, in capture order: fiscal sheet, then the claim form, then informe and other attachments. A fiscal page opens a packet, and the pages after it belong to that packet until the next different fiscal sheet.
 

@@ -6,6 +6,7 @@ import datetime as dt
 import unittest
 
 import repair_workbook_birth_dates as repair
+import repair_workbook_contact as contact_repair
 from document_types import extract_identity_number, extract_name_from_cedula_ocr
 from workbook_enrichment.normalize import (
     digits_ci,
@@ -13,7 +14,11 @@ from workbook_enrichment.normalize import (
     parse_invoice_number,
     row_dict,
 )
-from workbook_enrichment.upsert_persons import row_is_titular_self, titular_birth_date
+from workbook_enrichment.upsert_persons import (
+    contact_assignments,
+    row_is_titular_self,
+    titular_birth_date,
+)
 
 
 class NormalizeTests(unittest.TestCase):
@@ -72,6 +77,30 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(mapping[2], "birth_date")
         self.assertEqual(mapping[5], "beneficiario_birth_date")
 
+    def test_emergency_phone_is_not_the_household_phone(self):
+        headers = [
+            "TITULAR",
+            "CI TITULAR",
+            "BENEFICIARIO",
+            "CI BENEFICIARIO",
+            "TELEFONO",
+            "TELEFONO CONTACTO BENEFICIARIO (EMERGENCIAS)",
+            "DIRECCION",
+        ]
+        mapping = map_headers(headers)
+        self.assertEqual(mapping[4], "phone")
+        self.assertEqual(mapping[5], "beneficiario_phone")
+        self.assertEqual(mapping[6], "address")
+        row = row_dict(
+            headers,
+            ["ANA PEREZ", "11222333", "LUIS PEREZ", "44555666", "0414-1234567", "0412-7654321", "Calle 4 Casa 12"],
+        )
+        assigned = {(key[1], field): value for key, field, value in contact_assignments(row)}
+        self.assertEqual(assigned[("11222333", "phone")], "04141234567")
+        self.assertEqual(assigned[("11222333", "address")], "Calle 4 Casa 12")
+        self.assertEqual(assigned[("44555666", "phone")], "04127654321")
+        self.assertIn(("44555666", "phone_clear_if"), {(key[1], field) for key, field, _ in contact_assignments(row)})
+
     def test_parse_invoice_number(self):
         self.assertEqual(parse_invoice_number("FACT 22314"), "22314")
         self.assertEqual(parse_invoice_number(22314), "22314")
@@ -117,6 +146,14 @@ class BirthDateOwnershipTests(unittest.TestCase):
         corrected, legacy = repair.attributions(self._row())
         self.assertEqual(corrected, [(("ci", "44555666"), D2)])
         self.assertIn((("ci", "11222333"), D2), legacy)
+
+    def test_contact_fill_does_not_overwrite(self):
+        self.assertEqual(contact_repair._decide("phone", None, {"0414-1234567"})[0], "fill")
+        self.assertEqual(contact_repair._decide("phone", "04141234567", {"0414-1234567"})[0], "keep")
+        self.assertEqual(contact_repair._decide("phone", "04129998877", {"04141234567"})[0], "conflict")
+        action, value = contact_repair._decide("phone", None, {"04141234567", "02125551234"})
+        self.assertEqual(action, "fill")
+        self.assertEqual(value, "04141234567")
 
     def test_decide(self):
         self.assertEqual(repair.decide(D2, set(), {D2}), ("clear", None))

@@ -193,6 +193,7 @@ def row_dict(headers: list[Any], values: list[Any]) -> dict[str, Any]:
         "beneficiario_birth_date": ben_birth,
         "parentesco": _clean_parentesco(raw.get("parentesco")),
         "phone": clean_name(raw.get("phone")),
+        "beneficiario_phone": clean_name(raw.get("beneficiario_phone")),
         "address": clean_name(raw.get("address")),
         "clave_rms": clean_name(raw.get("clave_rms")),
         "contratante": clean_name(raw.get("contratante")),

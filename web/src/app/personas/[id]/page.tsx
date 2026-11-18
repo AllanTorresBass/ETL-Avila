@@ -7,6 +7,7 @@ import { EntityRow } from "@/components/entity-row";
 import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
 import { SectionNav } from "@/components/section-nav";
+import { CONTACT_GAP_COPY, contactGapCode } from "@/lib/contact-gap";
 import { IDENTITY_TYPE_LABELS, sql } from "@/lib/db";
 import { FIELD_LABELS, SOURCE_KIND_LABELS } from "@/lib/review";
 import {
@@ -24,6 +25,19 @@ export const dynamic = "force-dynamic";
 const AUTH_PAGE_SIZE = 20;
 const HISTORY_LIMIT = 50;
 
+function GapNote({
+  gap,
+  field,
+}: {
+  gap: unknown;
+  field: "birth_date" | "phone" | "address";
+}) {
+  const code = contactGapCode(gap, field);
+  const text = code ? CONTACT_GAP_COPY[code] : undefined;
+  if (!text) return null;
+  return <p className="mt-1 text-xs text-slate-500">{text}</p>;
+}
+
 export default async function PersonaDetailPage({
   params,
   searchParams,
@@ -37,7 +51,7 @@ export default async function PersonaDetailPage({
 
   const [person] = await db`
     SELECT id, identity_type::text AS identity_type, identity_number, full_name,
-           birth_date, phone, address, notes
+           birth_date, phone, address, notes, contact_gap
     FROM avila.person WHERE id = ${id}::uuid
   `;
   if (!person) notFound();
@@ -317,10 +331,12 @@ export default async function PersonaDetailPage({
           <div>
             <div className="text-xs tracking-wider text-slate-400 uppercase">Nacimiento</div>
             <div>{formatDate(person.birth_date)}</div>
+            <GapNote gap={person.contact_gap} field="birth_date" />
           </div>
           <div>
             <div className="text-xs tracking-wider text-slate-400 uppercase">Teléfono</div>
             <div>{person.phone || "—"}</div>
+            <GapNote gap={person.contact_gap} field="phone" />
           </div>
           {primaryTitular ? (
             <div>
@@ -339,6 +355,7 @@ export default async function PersonaDetailPage({
           <div className="sm:col-span-2">
             <div className="text-xs tracking-wider text-slate-400 uppercase">Dirección</div>
             <div>{person.address || "—"}</div>
+            <GapNote gap={person.contact_gap} field="address" />
           </div>
           {person.notes ? (
             <div className="sm:col-span-2">
