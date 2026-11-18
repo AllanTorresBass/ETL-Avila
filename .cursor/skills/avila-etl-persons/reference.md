@@ -46,6 +46,10 @@ Loader identity linking ([scripts/upload_documents_to_blob.py](../../../scripts/
 | Contact hygiene | `0212-…` on factura tomador / clinic header | Do not write to `person.phone` |
 | Patient phone | Informe `TELÉFONO` next to patient name | Candidate for `person.phone` |
 | Domicilio on acta | Presentante address | Candidate for **titular** address, not child |
+| Workbook phone | `TELEFONO` / `TELF.ASEGURADO` on a row with a beneficiario | Titular, not the beneficiario. Emergency column only → beneficiario |
+| Letterhead phone | Clinic, insurer, RIF, or a number on 8+ invoices and 3+ titulares | Do not write. Gap `only_letterhead` |
+| Scanner packet below 0.6 | Contact text in an unassigned lote | Do not write. Gap `unsegmented_scan` |
+| Minor phone / address | Beneficiario hijo or under 18 with no own value | Leave empty. Gap `not_applicable_menor` |
 | Wrong DOB on titular | Child DOB copied onto CI person | Correct from cédula F. nacimiento; workbook source was the beneficiary DOB column → `repair_workbook_birth_dates.py` |
 | DOB disagreement | Two sources give different DOBs | Stored DOB stays; `dob_conflict` review |
 | Spelling variant | Same child twice, one-letter OCR slip | `identity_resolver.py` (auto-merge only with equal DOB) |
@@ -71,6 +75,8 @@ Use project `.venv` and `PYTHONPATH=scripts`. Prefer unpooled DB URL from `env_l
 | `workbook_enrichment` | Register workbooks first | `python -m workbook_enrichment …` |
 | `backfill_titulares.py` | Path/OCR titular gap fill | after workbook load; only replaces `legacy_unknown` sources |
 | `repair_workbook_birth_dates.py` | Undo DOBs from the wrong workbook column | dry-run then `--apply` |
+| `repair_workbook_contact.py` | Titular phone and address from sábana / claves / relación | dry-run then `--apply` |
+| `enrich_person_contact.py` | OCR birth date, phone, address, plus `contact_gap` | dry-run then `--apply` |
 | `identity_resolver.py` | Fuzzy duplicates → merge or `duplicate_candidate` | dry-run then `--apply` |
 | `fiscal_extract.py` | Control no., date, totals, clave, fiscal titular/patient | `--apply --link-roles`; `--missing-titular` / `--roles-only` for role backfill |
 | `match_auth_lines.py` | Score auth lines against invoices | dry-run then `--apply` (`--relink` to rescore linked lines) |

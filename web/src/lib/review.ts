@@ -5,6 +5,8 @@ export const REVIEW_KIND_LABELS: Record<string, string> = {
   multiple_ci: "Varias cédulas en la página",
   acta_titular: "Titular tomado de un acta",
   dob_conflict: "Fecha de nacimiento distinta",
+  phone_conflict: "Teléfono distinto",
+  address_conflict: "Dirección distinta",
   auth_match: "Autorización sin factura",
   segment_review: "Paquete escaneado",
 };
@@ -17,7 +19,11 @@ export const REVIEW_GROUPS: { id: string; label: string; kinds: string[] }[] = [
     label: "Conflicto de CI",
     kinds: ["ci_conflict", "workbook_titular", "multiple_ci", "acta_titular"],
   },
-  { id: "nacimiento", label: "Fecha de nacimiento", kinds: ["dob_conflict"] },
+  {
+    id: "contacto",
+    label: "Contacto",
+    kinds: ["dob_conflict", "phone_conflict", "address_conflict"],
+  },
   { id: "autorizacion", label: "Autorización sin factura", kinds: ["auth_match"] },
   { id: "paquete", label: "Paquete escaneado", kinds: ["segment_review"] },
 ];
@@ -31,6 +37,8 @@ export const ACCEPT_EFFECT: Record<string, string> = {
   multiple_ci: "Aceptar marca la página como revisada; el titular no cambia.",
   acta_titular: "Aceptar confirma que el titular del acta no era el asegurado.",
   dob_conflict: "Aceptar confirma la fecha guardada; la otra fuente se ignora.",
+  phone_conflict: "Aceptar confirma el teléfono guardado; la otra fuente se ignora.",
+  address_conflict: "Aceptar confirma la dirección guardada; la otra fuente se ignora.",
   segment_review: "Aceptar marca el paquete como revisado para la próxima carga.",
 };
 

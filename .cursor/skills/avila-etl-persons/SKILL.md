@@ -83,8 +83,10 @@ When the user names a person, CI, or FACT set — or when identity/role mislabel
 
 ### 7. Enrich
 
-- From OCR, pull DOB / phone / address for the **person those fields describe**.
-- Write to `avila.person`; put uncertain alternate phones in `notes`, not over the primary phone.
+- Corpus fill is `repair_workbook_contact.py` then `enrich_person_contact.py` (dry-run, then `--apply`). Do not copy a titular phone or address onto a minor.
+- From OCR, pull DOB / phone / address for the **person those fields describe**. Cédula date stays with that cédula. Acta date stays with the child. Acta domicilio stays with the titular. Clinic and insurer numbers are not patient phones.
+- Write to `avila.person`; put a clearly weaker second phone in `notes`, not over the primary phone. Two competing values open `dob_conflict`, `phone_conflict`, or `address_conflict` and do not overwrite.
+- Every person gets `avila.person.contact_gap` with a closed code per field (`filled`, `not_applicable_menor`, `no_candidate_page`, `ocr_no_cue`, `unparsed`, `only_letterhead`, `ambiguous`, `conflict`, `blocked_review`, `junk`, `no_invoice_documents`, `unsegmented_scan`, `outside_ocr_scope`). The profile shows the Spanish sentence. Counts-only report: `output/runs/{run_id}.md`. Hashes and paths: `output/persons/_queue/contact-gaps.jsonl` (git-ignored).
 - Fix wrong DOB copies (e.g. child DOB on titular) when cédula/acta contradicts Neon.
 
 ### 8. Verify

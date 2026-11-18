@@ -39,6 +39,8 @@ REVIEW_KINDS = {
     "workbook_titular",
     "multiple_ci",
     "dob_conflict",
+    "phone_conflict",
+    "address_conflict",
     "auth_match",
     "segment_review",
     "acta_titular",
