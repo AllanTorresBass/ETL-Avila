@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { DocumentTypeGroup } from "@/components/document-type-group";
+import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
 import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
@@ -183,6 +183,7 @@ export default async function FacturaDetailPage({
       </Card>
 
       <RelationSection
+        collapsible
         id="personas"
         title="Personas"
         count={people.length}
@@ -203,6 +204,7 @@ export default async function FacturaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="autorizaciones"
         title="Autorizaciones"
         count={authTotal}
@@ -248,6 +250,7 @@ export default async function FacturaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="archivos"
         title="Archivos fuente"
         count={files.length}
@@ -270,6 +273,7 @@ export default async function FacturaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="paginas"
         title="Páginas del paquete"
         count={fileFilter ? docs.length : docTotal}
@@ -290,13 +294,18 @@ export default async function FacturaDetailPage({
           ) : null
         }
       >
-        <DocumentTypeGroup
-          docs={docs.map((d) => ({
-            id: d.id,
-            document_type: d.document_type,
-            page_index: d.page_index,
-            upload_status: d.upload_status,
-          }))}
+        <DocumentGallery
+          blocks={[
+            {
+              id: "paginas",
+              docs: docs.map((d) => ({
+                id: d.id,
+                documentType: d.document_type,
+                pageIndex: d.page_index,
+                uploadStatus: d.upload_status,
+              })),
+            },
+          ]}
         />
       </RelationSection>
     </div>
