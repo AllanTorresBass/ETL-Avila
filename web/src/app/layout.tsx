@@ -28,8 +28,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         },
       }}
     >
-      <html lang="es" className={`${montserrat.variable} h-full antialiased`}>
-        <body className="min-h-full bg-[#F4F8FC] font-sans text-[#0A2A6B] selection:bg-[#6CC24A] selection:text-white">
+      <html lang="es" className={`${montserrat.variable} h-full antialiased`} suppressHydrationWarning>
+        <body
+          className="min-h-full bg-[#F4F8FC] font-sans text-[#0A2A6B] selection:bg-[#6CC24A] selection:text-white"
+          suppressHydrationWarning
+        >
           <SiteHeader />
           <main className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6">{children}</main>
           <footer className="bg-[#0A1F4D] px-4 py-6 text-center text-xs text-white/80 sm:px-6">
