@@ -69,11 +69,20 @@ export default async function PersonasPage({
   const people = await db`
     SELECT p.id, p.identity_type::text AS identity_type, p.identity_number, p.full_name,
            p.phone, p.birth_date,
-           coalesce(dc.docs, 0)::int AS docs
+           coalesce(dc.docs, 0)::int AS docs,
+           coalesce(roles.titular_n, 0)::int AS titular_n,
+           coalesce(roles.beneficiario_n, 0)::int AS beneficiario_n
     FROM avila.person p
     LEFT JOIN (
       SELECT person_id, count(*)::int AS docs FROM avila.document GROUP BY person_id
     ) dc ON dc.person_id = p.id
+    LEFT JOIN (
+      SELECT person_id,
+             count(DISTINCT invoice_id) FILTER (WHERE role = 'titular')::int AS titular_n,
+             count(DISTINCT invoice_id) FILTER (WHERE role = 'beneficiario')::int AS beneficiario_n
+      FROM avila.invoice_person
+      GROUP BY person_id
+    ) roles ON roles.person_id = p.id
     WHERE p.id IN (
       SELECT DISTINCT p2.id
       FROM avila.person p2
@@ -238,6 +247,23 @@ export default async function PersonasPage({
                         : ""}
                     </div>
                   )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {person.titular_n > 0 ? (
+                      <span className="rounded-full bg-[#0A2A6B] px-3 py-1 text-xs font-medium text-white">
+                        {`${ROLE_LABELS.titular} · ${person.titular_n} factura${person.titular_n === 1 ? "" : "s"}`}
+                      </span>
+                    ) : null}
+                    {person.beneficiario_n > 0 ? (
+                      <span className="rounded-full bg-[#033CA0]/10 px-3 py-1 text-xs font-medium text-[#033CA0]">
+                        {`${ROLE_LABELS.beneficiario} · ${person.beneficiario_n} factura${person.beneficiario_n === 1 ? "" : "s"}`}
+                      </span>
+                    ) : null}
+                    {person.titular_n === 0 && person.beneficiario_n === 0 ? (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                        {ROLE_LABELS.unknown}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="mt-3 text-xs text-[#033CA0]">
                     {person.docs} documentos de identidad
                   </div>
