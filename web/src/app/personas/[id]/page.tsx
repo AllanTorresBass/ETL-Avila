@@ -368,6 +368,7 @@ export default async function PersonaDetailPage({
 
       {titulares.length > 0 ? (
         <RelationSection
+          collapsible
           id="titulares"
           title="Titulares"
           count={titulares.length}
@@ -398,6 +399,7 @@ export default async function PersonaDetailPage({
       ) : null}
 
       <RelationSection
+        collapsible
         id="facturas"
         title="Facturas"
         count={invoices.length}
@@ -419,6 +421,7 @@ export default async function PersonaDetailPage({
 
       {beneficiaries.length > 0 ? (
         <RelationSection
+          collapsible
           id="beneficiarios"
           title="Beneficiarios"
           count={beneficiaries.length}
@@ -448,6 +451,7 @@ export default async function PersonaDetailPage({
       ) : null}
 
       <RelationSection
+        collapsible
         id="archivos"
         title="Archivos fuente"
         count={sourceFiles.length}
@@ -479,6 +483,7 @@ export default async function PersonaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="autorizaciones"
         title="Autorizaciones"
         count={authTotal}
@@ -546,6 +551,7 @@ export default async function PersonaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="identidad"
         title="Documentos de identidad"
         count={identityDocs.length}
@@ -563,6 +569,7 @@ export default async function PersonaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="expediente"
         title="Documentos del expediente"
         count={expedienteDocs.length}
@@ -598,6 +605,7 @@ export default async function PersonaDetailPage({
       </RelationSection>
 
       <RelationSection
+        collapsible
         id="historial"
         title="Historial"
         count={history.length}
