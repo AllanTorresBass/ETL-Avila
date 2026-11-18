@@ -36,7 +36,10 @@ from contact_extract import (  # noqa: E402
     extract_page,
     is_minor_beneficiario,
     names_compatible,
+    address_signature,
+    repeated_address_signatures,
     same_value,
+    select_address_hits,
 )
 from document_types import classify_document  # noqa: E402
 from ocr_invoice_pages import cache_path  # noqa: E402
@@ -122,6 +125,11 @@ def _pick(field_name: str, hits: list[Hit], stored: object) -> tuple[str, Hit | 
 
     Actions: fill, keep, conflict. fill is only when the stored value is empty.
     """
+    if field_name == "address":
+        selected = select_address_hits(hits, stored)
+        if selected is None:
+            return "keep", None, None
+        hits = selected
     groups = _cluster(field_name, hits)
     if not groups:
         return "keep", None, None
@@ -309,6 +317,7 @@ def main() -> int:
         }
         phone_invoices: dict[str, set[str]] = defaultdict(set)
         phone_titulares: dict[str, set[str]] = defaultdict(set)
+        address_records: list[tuple[str, str, str]] = []
         seen_pages: set[tuple[str, int]] = set()
 
         def consider(
@@ -339,9 +348,8 @@ def main() -> int:
                 for field_name in ("birth_date", "phone", "address"):
                     if field_name in extracted.cues and not any(c.field == field_name for c in extracted.candidates):
                         flags[person.person_id][field_name].add("unparsed")
-                if extracted.rejected_letterhead:
-                    flags[person.person_id]["phone"].add("letterhead")
-                    flags[person.person_id]["address"].add("letterhead")
+                for field_name in extracted.letterhead_fields:
+                    flags[person.person_id][field_name].add("letterhead")
             ref = f"{relative}#{page_index}"
             titulares = [person.person_id for person in people if person.role == "titular"]
             for candidate in extracted.candidates:
@@ -363,6 +371,11 @@ def main() -> int:
                         phone_invoices[str(candidate.value)].add(bucket)
                         for titular_id in titulares:
                             phone_titulares[str(candidate.value)].add(titular_id)
+                    elif candidate.field == "address":
+                        for titular_id in titulares:
+                            address_records.append(
+                                (str(candidate.value), invoice_id or relative, titular_id)
+                            )
                     stats["bound"] += 1
                 elif status == "ambiguous":
                     _mark_ambiguous(candidate, people, flags)
@@ -442,6 +455,8 @@ def main() -> int:
             for number, invoices_seen in phone_invoices.items()
             if len(invoices_seen) >= 8 and len(phone_titulares[number]) >= 3
         }
+        denied_addresses = repeated_address_signatures(address_records)
+        stats["letterhead_addresses"] = len(denied_addresses)
         stats["letterhead_numbers"] = len(denied)
         for person_id, fields in hits.items():
             phones = fields.get("phone") or []
@@ -449,6 +464,13 @@ def main() -> int:
             if len(kept) != len(phones):
                 flags[person_id]["phone"].add("letterhead")
             fields["phone"] = kept
+            addresses = fields.get("address") or []
+            kept_addresses = [
+                hit for hit in addresses if address_signature(str(hit.value)) not in denied_addresses
+            ]
+            if len(kept_addresses) != len(addresses):
+                flags[person_id]["address"].add("letterhead")
+            fields["address"] = kept_addresses
 
         ledger: list[dict] = []
         updates: list[dict] = []
@@ -470,6 +492,7 @@ def main() -> int:
                     new_values[field_name] = hit.value
                     stored = hit.value
                     stats[f"filled:{field_name}"] += 1
+                    stats[f"filled_rule:{hit.rule_id}"] += 1
                     writes.append((person_id, field_name, hit))
                     if field_name == "birth_date":
                         chosen_birth = hit.value
@@ -575,9 +598,9 @@ def main() -> int:
         provenance.finish_run(url, dict(stats))
     print("apply" if args.apply else "dry-run")
     for key in sorted(stats):
-        if key.startswith("gap:") or key.startswith("filled:") or key.startswith("conflict:") or key in {
+        if key.startswith(("gap:", "filled:", "filled_rule:", "conflict:")) or key in {
             "persons", "document_pages", "scanner_packets", "scanner_low", "scanner_unmatched",
-            "letterhead_numbers", "bound", "ambiguous", "blocked", "phone_alternate", "skipped_junk",
+            "letterhead_numbers", "letterhead_addresses", "bound", "ambiguous", "blocked", "phone_alternate", "skipped_junk",
         }:
             print(f"  {key} {stats[key]}")
     return 0
@@ -591,7 +614,7 @@ def _mark_ambiguous(candidate: Candidate, people: list[PersonOnInvoice], flags: 
         return
     if candidate.rule_id == "acta_child_dob":
         roles = {"beneficiario"}
-    elif candidate.rule_id == "acta_domicilio":
+    elif candidate.rule_id in {"acta_domicilio", "form_address", "street_line"}:
         roles = {"titular"}
     else:
         return
