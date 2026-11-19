@@ -31,9 +31,9 @@ function evidenceEntries(evidence: unknown): [string, string][] {
 function PersonLink({ id, name, ci }: { id: string | null; name: string | null; ci: string | null }) {
   if (!id) return null;
   return (
-    <Link href={`/personas/${id}`} className="font-medium text-[#033CA0] hover:underline">
+    <Link href={`/personas/${id}`} className="font-medium text-brand hover:underline">
       {name || "(sin nombre)"}
-      {ci ? <span className="ml-1 text-xs text-slate-500">CI {ci}</span> : null}
+      {ci ? <span className="ml-1 text-xs text-muted-foreground">CI {ci}</span> : null}
     </Link>
   );
 }
@@ -79,8 +79,8 @@ export default async function RevisionPage({
   const pill = (active: boolean) =>
     `rounded-full px-4 py-2 text-xs font-medium transition ${
       active
-        ? "bg-[#0A2A6B] text-white"
-        : "border border-slate-200 bg-white text-slate-600 hover:text-[#033CA0]"
+        ? "bg-hero text-white"
+        : "border border-border bg-card text-muted-foreground hover:text-brand"
     }`;
   const params = { tipo: group?.id, estado: status === "open" ? undefined : status };
 
@@ -126,13 +126,13 @@ export default async function RevisionPage({
       ) : (
         <div className="space-y-4">
           {items.map((item) => (
-            <article key={item.id} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <article key={item.id} className="rounded-3xl border border-border bg-card p-6 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium tracking-wider text-[#5BB2F5] uppercase">
+                  <p className="text-xs font-medium tracking-wider text-info uppercase">
                     {REVIEW_KIND_LABELS[item.kind] || item.kind}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Detectado {formatDate(item.created_at)}
                     {item.score != null ? ` · confianza ${Number(item.score).toFixed(2)}` : ""}
                     {item.resolved_by ? ` · resuelto por ${item.resolved_by} el ${formatDate(item.resolved_at)}` : ""}
@@ -143,16 +143,16 @@ export default async function RevisionPage({
               <div className="mt-4 grid gap-4 md:grid-cols-[1fr_280px]">
                 <div className="space-y-3 text-sm">
                   {item.person_id ? (
-                    <div className="rounded-2xl bg-[#F4F8FC] p-3">
+                    <div className="rounded-2xl bg-background p-3">
                       <PersonLink id={item.person_id} name={item.p_name} ci={item.p_ci} />
                       {item.p_dob ? (
-                        <span className="ml-2 text-xs text-slate-500">nac. {formatDate(item.p_dob)}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">nac. {formatDate(item.p_dob)}</span>
                       ) : null}
                       {item.other_person_id ? (
                         <div className="mt-2">
                           <PersonLink id={item.other_person_id} name={item.o_name} ci={item.o_ci} />
                           {item.o_dob ? (
-                            <span className="ml-2 text-xs text-slate-500">nac. {formatDate(item.o_dob)}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">nac. {formatDate(item.o_dob)}</span>
                           ) : null}
                         </div>
                       ) : null}
@@ -160,16 +160,16 @@ export default async function RevisionPage({
                   ) : null}
                   {item.invoice_id ? (
                     <p>
-                      <Link href={`/facturas/${item.invoice_id}`} className="text-[#033CA0] hover:underline">
+                      <Link href={`/facturas/${item.invoice_id}`} className="text-brand hover:underline">
                         {formatInvoiceNumber(item.invoice_number)}
                       </Link>
                       {item.issue_date ? (
-                        <span className="ml-2 text-xs text-slate-500">emitida {formatDate(item.issue_date)}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">emitida {formatDate(item.issue_date)}</span>
                       ) : null}
                     </p>
                   ) : null}
                   {item.authorization_line_id ? (
-                    <p className="text-slate-700">
+                    <p className="text-foreground/80">
                       Autorización {item.clave_rms || "sin clave"} · {formatDate(item.request_date)}
                       {item.service_description ? ` · ${item.service_description}` : ""}
                     </p>
@@ -178,19 +178,19 @@ export default async function RevisionPage({
                     <dl className="grid gap-1 text-xs sm:grid-cols-[160px_1fr]">
                       {evidenceEntries(item.evidence).map(([k, v]) => (
                         <div key={k} className="contents">
-                          <dt className="text-slate-500">{k}</dt>
-                          <dd className="break-words text-slate-700">{v}</dd>
+                          <dt className="text-muted-foreground">{k}</dt>
+                          <dd className="break-words text-foreground/80">{v}</dd>
                         </div>
                       ))}
                     </dl>
                   ) : null}
                   {item.status === "open" ? (
-                    <p className="text-xs text-slate-500">{ACCEPT_EFFECT[item.kind]}</p>
+                    <p className="text-xs text-muted-foreground">{ACCEPT_EFFECT[item.kind]}</p>
                   ) : null}
                 </div>
 
                 {item.document_id && item.blob_pathname ? (
-                  <div className="overflow-hidden rounded-2xl border border-slate-100">
+                  <div className="overflow-hidden rounded-2xl border border-border">
                     <DocumentPreview
                       src={`/api/blob/${item.document_id}`}
                       alt={DOCUMENT_TYPE_LABELS[item.document_type] || "Documento"}
@@ -214,7 +214,7 @@ export default async function RevisionPage({
                     type="submit"
                     name="decision"
                     value="reject"
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-xs font-medium text-slate-700 hover:text-[#033CA0]"
+                    className="rounded-full border border-border bg-card px-5 py-2.5 text-xs font-medium text-foreground/80 hover:text-brand"
                   >
                     Rechazar
                   </button>

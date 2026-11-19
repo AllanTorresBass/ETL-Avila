@@ -95,10 +95,10 @@ export function DocumentPreview({
 
   if (failed) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-2 bg-slate-100 px-6 text-center text-sm text-slate-500">
+      <div className="flex h-64 flex-col items-center justify-center gap-2 bg-muted px-6 text-center text-sm text-muted-foreground">
         <p>No se pudo cargar la imagen</p>
         <p className="text-xs">El documento puede haber fallado en Blob o el enlace expiró.</p>
-        <a href={src} className="text-xs text-[#033CA0] underline" target="_blank" rel="noopener noreferrer">
+        <a href={src} className="text-xs text-brand underline" target="_blank" rel="noopener noreferrer">
           Abrir ruta de API
         </a>
       </div>
@@ -157,7 +157,7 @@ export function DocumentPreview({
   const percent = Math.round(scale * 100);
 
   return (
-    <div className={fill ? "relative flex h-full min-h-0 w-full flex-col bg-slate-100" : "relative bg-slate-100"}>
+    <div className={fill ? "relative flex h-full min-h-0 w-full flex-col bg-muted" : "relative bg-muted"}>
       <div
         ref={frameRef}
         role="region"
@@ -165,8 +165,8 @@ export function DocumentPreview({
         aria-label={`Vista del documento, ${percent}%`}
         className={
           fill
-            ? "min-h-0 flex-1 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#033CA0]"
-            : "max-h-[80vh] overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#033CA0]"
+            ? "min-h-0 flex-1 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            : "max-h-[80vh] overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring"
         }
         style={{
           cursor: scale > MIN_SCALE ? (dragging ? "grabbing" : "grab") : "zoom-in",
@@ -186,8 +186,8 @@ export function DocumentPreview({
           draggable={false}
           className={
             fill
-              ? "h-full w-full bg-slate-100 object-contain select-none"
-              : "max-h-[80vh] w-full bg-slate-100 object-contain select-none"
+              ? "h-full w-full bg-muted object-contain select-none"
+              : "max-h-[80vh] w-full bg-muted object-contain select-none"
           }
           style={{
             transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
@@ -203,17 +203,17 @@ export function DocumentPreview({
             aria-label="Alejar"
             disabled={scale <= MIN_SCALE}
             onClick={() => applyZoom(scale - STEP)}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-[#0A2A6B] hover:bg-slate-100 disabled:opacity-40"
+            className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-40"
           >
             −
           </button>
-          <span className="min-w-12 text-center text-xs font-medium text-[#0A2A6B]">{percent}%</span>
+          <span className="min-w-12 text-center text-xs font-medium text-foreground">{percent}%</span>
           <button
             type="button"
             aria-label="Acercar"
             disabled={scale >= MAX_SCALE}
             onClick={() => applyZoom(scale + STEP)}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-[#0A2A6B] hover:bg-slate-100 disabled:opacity-40"
+            className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-40"
           >
             +
           </button>
@@ -222,7 +222,7 @@ export function DocumentPreview({
             aria-label="Ajustar"
             disabled={scale === MIN_SCALE}
             onClick={() => applyZoom(MIN_SCALE)}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-[#033CA0] hover:bg-slate-100 disabled:opacity-40"
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-brand hover:bg-muted disabled:opacity-40"
           >
             Ajustar
           </button>

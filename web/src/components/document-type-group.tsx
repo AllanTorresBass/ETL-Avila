@@ -45,9 +45,9 @@ export function DocumentTypeGroup({
     <div className="space-y-5">
       {[...groups.entries()].map(([type, items]) => (
         <div key={type} className="space-y-2">
-          <h3 className="sticky top-16 z-10 -mx-1 bg-[#F4F8FC]/95 px-1 py-1 text-xs font-medium tracking-wider text-slate-500 uppercase backdrop-blur">
+          <h3 className="sticky top-16 z-10 -mx-1 bg-background/90 px-1 py-1 text-xs font-medium tracking-wider text-muted-foreground uppercase backdrop-blur">
             {DOCUMENT_TYPE_LABELS[type] || type}{" "}
-            <span className="tabular-nums text-slate-400">({items.length})</span>
+            <span className="tabular-nums text-muted-foreground">({items.length})</span>
           </h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((doc) => (

@@ -22,14 +22,14 @@ export function DocumentCard({
 
   return (
     <Link href={`/documentos/${id}`}>
-      <Card className="rounded-3xl border-slate-100 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+      <Card className="rounded-3xl border-border shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
         <CardContent className="space-y-2 p-5">
           <div className="flex flex-wrap gap-2">
             <Badge
               className={`rounded-full ${
                 ilegible
-                  ? "bg-amber-50 text-amber-800 hover:bg-amber-50"
-                  : "bg-[#033CA0]/10 text-[#033CA0] hover:bg-[#033CA0]/10"
+                  ? "bg-warning-soft text-warning hover:bg-warning-soft"
+                  : "bg-brand/10 text-brand hover:bg-brand/10"
               }`}
             >
               {typeLabel}
@@ -38,7 +38,7 @@ export function DocumentCard({
           </div>
           {subtitle ? <div className="text-sm font-medium">{subtitle}</div> : null}
           {pageIndex != null ? (
-            <div className="text-xs text-slate-500">Página {pageIndex}</div>
+            <div className="text-xs text-muted-foreground">Página {pageIndex}</div>
           ) : null}
         </CardContent>
       </Card>

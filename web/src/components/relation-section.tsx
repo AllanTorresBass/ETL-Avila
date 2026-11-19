@@ -50,12 +50,12 @@ export function RelationSection({
   return (
     <section id={id} className="scroll-mt-24 space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <h2 className="text-xl font-medium text-[#0A2A6B]">
+        <h2 className="text-xl font-medium text-foreground">
           {title}{" "}
-          <span className="tabular-nums text-slate-400">({count})</span>
+          <span className="tabular-nums text-muted-foreground">({count})</span>
         </h2>
         {moreHref ? (
-          <Link href={moreHref} className="text-xs font-medium text-[#033CA0]">
+          <Link href={moreHref} className="text-xs font-medium text-brand">
             {moreLabel}
           </Link>
         ) : null}

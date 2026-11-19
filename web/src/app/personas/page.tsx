@@ -231,16 +231,16 @@ export default async function PersonasPage({
         <div className="grid gap-3 sm:grid-cols-2">
           {people.map((person) => (
             <Link key={person.id} href={`/personas/${person.id}`}>
-              <Card className="rounded-3xl border-slate-100 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <Card className="rounded-3xl border-border shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
                 <CardContent className="p-5">
                   <div className="text-sm font-medium">
                     {person.full_name || "Sin nombre en OCR"}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {person.identity_type}: {person.identity_number || "—"}
                   </div>
                   {(person.phone || person.birth_date) && (
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       {person.phone || "Sin teléfono"}
                       {person.birth_date
                         ? ` · ${String(person.birth_date).slice(0, 10)}`
@@ -249,22 +249,22 @@ export default async function PersonasPage({
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {person.titular_n > 0 ? (
-                      <span className="rounded-full bg-[#0A2A6B] px-3 py-1 text-xs font-medium text-white">
+                      <span className="rounded-full bg-hero px-3 py-1 text-xs font-medium text-white">
                         {`${ROLE_LABELS.titular} · ${person.titular_n} factura${person.titular_n === 1 ? "" : "s"}`}
                       </span>
                     ) : null}
                     {person.beneficiario_n > 0 ? (
-                      <span className="rounded-full bg-[#033CA0]/10 px-3 py-1 text-xs font-medium text-[#033CA0]">
+                      <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
                         {`${ROLE_LABELS.beneficiario} · ${person.beneficiario_n} factura${person.beneficiario_n === 1 ? "" : "s"}`}
                       </span>
                     ) : null}
                     {person.titular_n === 0 && person.beneficiario_n === 0 ? (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                      <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                         {ROLE_LABELS.unknown}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-3 text-xs text-[#033CA0]">
+                  <div className="mt-3 text-xs text-brand">
                     {person.docs} documentos de identidad
                   </div>
                 </CardContent>

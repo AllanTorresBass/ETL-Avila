@@ -7,9 +7,9 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center shadow-sm">
-      <p className="text-lg font-medium text-[#0A2A6B]">No se pudo cargar esta vista</p>
-      <p className="mt-2 text-sm text-slate-500">
+    <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
+      <p className="text-lg font-medium text-foreground">No se pudo cargar esta vista</p>
+      <p className="mt-2 text-sm text-muted-foreground">
         Revisa la conexión a Neon o vuelve a intentar. No se registran cédulas ni nombres en logs.
       </p>
       <button
