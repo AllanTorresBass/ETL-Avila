@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const links = [
-  { href: "/", label: "Inicio" },
+  { href: "/etl", label: "ETL" },
+  { href: "/bi", label: "Negocio" },
   { href: "/personas", label: "Personas" },
   { href: "/facturas", label: "Facturas" },
   { href: "/documentos", label: "Documentos" },
@@ -20,10 +21,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       {links.map((link) => {
-        const active =
-          link.href === "/"
-            ? pathname === "/"
-            : pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link
             key={link.href}
