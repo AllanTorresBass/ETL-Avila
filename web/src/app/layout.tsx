@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <script
             dangerouslySetInnerHTML={{
               __html:
-                "try{var m=window.matchMedia('(prefers-color-scheme: dark)');var f=function(){document.documentElement.classList.toggle('dark',m.matches)};f();m.addEventListener('change',f)}catch(e){}",
+                "try{var r=document.documentElement,m=window.matchMedia('(prefers-color-scheme: dark)'),s=function(){try{return localStorage.getItem('theme')}catch(e){return null}},f=function(){var t=s(),d=t==='dark'||(t!=='light'&&m.matches);r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light'};f();m.addEventListener('change',function(){if(!s())f()})}catch(e){}",
             }}
           />
         </head>

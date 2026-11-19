@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const links = [
@@ -58,6 +59,7 @@ export function SiteHeader() {
           <NavLinks />
         </nav>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Show when="signed-in">
             <UserButton />
           </Show>
