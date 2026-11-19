@@ -16,14 +16,23 @@ export function foldSlices(slices: DonutSlice[], keep = 5): DonutSlice[] {
   return [...head, { key: "otros", label: "Otros", value: rest }];
 }
 
-export function DonutChart({ slices, centerLabel }: { slices: DonutSlice[]; centerLabel: string }) {
-  const total = slices.reduce((sum, s) => sum + s.value, 0);
+export function DonutChart({
+  slices,
+  centerLabel,
+  keep,
+}: {
+  slices: DonutSlice[];
+  centerLabel: string;
+  keep?: number;
+}) {
+  const shown = keep == null ? slices : foldSlices(slices, keep);
+  const total = shown.reduce((sum, s) => sum + s.value, 0);
   if (total === 0) {
     return <p className="text-sm text-muted-foreground">Aún no hay datos para mostrar.</p>;
   }
 
   const config: ChartConfig = Object.fromEntries(
-    slices.map((s, i) => [s.key, { label: s.label, color: COLORS[i % COLORS.length] }]),
+    shown.map((s, i) => [s.key, { label: s.label, color: COLORS[i % COLORS.length] }]),
   );
 
   return (
@@ -33,7 +42,7 @@ export function DonutChart({ slices, centerLabel }: { slices: DonutSlice[]; cent
           <PieChart>
             <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="key" />} />
             <Pie
-              data={slices}
+              data={shown}
               dataKey="value"
               nameKey="key"
               innerRadius={54}
@@ -42,7 +51,7 @@ export function DonutChart({ slices, centerLabel }: { slices: DonutSlice[]; cent
               strokeWidth={0}
               isAnimationActive={false}
             >
-              {slices.map((s, i) => (
+              {shown.map((s, i) => (
                 <Cell key={s.key} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
@@ -54,7 +63,7 @@ export function DonutChart({ slices, centerLabel }: { slices: DonutSlice[]; cent
         </div>
       </div>
       <ul className="w-full min-w-0 flex-1 space-y-2">
-        {slices.map((s, i) => (
+        {shown.map((s, i) => (
           <li key={s.key} className="flex items-center justify-between gap-3 text-sm">
             <span className="flex min-w-0 items-center gap-2">
               <span

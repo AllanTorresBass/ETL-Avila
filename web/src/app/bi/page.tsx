@@ -4,7 +4,7 @@ import { BadgeCheck, CircleDollarSign, Gauge, ReceiptText } from "lucide-react";
 import { BreakdownCard } from "@/components/breakdown-card";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { DashboardNotice } from "@/components/dashboard-notice";
-import { DonutChart, foldSlices } from "@/components/donut-chart";
+import { DonutChart } from "@/components/donut-chart";
 import { KpiCard } from "@/components/kpi-card";
 import { Meter } from "@/components/meter";
 import { SectionCard } from "@/components/section-card";
@@ -178,10 +178,8 @@ export default async function BiDashboardPage({ searchParams }: PageProps<"/bi">
         <SectionCard className="lg:col-span-2" title="Canal de ingreso" description="Facturas por canal en el periodo.">
           <DonutChart
             centerLabel="facturas"
-            slices={foldSlices(
-              data.byChannel.map((c) => ({ key: c.channel, label: c.channel, value: c.invoices })),
-              4,
-            )}
+            keep={4}
+            slices={data.byChannel.map((c) => ({ key: c.channel, label: c.channel, value: c.invoices }))}
           />
         </SectionCard>
       </div>
@@ -193,14 +191,12 @@ export default async function BiDashboardPage({ searchParams }: PageProps<"/bi">
       >
         <DonutChart
           centerLabel="documentos"
-          slices={foldSlices(
-            data.documentMix.map((d) => ({
-              key: d.key,
-              label: DOCUMENT_TYPE_LABELS[d.key] || d.key,
-              value: d.n,
-            })),
-            5,
-          )}
+          keep={5}
+          slices={data.documentMix.map((d) => ({
+            key: d.key,
+            label: DOCUMENT_TYPE_LABELS[d.key] || d.key,
+            value: d.n,
+          }))}
         />
       </SectionCard>
 
