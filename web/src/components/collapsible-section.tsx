@@ -50,22 +50,22 @@ export function CollapsibleSection({
 
   return (
     <section id={id} className="scroll-mt-24">
-      <div className="flex items-stretch rounded-3xl border border-slate-100 bg-white shadow-sm">
+      <div className="flex items-stretch rounded-3xl border border-border bg-card shadow-sm">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-3xl px-5 py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5BB2F5]"
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-3xl px-5 py-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <h2 className="text-xl font-medium text-[#0A2A6B]">
+          <h2 className="text-xl font-medium text-foreground">
             {title}{" "}
-            <span className="tabular-nums text-slate-400">({count})</span>
+            <span className="tabular-nums text-muted-foreground">({count})</span>
           </h2>
           <ChevronDown
             aria-hidden
             className={cn(
-              "size-5 shrink-0 text-[#0A2A6B] transition-transform",
+              "size-5 shrink-0 text-foreground transition-transform",
               open && "rotate-180",
             )}
           />
@@ -73,7 +73,7 @@ export function CollapsibleSection({
         {moreHref ? (
           <Link
             href={moreHref}
-            className="self-center pr-5 text-xs font-medium text-[#033CA0]"
+            className="self-center pr-5 text-xs font-medium text-brand"
           >
             {moreLabel}
           </Link>

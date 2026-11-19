@@ -201,18 +201,18 @@ export default async function FacturasPage({
         <div className="grid gap-3">
           {invoices.map((inv) => (
             <Link key={inv.id} href={`/facturas/${inv.id}`}>
-              <Card className="rounded-3xl border-slate-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <Card className="rounded-3xl border-border shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
                   <div>
                     <div className="font-medium">
                       {formatInvoiceNumber(inv.invoice_number)}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {formatAccount(inv.account)} · {inv.month || "—"} {inv.year || ""} · lote{" "}
                       {inv.lote || "—"}
                     </div>
                   </div>
-                  <div className="text-xs text-[#033CA0]">{inv.docs} páginas</div>
+                  <div className="text-xs text-brand">{inv.docs} páginas</div>
                 </CardContent>
               </Card>
             </Link>

@@ -30,10 +30,10 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             href={link.href}
             aria-current={active ? "page" : undefined}
             onClick={onNavigate}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+            className={`inline-flex min-h-10 items-center rounded-full px-4 text-sm font-medium transition-colors ${
               active
-                ? "bg-[#033CA0]/10 text-[#033CA0]"
-                : "text-slate-600 hover:bg-[#033CA0]/10 hover:text-[#033CA0]"
+                ? "bg-brand/10 text-brand"
+                : "text-muted-foreground hover:bg-brand/10 hover:text-brand"
             }`}
           >
             {link.label}
@@ -47,9 +47,14 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 export function SiteHeader() {
   return (
     <header className="sticky top-3 z-40 mx-4 sm:mx-6">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 rounded-full border border-white/70 bg-white/70 px-4 py-2 shadow-sm backdrop-blur-md sm:px-5">
-        <Link href="/" className="text-sm font-semibold tracking-tight text-[#0A2A6B]">
-          Ávila GPS · ETL
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 rounded-full border border-border bg-card/80 px-4 py-1.5 shadow-sm backdrop-blur-md sm:px-5">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-full text-sm font-semibold tracking-tight text-foreground"
+        >
+          <span aria-hidden="true" className="size-2.5 rounded-full bg-primary" />
+          Ávila GPS
+          <span className="font-normal text-muted-foreground">· Lector</span>
         </Link>
         <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
           <NavLinks />
@@ -62,7 +67,7 @@ export function SiteHeader() {
             <SignInButton mode="redirect">
               <button
                 type="button"
-                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-[#033CA0]"
+                className="min-h-10 rounded-full border border-border px-4 text-sm font-medium text-brand"
               >
                 Entrar
               </button>
@@ -81,7 +86,7 @@ export function SiteHeader() {
             </SheetTrigger>
             <SheetContent side="right" className="rounded-l-3xl">
               <SheetHeader>
-                <SheetTitle className="text-[#0A2A6B]">Navegación</SheetTitle>
+                <SheetTitle className="text-foreground">Navegación</SheetTitle>
               </SheetHeader>
               <nav className="mt-4 flex flex-col gap-2" aria-label="Móvil">
                 <NavLinks />

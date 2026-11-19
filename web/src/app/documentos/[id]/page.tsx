@@ -106,7 +106,7 @@ export default async function DocumentoDetailPage({
         {prev ? (
           <Link
             href={`/documentos/${prev.id}`}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
+            className="rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-brand"
           >
             ← Página {prev.page_index}
           </Link>
@@ -114,7 +114,7 @@ export default async function DocumentoDetailPage({
         {next ? (
           <Link
             href={`/documentos/${next.id}`}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
+            className="rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-brand"
           >
             Página {next.page_index} →
           </Link>
@@ -130,7 +130,7 @@ export default async function DocumentoDetailPage({
         {titular && profileTarget && titular.id !== profileTarget.id ? (
           <Link
             href={`/personas/${titular.id}`}
-            className="rounded-full border border-[#0A2A6B]/20 bg-white px-4 py-2 text-xs font-medium text-[#033CA0]"
+            className="rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-brand"
           >
             Titular · {titular.full_name || titular.identity_number}
           </Link>
@@ -138,12 +138,12 @@ export default async function DocumentoDetailPage({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card className="overflow-hidden rounded-3xl border-slate-100 shadow-sm">
+        <Card className="overflow-hidden rounded-3xl border-border shadow-sm">
           <CardContent className="p-0">
             {canPreview ? (
               <DocumentPreview src={`/api/blob/${doc.id}`} alt={typeLabel} />
             ) : (
-              <div className="flex h-64 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-slate-500">
+              <div className="flex h-64 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-muted-foreground">
                 <p>Vista no disponible</p>
                 <UploadStatusBadge status={doc.upload_status} />
                 {doc.upload_status === "failed" ? (
@@ -158,39 +158,39 @@ export default async function DocumentoDetailPage({
             )}
           </CardContent>
         </Card>
-        <Card className="rounded-3xl border-slate-100 shadow-sm">
+        <Card className="rounded-3xl border-border shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-medium">Detalle</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Tipo</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Tipo</div>
               <Badge
                 className={`mt-1 rounded-full ${
-                  doc.document_type === "ilegible" ? "bg-amber-50 text-amber-800" : ""
+                  doc.document_type === "ilegible" ? "bg-warning-soft text-warning" : ""
                 }`}
               >
                 {typeLabel}
               </Badge>
             </div>
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Página</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Página</div>
               <div>{doc.page_index}</div>
             </div>
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Estado Blob</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Estado Blob</div>
               <div className="mt-1">
                 <UploadStatusBadge status={doc.upload_status} />
               </div>
             </div>
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Evidencia</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Evidencia</div>
               <div>{doc.evidence || "—"}</div>
             </div>
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Factura</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Factura</div>
               {doc.invoice_id ? (
-                <Link href={`/facturas/${doc.invoice_id}`} className="text-[#033CA0]">
+                <Link href={`/facturas/${doc.invoice_id}`} className="text-brand">
                   {formatInvoiceNumber(doc.invoice_number)}
                 </Link>
               ) : (
@@ -198,27 +198,27 @@ export default async function DocumentoDetailPage({
               )}
             </div>
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">
                 Persona en este documento
               </div>
               {doc.person_id ? (
-                <Link href={`/personas/${doc.person_id}`} className="font-medium text-[#033CA0]">
+                <Link href={`/personas/${doc.person_id}`} className="font-medium text-brand">
                   {doc.full_name || doc.identity_number || "Ver persona"}
                 </Link>
               ) : titular ? (
-                <Link href={`/personas/${titular.id}`} className="font-medium text-[#033CA0]">
+                <Link href={`/personas/${titular.id}`} className="font-medium text-brand">
                   {titular.full_name || titular.identity_number}{" "}
-                  <span className="font-normal text-slate-500">(titular del paquete)</span>
+                  <span className="font-normal text-muted-foreground">(titular del paquete)</span>
                 </Link>
               ) : (
-                <span className="text-slate-500">
+                <span className="text-muted-foreground">
                   Sin vínculo — revisa las personas de la factura
                 </span>
               )}
             </div>
             {invoicePeople.length > 0 ? (
               <div>
-                <div className="text-xs tracking-wider text-slate-400 uppercase">
+                <div className="text-xs tracking-wider text-muted-foreground uppercase">
                   Personas del expediente
                 </div>
                 <ul className="mt-1 space-y-1">
@@ -226,7 +226,7 @@ export default async function DocumentoDetailPage({
                     <li key={`${person.id}-${person.role}`}>
                       <Link
                         href={`/personas/${person.id}`}
-                        className="text-[#033CA0] hover:underline"
+                        className="text-brand hover:underline"
                       >
                         {ROLE_LABELS[person.role] || person.role}:{" "}
                         {person.full_name || person.identity_number || "Ver persona"}
@@ -237,12 +237,12 @@ export default async function DocumentoDetailPage({
               </div>
             ) : null}
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Archivo fuente</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Archivo fuente</div>
               {doc.source_file_id ? (
                 doc.invoice_id ? (
                   <Link
                     href={`/facturas/${doc.invoice_id}?file=${doc.source_file_id}#paginas`}
-                    className="text-[#033CA0]"
+                    className="text-brand"
                   >
                     {formatSourceFileTitle(doc.backup_path, doc.file_label, doc.extension)}
                     {doc.source_pages != null ? ` · ${doc.source_pages} pág` : ""}
@@ -258,13 +258,13 @@ export default async function DocumentoDetailPage({
             </div>
             {doc.rule_id ? (
               <div>
-                <div className="text-xs tracking-wider text-slate-400 uppercase">Regla</div>
+                <div className="text-xs tracking-wider text-muted-foreground uppercase">Regla</div>
                 <div>{doc.rule_id}</div>
               </div>
             ) : null}
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Blob pathname</div>
-              <code className="break-all text-xs text-slate-600">{doc.blob_pathname || "—"}</code>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Blob pathname</div>
+              <code className="break-all text-xs text-muted-foreground">{doc.blob_pathname || "—"}</code>
             </div>
           </CardContent>
         </Card>

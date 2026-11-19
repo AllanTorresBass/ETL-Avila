@@ -35,7 +35,7 @@ function GapNote({
   const code = contactGapCode(gap, field);
   const text = code ? CONTACT_GAP_COPY[code] : undefined;
   if (!text) return null;
-  return <p className="mt-1 text-xs text-slate-500">{text}</p>;
+  return <p className="mt-1 text-xs text-muted-foreground">{text}</p>;
 }
 
 export default async function PersonaDetailPage({
@@ -217,8 +217,8 @@ export default async function PersonaDetailPage({
         label: `${roleLabel(role)} · ${n} factura${n === 1 ? "" : "s"}`,
         className:
           role === "titular"
-            ? "rounded-full bg-[#0A2A6B] px-3 py-1 text-xs font-medium text-white"
-            : "rounded-full bg-[#033CA0]/10 px-3 py-1 text-xs font-medium text-[#033CA0]",
+            ? "rounded-full bg-hero px-3 py-1 text-xs font-medium text-white"
+            : "rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand",
       };
     });
 
@@ -297,15 +297,15 @@ export default async function PersonaDetailPage({
       />
 
       {primaryTitular ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-[#0A2A6B]/15 bg-white px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-3xl border border-border bg-card px-5 py-4 shadow-sm">
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium tracking-wider text-[#5BB2F5] uppercase">
+            <div className="text-xs font-medium tracking-wider text-info uppercase">
               Titular del expediente
             </div>
-            <div className="mt-0.5 text-base font-medium text-[#0A2A6B]">
+            <div className="mt-0.5 text-base font-medium text-foreground">
               {primaryTitular.full_name || primaryTitular.identity_number || "Titular"}
             </div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-muted-foreground">
               {[
                 primaryTitular.identity_number
                   ? `Cédula ${primaryTitular.identity_number}`
@@ -349,31 +349,31 @@ export default async function PersonaDetailPage({
         />
       ) : null}
 
-      <Card className="rounded-3xl border-slate-100 shadow-sm">
+      <Card className="rounded-3xl border-border shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-medium">Identidad y contacto</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Identidad</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Identidad</div>
             <div>{identityLine}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Nacimiento</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Nacimiento</div>
             <div>{formatDate(person.birth_date)}</div>
             <GapNote gap={person.contact_gap} field="birth_date" />
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Teléfono</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Teléfono</div>
             <div>{person.phone || "—"}</div>
             <GapNote gap={person.contact_gap} field="phone" />
           </div>
           {primaryTitular ? (
             <div>
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Titular</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Titular</div>
               <Link
                 href={`/personas/${primaryTitular.id}`}
-                className="font-medium text-[#033CA0] hover:underline"
+                className="font-medium text-brand hover:underline"
               >
                 {primaryTitular.full_name || primaryTitular.identity_number}
                 {primaryTitular.identity_number
@@ -383,13 +383,13 @@ export default async function PersonaDetailPage({
             </div>
           ) : null}
           <div className="sm:col-span-2">
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Dirección</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Dirección</div>
             <div>{person.address || "—"}</div>
             <GapNote gap={person.contact_gap} field="address" />
           </div>
           {person.notes ? (
             <div className="sm:col-span-2">
-              <div className="text-xs tracking-wider text-slate-400 uppercase">Notas</div>
+              <div className="text-xs tracking-wider text-muted-foreground uppercase">Notas</div>
               <div>{person.notes}</div>
             </div>
           ) : null}
@@ -527,7 +527,7 @@ export default async function PersonaDetailPage({
         emptyHint="Sin líneas de sábana, relación o cintillo vinculadas a esta persona."
         footer={
           authTotal > AUTH_PAGE_SIZE ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
               <span>
                 Mostrando {lines.length} de {authTotal}
                 {authTotal > lines.length + authOffset
@@ -538,7 +538,7 @@ export default async function PersonaDetailPage({
                 {authPage > 1 ? (
                   <Link
                     href={`/personas/${id}?authPage=${authPage - 1}#autorizaciones`}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-[#033CA0]"
+                    className="rounded-full border border-border bg-card px-3 py-1.5 font-medium text-brand"
                   >
                     Anterior
                   </Link>
@@ -560,23 +560,23 @@ export default async function PersonaDetailPage({
           {lines.map((line) => (
             <div
               key={line.id}
-              className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm"
+              className="rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm"
             >
               <div className="flex flex-wrap justify-between gap-2">
                 <span className="font-medium">{line.clave_rms || "Sin clave"}</span>
-                <span className="text-slate-500">
+                <span className="text-muted-foreground">
                   {formatDate(line.service_date || line.request_date)}
                 </span>
               </div>
-              <div className="mt-1 text-slate-600">
+              <div className="mt-1 text-muted-foreground">
                 {line.diagnosis || line.service_description || "Sin diagnóstico"}
               </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>{line.contratante || line.provider_name || "—"}</span>
                 <span>BS {formatMoney(line.amount_bs)}</span>
                 <span>USD {formatMoney(line.amount_usd)}</span>
                 {line.invoice_id ? (
-                  <Link href={`/facturas/${line.invoice_id}`} className="text-[#033CA0]">
+                  <Link href={`/facturas/${line.invoice_id}`} className="text-brand">
                     Ver factura
                   </Link>
                 ) : null}
@@ -645,16 +645,16 @@ export default async function PersonaDetailPage({
           {history.map((h) => (
             <li
               key={h.id}
-              className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm"
+              className="rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm"
             >
               <div className="flex flex-wrap justify-between gap-2">
-                <span className="font-medium text-[#0A2A6B]">
+                <span className="font-medium text-foreground">
                   {FIELD_LABELS[h.field] || h.field}
                 </span>
-                <span className="text-xs text-slate-500">{formatDate(h.created_at)}</span>
+                <span className="text-xs text-muted-foreground">{formatDate(h.created_at)}</span>
               </div>
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                <span className="rounded-full bg-[#033CA0]/10 px-2 py-0.5 text-[#033CA0]">
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-brand">
                   {SOURCE_KIND_LABELS[h.source_kind] || h.source_kind}
                 </span>
                 <span>Regla {h.rule_id}</span>
@@ -664,7 +664,7 @@ export default async function PersonaDetailPage({
                 {h.script ? <span>{h.script}</span> : null}
               </div>
               {h.source_ref || h.reason ? (
-                <div className="mt-1 break-all text-xs text-slate-400">
+                <div className="mt-1 break-all text-xs text-muted-foreground">
                   {[h.source_ref, h.reason].filter(Boolean).join(" · ")}
                 </div>
               ) : null}

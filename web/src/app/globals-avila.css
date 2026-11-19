@@ -1,10 +1,22 @@
-/* Extra Ávila utilities imported from globals if needed */
+/* Primary call-to-action: one green action per view. */
 .btn-green-gradient {
-  background: linear-gradient(135deg, #6cc24a 0%, #0f7a33 100%);
-  box-shadow: 0 8px 20px -4px #6cc24a66;
-  transition: 0.3s;
+  background: linear-gradient(135deg, var(--primary) 0%, color-mix(in oklab, var(--primary) 78%, black) 100%);
+  color: var(--primary-foreground);
+  box-shadow: 0 6px 16px -6px color-mix(in oklab, var(--primary) 60%, transparent);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    filter 0.2s;
 }
 .btn-green-gradient:hover {
-  background: linear-gradient(135deg, #78d154 0%, #128a3a 100%);
-  transform: translateY(-2px);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-green-gradient:active {
+  transform: translateY(0);
+}
+.btn-green-gradient:disabled,
+.btn-green-gradient[aria-disabled="true"] {
+  opacity: 0.6;
+  pointer-events: none;
 }

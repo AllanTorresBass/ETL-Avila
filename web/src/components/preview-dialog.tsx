@@ -50,8 +50,8 @@ export function PreviewDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[#0A1F4D]" />
-        <Dialog.Content className="fixed inset-0 z-50 flex h-dvh w-screen max-w-none flex-col bg-[#0A1F4D] outline-none">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-hero" />
+        <Dialog.Content className="fixed inset-0 z-50 flex h-dvh w-screen max-w-none flex-col bg-hero outline-none">
           {item ? (
             <>
               <div className="flex items-center gap-3 px-4 py-3 text-white sm:px-6">
@@ -71,7 +71,7 @@ export function PreviewDialog({
                 >
                   Abrir ficha
                 </Link>
-                <Dialog.Close className="rounded-full bg-white px-4 py-2 text-xs font-medium text-[#0A2A6B]">
+                <Dialog.Close className="rounded-full bg-card px-4 py-2 text-xs font-medium text-foreground">
                   <span className="inline-flex items-center gap-1">
                     <X className="size-3.5" aria-hidden />
                     Cerrar
@@ -91,7 +91,7 @@ export function PreviewDialog({
                     type="button"
                     aria-label="Anterior"
                     onClick={() => onIndex(index - 1)}
-                    className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white p-3 text-[#0A2A6B] shadow-sm"
+                    className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-card p-3 text-foreground shadow-sm"
                   >
                     <ChevronLeft className="size-5" aria-hidden />
                   </button>
@@ -101,7 +101,7 @@ export function PreviewDialog({
                     type="button"
                     aria-label="Siguiente"
                     onClick={() => onIndex(index + 1)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white p-3 text-[#0A2A6B] shadow-sm"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-card p-3 text-foreground shadow-sm"
                   >
                     <ChevronRight className="size-5" aria-hidden />
                   </button>

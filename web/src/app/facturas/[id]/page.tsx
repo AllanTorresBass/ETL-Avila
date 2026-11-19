@@ -125,18 +125,18 @@ export default async function FacturaDetailPage({
         />
       ) : null}
 
-      <Card id="resumen" className="scroll-mt-24 rounded-3xl border-slate-100 shadow-sm">
+      <Card id="resumen" className="scroll-mt-24 rounded-3xl border-border shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-medium">Resumen</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Cuenta</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Cuenta</div>
             <div>
               {invoice.account_code ? (
                 <Link
                   href={`/facturas?account=${invoice.account_code}`}
-                  className="text-[#033CA0]"
+                  className="text-brand"
                 >
                   {formatAccount(invoice.account)}
                 </Link>
@@ -146,37 +146,37 @@ export default async function FacturaDetailPage({
             </div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Control</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Control</div>
             <div>{invoice.control_number || "—"}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Emisión</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Emisión</div>
             <div>{formatDate(invoice.issue_date)}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Periodo</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Periodo</div>
             <div>
               {invoice.month || "—"} {invoice.year || ""}
             </div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Lote</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Lote</div>
             <div>{invoice.lote || "—"}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Flujo</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Flujo</div>
             <div>{invoice.workflow || "—"}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Canal</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Canal</div>
             <div>{invoice.channel || "—"}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Grupo duplicado</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Grupo duplicado</div>
             <div className="break-all">{invoice.duplicate_group || "—"}</div>
           </div>
           <div>
-            <div className="text-xs tracking-wider text-slate-400 uppercase">Rango</div>
+            <div className="text-xs tracking-wider text-muted-foreground uppercase">Rango</div>
             <div>{invoice.invoice_range || "—"}</div>
           </div>
         </CardContent>
@@ -212,7 +212,7 @@ export default async function FacturaDetailPage({
         emptyHint="No hay líneas de sábana o relación vinculadas a este número de factura."
         footer={
           authTotal > AUTH_LIMIT ? (
-            <p className="pt-2 text-xs text-slate-500">
+            <p className="pt-2 text-xs text-muted-foreground">
               Mostrando {authLines.length} de {authTotal}
               {authTotal > authLines.length
                 ? ` · y ${authTotal - authLines.length} más`
@@ -225,21 +225,21 @@ export default async function FacturaDetailPage({
           {authLines.map((line) => (
             <div
               key={line.id}
-              className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm"
+              className="rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm"
             >
               <div className="flex flex-wrap justify-between gap-2">
                 <span className="font-medium">{line.clave_rms || "Sin clave"}</span>
-                <span className="text-slate-500">{formatDate(line.service_date)}</span>
+                <span className="text-muted-foreground">{formatDate(line.service_date)}</span>
               </div>
-              <div className="mt-1 text-slate-600">
+              <div className="mt-1 text-muted-foreground">
                 {line.diagnosis || line.service_description || "Sin diagnóstico"}
               </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>{line.contratante || line.provider_name || "—"}</span>
                 <span>BS {formatMoney(line.amount_bs)}</span>
                 <span>USD {formatMoney(line.amount_usd)}</span>
                 {line.person_id ? (
-                  <Link href={`/personas/${line.person_id}`} className="text-[#033CA0]">
+                  <Link href={`/personas/${line.person_id}`} className="text-brand">
                     {line.person_name || line.identity_number || "Ver persona"}
                   </Link>
                 ) : null}
@@ -283,7 +283,7 @@ export default async function FacturaDetailPage({
         moreLabel="Ver todas las páginas"
         footer={
           activeFile ? (
-            <p className="pt-2 text-xs text-slate-500">
+            <p className="pt-2 text-xs text-muted-foreground">
               Filtrado por archivo:{" "}
               {formatSourceFileTitle(
                 activeFile.backup_path,

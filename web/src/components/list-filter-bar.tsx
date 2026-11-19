@@ -42,23 +42,23 @@ export function ListFilterBar({
   return (
     <div className="space-y-3">
       <form className="flex flex-wrap items-end gap-3" method="get">
-        <label className="block min-w-[12rem] flex-1 text-xs font-medium text-slate-600">
+        <label className="block min-w-[12rem] flex-1 text-xs font-medium text-muted-foreground">
           {searchLabel}
           <Input
             name={searchName}
             defaultValue={searchValue}
             placeholder={searchPlaceholder}
-            className="mt-1 rounded-xl border-slate-200"
+            className="mt-1 rounded-xl border-border"
             aria-label={searchLabel}
           />
         </label>
         {selects.map((sel) => (
-          <label key={sel.name} className="block text-xs font-medium text-slate-600">
+          <label key={sel.name} className="block text-xs font-medium text-muted-foreground">
             {sel.label}
             <select
               name={sel.name}
               defaultValue={sel.value}
-              className="mt-1 block min-w-[10rem] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs"
+              className="mt-1 block min-w-[10rem] rounded-xl border border-border bg-card px-4 py-2.5 text-xs"
               aria-label={sel.label}
             >
               <option value="">{sel.emptyLabel}</option>
@@ -78,14 +78,14 @@ export function ListFilterBar({
         )}
         <button
           type="submit"
-          className="btn-green-gradient rounded-full px-5 py-2.5 text-xs font-medium text-white focus-visible:ring-2 focus-visible:ring-[#0F7A33] focus-visible:ring-offset-2"
+          className="btn-green-gradient rounded-full px-5 py-2.5 text-xs font-medium text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {submitLabel}
         </button>
         {clearHref ? (
           <Link
             href={clearHref}
-            className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600"
+            className="rounded-full border border-border bg-card px-4 py-2.5 text-xs font-medium text-muted-foreground"
           >
             Limpiar
           </Link>
@@ -94,7 +94,7 @@ export function ListFilterBar({
 
       {chipGroups.map((group) => (
         <div key={group.param} className="space-y-1.5">
-          <p className="text-xs font-medium tracking-wider text-slate-400 uppercase">
+          <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
             {group.label}
           </p>
           <div className="flex flex-wrap gap-2" role="group" aria-label={group.label}>
@@ -103,8 +103,8 @@ export function ListFilterBar({
               aria-pressed={!group.value}
               className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                 !group.value
-                  ? "bg-[#033CA0] text-white"
-                  : "border border-slate-200 bg-white text-slate-600"
+                  ? "bg-brand text-white"
+                  : "border border-border bg-card text-muted-foreground"
               }`}
             >
               Todos
@@ -116,8 +116,8 @@ export function ListFilterBar({
                 aria-pressed={group.value === o.value}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                   group.value === o.value
-                    ? "bg-[#033CA0] text-white"
-                    : "border border-slate-200 bg-white text-slate-600"
+                    ? "bg-brand text-white"
+                    : "border border-border bg-card text-muted-foreground"
                 }`}
               >
                 {o.label}
@@ -134,7 +134,7 @@ export function ListFilterBar({
             <Link
               key={chip.key}
               href={chip.clearHref}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#0A2A6B]/8 px-3 py-1 text-xs font-medium text-[#0A2A6B]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-foreground"
             >
               {chip.label}
               <span aria-hidden="true">×</span>

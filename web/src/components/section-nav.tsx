@@ -15,10 +15,10 @@ export function SectionNav({
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-[#033CA0] hover:border-[#5BB2F5]"
+          className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-brand hover:border-brand/40"
         >
           {item.label}{" "}
-          <span className="tabular-nums text-slate-400">({item.count})</span>
+          <span className="tabular-nums text-muted-foreground">({item.count})</span>
         </a>
       ))}
     </nav>
