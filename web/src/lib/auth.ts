@@ -11,10 +11,22 @@ export async function requirePermission(permission: Permission): Promise<Session
   return user;
 }
 
-/** Document bytes: any active signed-in role. */
-export async function requireReaderApi(): Promise<NextResponse | null> {
+/** JSON routes. Returns the staff user, or a 401/403 response. */
+export async function requireApiPermission(
+  permission: Permission,
+): Promise<SessionUser | NextResponse> {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!can(user.role, "read")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  return null;
+  if (!can(user.role, permission)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  return user;
+}
+
+export function isApiDenial(result: SessionUser | NextResponse): result is NextResponse {
+  return result instanceof NextResponse;
+}
+
+/** Document bytes: any active signed-in role. */
+export async function requireReaderApi(): Promise<NextResponse | null> {
+  const result = await requireApiPermission("read");
+  return isApiDenial(result) ? result : null;
 }

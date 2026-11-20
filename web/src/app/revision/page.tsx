@@ -2,11 +2,12 @@ import Link from "next/link";
 import { DocumentPreview } from "@/components/document-preview";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { Pagination, clampPage, parsePage } from "@/components/pagination";
-import { DOCUMENT_TYPE_LABELS, sql } from "@/lib/db";
+import { Pagination, parsePage } from "@/components/pagination";
+import { DOCUMENT_TYPE_LABELS } from "@/lib/db";
 import { formatDate, formatInvoiceNumber } from "@/lib/format";
 import { buildListHref, firstParam } from "@/lib/list-params";
 import { requirePermission } from "@/lib/auth";
+import { queryReviewQueue } from "@/lib/review-queue-data";
 import { ACCEPT_EFFECT, REVIEW_GROUPS, REVIEW_KIND_LABELS } from "@/lib/review";
 import { resolveReview } from "./actions";
 
@@ -50,34 +51,14 @@ export default async function RevisionPage({
   const status = STATUSES[firstParam(sp.estado)] ? firstParam(sp.estado) : "open";
   const requestedPage = parsePage(firstParam(sp.page) || undefined);
   const kinds = group ? group.kinds : REVIEW_GROUPS.flatMap((g) => g.kinds);
-  const db = sql();
-
-  const counts = await db`
-    SELECT kind, count(*)::int AS n FROM avila.review_item
-    WHERE status = ${status} GROUP BY kind
-  `;
-  const byKind = new Map(counts.map((r) => [r.kind as string, r.n as number]));
+  const { counts, total, page, items } = await queryReviewQueue({
+    status,
+    kinds,
+    pageSize: PAGE_SIZE,
+    requestedPage,
+  });
+  const byKind = new Map(counts.map((row) => [row.kind, row.n]));
   const groupCount = (k: string[]) => k.reduce((sum, kind) => sum + (byKind.get(kind) || 0), 0);
-  const total = groupCount(kinds);
-  const page = clampPage(requestedPage, total, PAGE_SIZE);
-
-  const items = await db`
-    SELECT r.id, r.kind, r.status, r.score, r.evidence, r.created_at, r.resolved_by, r.resolved_at,
-           r.person_id, p.full_name AS p_name, p.identity_number AS p_ci, p.birth_date AS p_dob,
-           r.other_person_id, o.full_name AS o_name, o.identity_number AS o_ci, o.birth_date AS o_dob,
-           r.invoice_id, i.invoice_number, i.issue_date,
-           r.document_id, d.document_type, d.blob_pathname,
-           r.authorization_line_id, al.clave_rms, al.request_date, al.service_description
-    FROM avila.review_item r
-    LEFT JOIN avila.person p ON p.id = r.person_id
-    LEFT JOIN avila.person o ON o.id = r.other_person_id
-    LEFT JOIN avila.invoice i ON i.id = r.invoice_id
-    LEFT JOIN avila.document d ON d.id = r.document_id
-    LEFT JOIN avila.authorization_line al ON al.id = r.authorization_line_id
-    WHERE r.status = ${status} AND r.kind = ANY(${kinds})
-    ORDER BY r.score DESC NULLS LAST, r.created_at DESC
-    LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}
-  `;
 
   const pill = (active: boolean) =>
     `rounded-full px-4 py-2 text-xs font-medium transition ${
@@ -196,7 +177,7 @@ export default async function RevisionPage({
                   <div className="overflow-hidden rounded-2xl border border-border">
                     <DocumentPreview
                       src={`/api/blob/${item.document_id}`}
-                      alt={DOCUMENT_TYPE_LABELS[item.document_type] || "Documento"}
+                      alt={DOCUMENT_TYPE_LABELS[item.document_type || ""] || "Documento"}
                     />
                   </div>
                 ) : null}

@@ -3,7 +3,7 @@ import { FacturasFilterSkeleton, FacturasListSkeleton } from "@/components/factu
 import { FacturasResults } from "@/components/facturas-results";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { ScrollToAnchor } from "@/components/scroll-to-anchor";
-import { sql } from "@/lib/db";
+import { listAccounts, listInvoiceMonths, listInvoiceYears } from "@/lib/account-data";
 import {
   buildListHref,
   firstParam,
@@ -38,7 +38,6 @@ async function FacturasFilterSection({
   const hasPerson = triState(sp.has_person);
   const hasTitular = triState(sp.has_titular);
   const hasDocs = triState(sp.has_docs);
-  const db = sql();
 
   const filterParams: Record<string, string | undefined> = {
     q: query || undefined,
@@ -52,17 +51,9 @@ async function FacturasFilterSection({
   const filtersActive = hasActiveFilters(filterParams);
 
   const [accounts, years, months] = await Promise.all([
-    db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`,
-    db`
-      SELECT DISTINCT year AS y FROM avila.invoice
-      WHERE year IS NOT NULL AND year <> ''
-      ORDER BY year DESC
-    `,
-    db`
-      SELECT DISTINCT month AS m FROM avila.invoice
-      WHERE month IS NOT NULL AND month <> ''
-      ORDER BY month
-    `,
+    listAccounts(),
+    listInvoiceYears(),
+    listInvoiceMonths(),
   ]);
 
   const activeChips: ActiveChip[] = [];

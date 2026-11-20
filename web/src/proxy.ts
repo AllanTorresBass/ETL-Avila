@@ -9,7 +9,17 @@ function isPublic(pathname: string) {
   return pathname === "/sign-in" || pathname.startsWith("/sign-in/");
 }
 
+function isApi(pathname: string) {
+  return pathname.startsWith("/api/");
+}
+
+function apiStatus(status: 401 | 403 | 503) {
+  const error = status === 401 ? "unauthorized" : status === 403 ? "forbidden" : "unavailable";
+  return NextResponse.json({ error }, { status });
+}
+
 function redirectToSignIn(request: NextRequest) {
+  if (isApi(request.nextUrl.pathname)) return apiStatus(401);
   const url = request.nextUrl.clone();
   url.pathname = "/sign-in";
   url.search = "";
@@ -17,6 +27,14 @@ function redirectToSignIn(request: NextRequest) {
   if (next !== "/" && next !== "/sign-in") {
     url.searchParams.set("next", next);
   }
+  return NextResponse.redirect(url);
+}
+
+function denyForbidden(request: NextRequest) {
+  if (isApi(request.nextUrl.pathname)) return apiStatus(403);
+  const url = request.nextUrl.clone();
+  url.pathname = "/forbidden";
+  url.search = "";
   return NextResponse.redirect(url);
 }
 
@@ -41,14 +59,10 @@ export default async function proxy(request: NextRequest) {
     const db = neon(dbUrl);
     const user = await userFromTokenHash(db, await hashSessionToken(token));
     if (!user) return redirectToSignIn(request);
-    if (!canAccessPath(user.role, pathname)) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/forbidden";
-      url.search = "";
-      return NextResponse.redirect(url);
-    }
+    if (!canAccessPath(user.role, pathname)) return denyForbidden(request);
     return NextResponse.next();
   } catch {
+    if (isApi(pathname)) return apiStatus(503);
     return new NextResponse("No se pudo comprobar la sesión.", { status: 503 });
   }
 }

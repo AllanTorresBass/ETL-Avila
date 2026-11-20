@@ -4,13 +4,12 @@ import { ListExportBar } from "@/components/list-export-bar";
 import {
   Pagination,
   DEFAULT_PAGE_SIZE,
-  clampPage,
   parsePage,
 } from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
 import type { CsvTable } from "@/lib/csv";
-import { sql } from "@/lib/db";
 import { formatAccount, formatInvoiceNumber } from "@/lib/format";
+import { queryFacturaList, type FacturaListRow } from "@/lib/factura-list-data";
 import {
   firstParam,
   hasActiveFilters,
@@ -30,18 +29,6 @@ export type FacturasSearchInput = {
   has_titular?: string;
   has_docs?: string;
   page?: string;
-};
-
-type FacturaListRow = {
-  id: string;
-  invoice_number: string | null;
-  year: string | null;
-  month: string | null;
-  lote: string | null;
-  account: string | null;
-  docs: number;
-  has_person: number;
-  has_titular: number;
 };
 
 function yesNo(value: boolean): string {
@@ -88,7 +75,6 @@ export async function FacturasResults({ sp }: { sp: FacturasSearchInput }) {
   const hasTitular = triState(sp.has_titular);
   const hasDocs = triState(sp.has_docs);
   const requestedPage = parsePage(firstParam(sp.page) || undefined);
-  const db = sql();
   const like = `%${query}%`;
 
   const filtersActive = hasActiveFilters({
@@ -101,119 +87,19 @@ export async function FacturasResults({ sp }: { sp: FacturasSearchInput }) {
     has_docs: hasDocs || undefined,
   });
 
-  const [countRow] = await db`
-    SELECT count(*)::int AS n
-    FROM avila.invoice i
-    LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE (${query} = '' OR i.invoice_number ILIKE ${like})
-      AND (${account} = '' OR a.code = ${account})
-      AND (${year} = '' OR i.year = ${year})
-      AND (${month} = '' OR i.month = ${month})
-      AND (${hasPerson} = '' OR (${hasPerson} = '1' AND EXISTS (
-            SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-          )) OR (${hasPerson} = '0' AND NOT EXISTS (
-            SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-          )))
-      AND (${hasTitular} = '' OR (${hasTitular} = '1' AND EXISTS (
-            SELECT 1 FROM avila.invoice_person tip
-            WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-          )) OR (${hasTitular} = '0' AND NOT EXISTS (
-            SELECT 1 FROM avila.invoice_person tip
-            WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-          )))
-      AND (${hasDocs} = '' OR (${hasDocs} = '1' AND EXISTS (
-            SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
-          )) OR (${hasDocs} = '0' AND NOT EXISTS (
-            SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
-          )))
-  `;
-  const total = countRow?.n ?? 0;
-  const page = clampPage(requestedPage, total, DEFAULT_PAGE_SIZE);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
-
-  const [invoicesPage, exportPage] = await Promise.all([
-    db`
-      SELECT i.id, i.invoice_number, i.year, i.month, i.lote, a.legal_name AS account,
-             coalesce(dc.docs, 0)::int AS docs,
-             CASE WHEN EXISTS (
-               SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-             ) THEN 1 ELSE 0 END::int AS has_person,
-             CASE WHEN EXISTS (
-               SELECT 1 FROM avila.invoice_person tip
-               WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-             ) THEN 1 ELSE 0 END::int AS has_titular
-      FROM avila.invoice i
-      LEFT JOIN avila.account a ON a.id = i.account_id
-      LEFT JOIN (
-        SELECT invoice_id, count(*)::int AS docs FROM avila.document GROUP BY invoice_id
-      ) dc ON dc.invoice_id = i.id
-      WHERE (${query} = '' OR i.invoice_number ILIKE ${like})
-        AND (${account} = '' OR a.code = ${account})
-        AND (${year} = '' OR i.year = ${year})
-        AND (${month} = '' OR i.month = ${month})
-        AND (${hasPerson} = '' OR (${hasPerson} = '1' AND EXISTS (
-              SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-            )) OR (${hasPerson} = '0' AND NOT EXISTS (
-              SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-            )))
-        AND (${hasTitular} = '' OR (${hasTitular} = '1' AND EXISTS (
-              SELECT 1 FROM avila.invoice_person tip
-              WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-            )) OR (${hasTitular} = '0' AND NOT EXISTS (
-              SELECT 1 FROM avila.invoice_person tip
-              WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-            )))
-        AND (${hasDocs} = '' OR (${hasDocs} = '1' AND EXISTS (
-              SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
-            )) OR (${hasDocs} = '0' AND NOT EXISTS (
-              SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
-            )))
-      ORDER BY i.invoice_number DESC
-      LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
-    `,
-    db`
-      SELECT i.id, i.invoice_number, i.year, i.month, i.lote, a.legal_name AS account,
-             coalesce(dc.docs, 0)::int AS docs,
-             CASE WHEN EXISTS (
-               SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-             ) THEN 1 ELSE 0 END::int AS has_person,
-             CASE WHEN EXISTS (
-               SELECT 1 FROM avila.invoice_person tip
-               WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-             ) THEN 1 ELSE 0 END::int AS has_titular
-      FROM avila.invoice i
-      LEFT JOIN avila.account a ON a.id = i.account_id
-      LEFT JOIN (
-        SELECT invoice_id, count(*)::int AS docs FROM avila.document GROUP BY invoice_id
-      ) dc ON dc.invoice_id = i.id
-      WHERE (${query} = '' OR i.invoice_number ILIKE ${like})
-        AND (${account} = '' OR a.code = ${account})
-        AND (${year} = '' OR i.year = ${year})
-        AND (${month} = '' OR i.month = ${month})
-        AND (${hasPerson} = '' OR (${hasPerson} = '1' AND EXISTS (
-              SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-            )) OR (${hasPerson} = '0' AND NOT EXISTS (
-              SELECT 1 FROM avila.invoice_person ip WHERE ip.invoice_id = i.id
-            )))
-        AND (${hasTitular} = '' OR (${hasTitular} = '1' AND EXISTS (
-              SELECT 1 FROM avila.invoice_person tip
-              WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-            )) OR (${hasTitular} = '0' AND NOT EXISTS (
-              SELECT 1 FROM avila.invoice_person tip
-              WHERE tip.invoice_id = i.id AND tip.role = 'titular'
-            )))
-        AND (${hasDocs} = '' OR (${hasDocs} = '1' AND EXISTS (
-              SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
-            )) OR (${hasDocs} = '0' AND NOT EXISTS (
-              SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
-            )))
-      ORDER BY i.invoice_number DESC
-      LIMIT ${FACTURAS_EXPORT_LIMIT}
-    `,
-  ]);
-
-  const invoices = invoicesPage as FacturaListRow[];
-  const exportInvoices = exportPage as FacturaListRow[];
+  const { total, page, pageRows: invoices, exportRows: exportInvoices } = await queryFacturaList({
+    query,
+    like,
+    account,
+    year,
+    month,
+    hasPerson,
+    hasTitular,
+    hasDocs,
+    pageSize: DEFAULT_PAGE_SIZE,
+    requestedPage,
+    exportLimit: FACTURAS_EXPORT_LIMIT,
+  });
 
   const filterParams: Record<string, string | undefined> = {
     q: query || undefined,

@@ -23,8 +23,7 @@ const num = (v: unknown) => {
 async function safe<T>(query: Promise<T>, fallback: T, failures: string[], name: string): Promise<T> {
   try {
     return await query;
-  } catch (error) {
-    console.error(`[dashboard] query "${name}" failed`, error);
+  } catch {
     failures.push(name);
     return fallback;
   }

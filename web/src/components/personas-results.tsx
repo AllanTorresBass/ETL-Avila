@@ -4,13 +4,13 @@ import { ListExportBar } from "@/components/list-export-bar";
 import {
   Pagination,
   DEFAULT_PAGE_SIZE,
-  clampPage,
   parsePage,
 } from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
 import type { CsvTable } from "@/lib/csv";
-import { ROLE_LABELS, sql } from "@/lib/db";
+import { ROLE_LABELS } from "@/lib/db";
 import { isIncompleteName } from "@/lib/persona-data";
+import { queryPersonaList, type PersonaListRow } from "@/lib/persona-list-data";
 import {
   firstParam,
   hasActiveFilters,
@@ -38,19 +38,6 @@ export type PersonasSearchInput = {
   role?: string;
   account?: string;
   page?: string;
-};
-
-type PersonaListRow = {
-  id: string;
-  identity_type: string;
-  identity_number: string | null;
-  full_name: string | null;
-  phone: string | null;
-  birth_date: string | Date | null;
-  contact_gap: unknown;
-  docs: number;
-  titular_n: number;
-  beneficiario_n: number;
 };
 
 function yesNo(value: boolean): string {
@@ -102,8 +89,6 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
   const role = firstParam(sp.role);
   const account = firstParam(sp.account);
   const requestedPage = parsePage(firstParam(sp.page) || undefined);
-  const db = sql();
-
   const like = `%${query}%`;
   const roleOk = role === "titular" || role === "beneficiario" || role === "unknown";
   const roleFilter = roleOk ? role : "";
@@ -118,176 +103,20 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
     account: account || undefined,
   });
 
-  const [countRow] = await db`
-    SELECT count(DISTINCT p.id)::int AS n
-    FROM avila.person p
-    LEFT JOIN avila.authorization_line al ON al.person_id = p.id
-    LEFT JOIN avila.invoice_person ip ON ip.person_id = p.id
-    LEFT JOIN avila.invoice i ON i.id = ip.invoice_id
-    LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE (${query} = '' OR p.identity_number ILIKE ${like}
-           OR coalesce(p.full_name, '') ILIKE ${like}
-           OR coalesce(p.phone, '') ILIKE ${like}
-           OR coalesce(al.clave_rms, '') ILIKE ${like})
-      AND (${hasCi} = '' OR (${hasCi} = '1' AND p.identity_number IS NOT NULL AND p.identity_number <> '')
-           OR (${hasCi} = '0' AND (p.identity_number IS NULL OR p.identity_number = '')))
-      AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p.phone IS NOT NULL AND p.phone <> '')
-           OR (${hasPhone} = '0' AND (p.phone IS NULL OR p.phone = '')))
-      AND (${hasInvoice} = '' OR (${hasInvoice} = '1' AND EXISTS (
-             SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p.id
-           ))
-           OR (${hasInvoice} = '0' AND NOT EXISTS (
-             SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p.id
-           )))
-      AND (${hasContactGap} = '' OR (${hasContactGap} = '1' AND p.contact_gap IS NOT NULL
-           AND (
-             coalesce(p.contact_gap->>'birth_date', 'filled') <> 'filled'
-             OR coalesce(p.contact_gap->>'phone', 'filled') <> 'filled'
-             OR coalesce(p.contact_gap->>'address', 'filled') <> 'filled'
-           )))
-      AND (${incompleteName} = '' OR (${incompleteName} = '1' AND (
-             coalesce(nullif(trim(p.full_name), ''), '') = ''
-             OR (
-               p.identity_number IS NOT NULL
-               AND regexp_replace(coalesce(p.full_name, ''), '\\D', '', 'g')
-                 = regexp_replace(p.identity_number, '\\D', '', 'g')
-               AND p.full_name ~ '[0-9]'
-             )
-           )))
-      AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
-      AND (${account} = '' OR a.code = ${account})
-  `;
-  const total = countRow?.n ?? 0;
-  const page = clampPage(requestedPage, total, DEFAULT_PAGE_SIZE);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
-
-  // Page and export share filters; run in parallel (export omits OFFSET, uses its own LIMIT).
-  const [peoplePage, exportPage] = await Promise.all([
-    db`
-      SELECT p.id, p.identity_type::text AS identity_type, p.identity_number, p.full_name,
-             p.phone, p.birth_date, p.contact_gap,
-             coalesce(dc.docs, 0)::int AS docs,
-             coalesce(roles.titular_n, 0)::int AS titular_n,
-             coalesce(roles.beneficiario_n, 0)::int AS beneficiario_n
-      FROM avila.person p
-      LEFT JOIN (
-        SELECT person_id, count(*)::int AS docs FROM avila.document GROUP BY person_id
-      ) dc ON dc.person_id = p.id
-      LEFT JOIN (
-        SELECT person_id,
-               count(DISTINCT invoice_id) FILTER (WHERE role = 'titular')::int AS titular_n,
-               count(DISTINCT invoice_id) FILTER (WHERE role = 'beneficiario')::int AS beneficiario_n
-        FROM avila.invoice_person
-        GROUP BY person_id
-      ) roles ON roles.person_id = p.id
-      WHERE p.id IN (
-        SELECT DISTINCT p2.id
-        FROM avila.person p2
-        LEFT JOIN avila.authorization_line al ON al.person_id = p2.id
-        LEFT JOIN avila.invoice_person ip ON ip.person_id = p2.id
-        LEFT JOIN avila.invoice i ON i.id = ip.invoice_id
-        LEFT JOIN avila.account a ON a.id = i.account_id
-        WHERE (${query} = '' OR p2.identity_number ILIKE ${like}
-               OR coalesce(p2.full_name, '') ILIKE ${like}
-               OR coalesce(p2.phone, '') ILIKE ${like}
-               OR coalesce(al.clave_rms, '') ILIKE ${like})
-          AND (${hasCi} = '' OR (${hasCi} = '1' AND p2.identity_number IS NOT NULL AND p2.identity_number <> '')
-               OR (${hasCi} = '0' AND (p2.identity_number IS NULL OR p2.identity_number = '')))
-          AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p2.phone IS NOT NULL AND p2.phone <> '')
-               OR (${hasPhone} = '0' AND (p2.phone IS NULL OR p2.phone = '')))
-          AND (${hasInvoice} = '' OR (${hasInvoice} = '1' AND EXISTS (
-                 SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
-               ))
-               OR (${hasInvoice} = '0' AND NOT EXISTS (
-                 SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
-               )))
-          AND (${hasContactGap} = '' OR (${hasContactGap} = '1' AND p2.contact_gap IS NOT NULL
-               AND (
-                 coalesce(p2.contact_gap->>'birth_date', 'filled') <> 'filled'
-                 OR coalesce(p2.contact_gap->>'phone', 'filled') <> 'filled'
-                 OR coalesce(p2.contact_gap->>'address', 'filled') <> 'filled'
-               )))
-          AND (${incompleteName} = '' OR (${incompleteName} = '1' AND (
-                 coalesce(nullif(trim(p2.full_name), ''), '') = ''
-                 OR (
-                   p2.identity_number IS NOT NULL
-                   AND regexp_replace(coalesce(p2.full_name, ''), '\\D', '', 'g')
-                     = regexp_replace(p2.identity_number, '\\D', '', 'g')
-                   AND p2.full_name ~ '[0-9]'
-                 )
-               )))
-          AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
-          AND (${account} = '' OR a.code = ${account})
-      )
-      ORDER BY lower(nullif(trim(p.full_name), '')) ASC NULLS LAST,
-               p.identity_number NULLS LAST,
-               p.created_at DESC
-      LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
-    `,
-    db`
-      SELECT p.id, p.identity_type::text AS identity_type, p.identity_number, p.full_name,
-             p.phone, p.birth_date, p.contact_gap,
-             coalesce(dc.docs, 0)::int AS docs,
-             coalesce(roles.titular_n, 0)::int AS titular_n,
-             coalesce(roles.beneficiario_n, 0)::int AS beneficiario_n
-      FROM avila.person p
-      LEFT JOIN (
-        SELECT person_id, count(*)::int AS docs FROM avila.document GROUP BY person_id
-      ) dc ON dc.person_id = p.id
-      LEFT JOIN (
-        SELECT person_id,
-               count(DISTINCT invoice_id) FILTER (WHERE role = 'titular')::int AS titular_n,
-               count(DISTINCT invoice_id) FILTER (WHERE role = 'beneficiario')::int AS beneficiario_n
-        FROM avila.invoice_person
-        GROUP BY person_id
-      ) roles ON roles.person_id = p.id
-      WHERE p.id IN (
-        SELECT DISTINCT p2.id
-        FROM avila.person p2
-        LEFT JOIN avila.authorization_line al ON al.person_id = p2.id
-        LEFT JOIN avila.invoice_person ip ON ip.person_id = p2.id
-        LEFT JOIN avila.invoice i ON i.id = ip.invoice_id
-        LEFT JOIN avila.account a ON a.id = i.account_id
-        WHERE (${query} = '' OR p2.identity_number ILIKE ${like}
-               OR coalesce(p2.full_name, '') ILIKE ${like}
-               OR coalesce(p2.phone, '') ILIKE ${like}
-               OR coalesce(al.clave_rms, '') ILIKE ${like})
-          AND (${hasCi} = '' OR (${hasCi} = '1' AND p2.identity_number IS NOT NULL AND p2.identity_number <> '')
-               OR (${hasCi} = '0' AND (p2.identity_number IS NULL OR p2.identity_number = '')))
-          AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p2.phone IS NOT NULL AND p2.phone <> '')
-               OR (${hasPhone} = '0' AND (p2.phone IS NULL OR p2.phone = '')))
-          AND (${hasInvoice} = '' OR (${hasInvoice} = '1' AND EXISTS (
-                 SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
-               ))
-               OR (${hasInvoice} = '0' AND NOT EXISTS (
-                 SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
-               )))
-          AND (${hasContactGap} = '' OR (${hasContactGap} = '1' AND p2.contact_gap IS NOT NULL
-               AND (
-                 coalesce(p2.contact_gap->>'birth_date', 'filled') <> 'filled'
-                 OR coalesce(p2.contact_gap->>'phone', 'filled') <> 'filled'
-                 OR coalesce(p2.contact_gap->>'address', 'filled') <> 'filled'
-               )))
-          AND (${incompleteName} = '' OR (${incompleteName} = '1' AND (
-                 coalesce(nullif(trim(p2.full_name), ''), '') = ''
-                 OR (
-                   p2.identity_number IS NOT NULL
-                   AND regexp_replace(coalesce(p2.full_name, ''), '\\D', '', 'g')
-                     = regexp_replace(p2.identity_number, '\\D', '', 'g')
-                   AND p2.full_name ~ '[0-9]'
-                 )
-               )))
-          AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
-          AND (${account} = '' OR a.code = ${account})
-      )
-      ORDER BY lower(nullif(trim(p.full_name), '')) ASC NULLS LAST,
-               p.identity_number NULLS LAST,
-               p.created_at DESC
-      LIMIT ${PERSONAS_EXPORT_LIMIT}
-    `,
-  ]);
-  const people = peoplePage as PersonaListRow[];
-  const exportPeople = exportPage as PersonaListRow[];
+  const { total, page, pageRows: people, exportRows: exportPeople } = await queryPersonaList({
+    query,
+    like,
+    hasCi,
+    hasPhone,
+    hasInvoice,
+    hasContactGap,
+    incompleteName,
+    roleFilter,
+    account,
+    pageSize: DEFAULT_PAGE_SIZE,
+    requestedPage,
+    exportLimit: PERSONAS_EXPORT_LIMIT,
+  });
 
   const filterParams: Record<string, string | undefined> = {
     q: query || undefined,

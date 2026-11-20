@@ -32,10 +32,20 @@ export function can(role: AppRole, permission: Permission): boolean {
 
 /** Route gate used by the proxy and by the sign-in redirect. */
 export function canAccessPath(role: AppRole, pathname: string): boolean {
-  if (pathname === "/usuarios" || pathname.startsWith("/usuarios/")) {
+  if (
+    pathname === "/usuarios" ||
+    pathname.startsWith("/usuarios/") ||
+    pathname === "/api/v1/usuarios" ||
+    pathname.startsWith("/api/v1/usuarios/")
+  ) {
     return can(role, "manage_users");
   }
-  if (pathname === "/revision" || pathname.startsWith("/revision/")) {
+  if (
+    pathname === "/revision" ||
+    pathname.startsWith("/revision/") ||
+    pathname === "/api/v1/revision" ||
+    pathname.startsWith("/api/v1/revision/")
+  ) {
     return can(role, "review");
   }
   return can(role, "read");
