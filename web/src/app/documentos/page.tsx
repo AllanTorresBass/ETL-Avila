@@ -137,7 +137,6 @@ export default async function DocumentosPage({
         searchValue={rawQ}
         searchPlaceholder="Factura o evidencia (mín. 2)"
         searchLabel="Buscar"
-        submitLabel="Filtrar"
         clearHref={hasActiveFilters(filterParams) ? "/documentos" : undefined}
         activeChips={activeChips}
         selects={[
