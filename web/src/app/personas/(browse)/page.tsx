@@ -247,9 +247,11 @@ export default async function PersonasPage({
         <ScrollToAnchor id="lista" />
       </Suspense>
 
-      <Suspense fallback={<PersonasFilterSkeleton />}>
-        <PersonasFilterSection sp={sp} />
-      </Suspense>
+      <div className="personas-no-print">
+        <Suspense fallback={<PersonasFilterSkeleton />}>
+          <PersonasFilterSection sp={sp} />
+        </Suspense>
+      </div>
 
       <Suspense key={listKey} fallback={<PersonasListSkeleton />}>
         <PersonasResults sp={sp} />

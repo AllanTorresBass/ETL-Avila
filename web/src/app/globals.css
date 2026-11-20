@@ -210,11 +210,19 @@
 
   header.site-header,
   .informe-export-bar,
+  .list-export-bar,
+  .personas-no-print,
+  .personas-pagination,
+  .personas-screen-list,
   [data-slot="sheet-trigger"],
   button[aria-label^="Cambiar a modo"],
   .cl-userButton-root,
   .cl-userButtonTrigger {
     display: none !important;
+  }
+
+  .personas-print-table {
+    display: block !important;
   }
 
   .rise-in {

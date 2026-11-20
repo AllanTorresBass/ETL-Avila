@@ -14,13 +14,17 @@ export default function PersonasBrowseLayout({
 }) {
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Personas"
-        description="Cliente = titular o beneficiario. Busca por cédula, nombre, teléfono o clave RMS."
-      />
-      <Suspense fallback={<PersonasKpiSkeleton />}>
-        <PersonaListKpisLoader />
-      </Suspense>
+      <div className="personas-no-print">
+        <PageHeader
+          title="Personas"
+          description="Cliente = titular o beneficiario. Busca por cédula, nombre, teléfono o clave RMS."
+        />
+      </div>
+      <div className="personas-no-print">
+        <Suspense fallback={<PersonasKpiSkeleton />}>
+          <PersonaListKpisLoader />
+        </Suspense>
+      </div>
       {children}
     </div>
   );
