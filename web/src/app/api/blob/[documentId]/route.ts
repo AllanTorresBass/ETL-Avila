@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { get } from "@vercel/blob";
-import { requireStaffApi } from "@/lib/auth";
+import { requireReaderApi } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { ensureEnv } from "@/lib/env";
 
@@ -14,7 +14,7 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ documentId: string }> },
 ) {
-  const denied = await requireStaffApi();
+  const denied = await requireReaderApi();
   if (denied) return denied;
 
   ensureEnv();

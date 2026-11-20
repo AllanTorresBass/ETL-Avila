@@ -153,12 +153,13 @@ App root: `web/`
 | `/facturas/[id]` | Resumen + personas + autorizaciones + archivos + páginas (`?file=` filters pages) |
 | `/documentos` | `q`, `type`, `upload_status`, `account` + pagination |
 | `/documentos/[id]` | Preview, source file, siblings, links to factura/persona |
-| `/sign-in`, `/sign-up` | Clerk staff auth |
-| `/api/blob/[documentId]` | Document bytes (Clerk + optional email allowlist) |
+| `/sign-in` | Email and password. Public signup is closed |
+| `/usuarios` | Super admin: create accounts and assign `super_admin`, `revisor`, or `lector` |
+| `/api/blob/[documentId]` | Document bytes after a valid session |
 
 **Person → archivos fuente** is composed in the reader (`invoice_person` → `source_file`), not a DB FK. Identity pages use `document.person_id`; packet pages use the expediente join through invoices.
 
-Stack: Next.js App Router, Clerk, shadcn/ui, Montserrat, Ávila tokens (`#0A2A6B`, `#F4F8FC`, green gradient actions, `rounded-3xl` cards). Shared UI: `PageHeader`, `EmptyState`, `DocumentCard`, `RelationSection`, `EntityRow`, `ListFilterBar`, `DocumentTypeGroup`, `SectionNav`, `UploadStatusBadge`, `Breadcrumbs`, `Pagination`.
+Stack: Next.js App Router, session cookie and roles, shadcn/ui, Montserrat, Ávila tokens (`#0A2A6B`, `#F4F8FC`, green gradient actions, `rounded-3xl` cards). Shared UI: `PageHeader`, `EmptyState`, `DocumentCard`, `RelationSection`, `EntityRow`, `ListFilterBar`, `DocumentTypeGroup`, `SectionNav`, `UploadStatusBadge`, `Breadcrumbs`, `Pagination`.
 
 Public marketing SPA (separate deploy): `marketing/` on Netlify with SPA rewrites. Visitor data → WhatsApp only; never Neon/Blob.
 
@@ -168,8 +169,7 @@ Environment variable **names** (values live in repo-root `.env`, never commit th
 
 - `DATABASE_URL`, `DATABASE_URL_UNPOOLED`
 - `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`, `BLOB_ACCESS` (`private` preferred; `public` for legacy store)
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`
-- Optional `CLERK_ALLOWED_EMAILS` (comma-separated staff emails)
+- Optional `AUTH_BOOTSTRAP_USERS` for `scripts/seed_app_users.mjs` (`email|password|role|name`, semicolon-separated)
 
 ```bash
 # Schema
@@ -191,7 +191,7 @@ cd web && npm install && npm run dev
 cd marketing && npm install && npm run dev
 ```
 
-Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, plus Clerk on app routes.
+Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, plus the reader session and role check on app routes.
 
 ## 12. Edge cases
 
@@ -216,7 +216,7 @@ Vercel project `etl-avila` uses SSO Deployment Protection on all deployments, pl
 
 - Do not put credentials, patient names, or cédulas in docs or commit messages.
 - Do not log identity numbers.
-- Reader: Clerk + Deployment Protection; blob bytes only through `/api/blob` after auth.
+- Reader: signed session and role check, plus Deployment Protection. Blob bytes only through `/api/blob` after auth.
 - Prefer a **private** Blob store (`BLOB_ACCESS=private`). OCR JSON stays on disk, not in Neon.
 - Marketing: visitor fields stay in React state and leave only via `wa.me/584121716058`.
 
@@ -263,5 +263,5 @@ Worked example (titular CI vs path patient, document naming, reader links): [cas
 - Scanner packets whose fiscal sheet has neither a readable invoice number nor a control number (still orphaned).
 - Improve cintillo workbooks that are image-only (OCR sheet embeds).
 - Migrate remaining public Blob objects into the private store (re-upload with `BLOB_ACCESS=private`).
-- Tighten Clerk org / invite-only signup in production.
+- Password reset by email for staff who lose the password a super admin set.
 - Skip re-render when only person metadata refresh is needed.

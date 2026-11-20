@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.10.0",
     "@neondatabase/serverless": "^1.2.1",
     "@vercel/blob": "^2.9.0",
     "class-variance-authority": "^0.7.1",

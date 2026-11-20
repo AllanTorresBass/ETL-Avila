@@ -6,6 +6,7 @@ import { Pagination, clampPage, parsePage } from "@/components/pagination";
 import { DOCUMENT_TYPE_LABELS, sql } from "@/lib/db";
 import { formatDate, formatInvoiceNumber } from "@/lib/format";
 import { buildListHref, firstParam } from "@/lib/list-params";
+import { requirePermission } from "@/lib/auth";
 import { ACCEPT_EFFECT, REVIEW_GROUPS, REVIEW_KIND_LABELS } from "@/lib/review";
 import { resolveReview } from "./actions";
 
@@ -43,6 +44,7 @@ export default async function RevisionPage({
 }: {
   searchParams: Promise<{ tipo?: string; estado?: string; page?: string }>;
 }) {
+  await requirePermission("review");
   const sp = await searchParams;
   const group = REVIEW_GROUPS.find((g) => g.id === firstParam(sp.tipo));
   const status = STATUSES[firstParam(sp.estado)] ? firstParam(sp.estado) : "open";

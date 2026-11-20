@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Montserrat } from "next/font/google";
 import { SiteHeader } from "@/components/site-header";
+import { getCurrentUser } from "@/lib/session";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -15,19 +15,9 @@ export const metadata: Metadata = {
   description: "Lector interno de personas, facturas y documentos personales",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser();
   return (
-    <ClerkProvider
-      signInUrl="/sign-in"
-      signUpUrl="/sign-up"
-      afterSignOutUrl="/sign-in"
-      appearance={{
-        variables: {
-          colorPrimary: "#0F7A33",
-          borderRadius: "1rem",
-        },
-      }}
-    >
       <html lang="es" className={`${montserrat.variable} h-full antialiased`} suppressHydrationWarning>
         <head>
           <script
@@ -47,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             Saltar al contenido
           </a>
-          <SiteHeader />
+          <SiteHeader user={user} />
           <main id="contenido" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6">
             {children}
           </main>
@@ -56,6 +46,5 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </footer>
         </body>
       </html>
-    </ClerkProvider>
   );
 }
