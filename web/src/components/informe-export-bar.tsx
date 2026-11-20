@@ -36,11 +36,14 @@ function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-/** Print and count-only CSV export for the Informe page. */
+/** Print and CSV export for a single Informe inventory section (personas or facturas). */
 export function InformeExportBar({
+  section,
   rangeLabel,
   tables,
 }: {
+  /** Used in the CSV filename, e.g. `personas` or `facturas`. */
+  section: "personas" | "facturas";
   rangeLabel: string;
   tables: InformeCsvTable[];
 }) {
@@ -58,7 +61,7 @@ export function InformeExportBar({
         type="button"
         onClick={() => {
           const stamp = new Date().toISOString().slice(0, 10);
-          downloadCsv(`avila-informe-${rangeLabel}-${stamp}.csv`, buildCsv(tables));
+          downloadCsv(`avila-informe-${section}-${rangeLabel}-${stamp}.csv`, buildCsv(tables));
         }}
         className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
       >

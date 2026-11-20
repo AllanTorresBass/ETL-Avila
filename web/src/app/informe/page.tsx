@@ -147,44 +147,17 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
     },
   ];
 
-  const csvTables: InformeCsvTable[] = [
+  const personasCsv: InformeCsvTable[] = [
     {
-      name: "mensual",
-      headers: ["mes", "usd", "facturas"],
-      rows: data.monthly.map((p) => [p.month, p.usd, p.invoices]),
-    },
-    {
-      name: "cuentas",
-      headers: ["codigo", "nombre", "usd", "facturas"],
-      rows: data.byAccount.map((a) => [a.code ?? "", a.name, a.usd, a.invoices]),
-    },
-    {
-      name: "canales",
-      headers: ["canal", "usd", "facturas"],
-      rows: data.byChannel.map((c) => [c.channel, c.usd, c.invoices]),
-    },
-    {
-      name: "revision_abierta",
-      headers: ["kind", "count"],
-      rows: reviewRows.map((r) => [r.key, r.value]),
-    },
-    {
-      name: "contact_gaps",
-      headers: ["field", "code", "count"],
-      rows: data.contact.byCode.map((g) => [g.field, g.code, g.n]),
-    },
-    {
-      name: "documentos_archivo",
-      headers: ["document_type", "count"],
-      rows: data.documentMix.map((d) => [d.key, d.n]),
-    },
-    {
-      name: "clientes_periodo",
+      name: "personas",
       headers: ["id", "nombre", "ci", "facturas", "usd"],
       rows: data.lists.topClients.map((c) => [c.id, c.name, c.identityNumber ?? "", c.invoices, c.usd]),
     },
+  ];
+
+  const facturasCsv: InformeCsvTable[] = [
     {
-      name: "facturas_periodo",
+      name: "facturas",
       headers: ["id", "factura", "cuenta", "usd", "fecha"],
       rows: data.lists.topInvoices.map((i) => [
         i.id,
@@ -193,11 +166,6 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
         i.usd ?? "",
         i.issueDate ?? "",
       ]),
-    },
-    {
-      name: "facturas_sin_titular",
-      headers: ["id", "factura", "cuenta", "fecha"],
-      rows: data.lists.invoicesNoTitular.map((i) => [i.id, i.invoiceNumber, i.account ?? "", i.issueDate ?? ""]),
     },
   ];
 
@@ -208,12 +176,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
           current="informe"
           title="Informe del archivo"
           description="Un solo vistazo: cuánto se factura, qué tan bien se cruzan las fuentes y qué falta por decidir."
-          actions={
-            <div className="flex flex-col items-start gap-2 sm:items-end">
-              <RangeTabs current={range} />
-              <InformeExportBar rangeLabel={range} tables={csvTables} />
-            </div>
-          }
+          actions={<RangeTabs current={range} />}
         />
       </div>
 
@@ -447,7 +410,8 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
               title: "Principales clientes (titulares)",
               description: `Titulares con más monto USD en facturas del periodo · ${rangeLabel.toLowerCase()}.`,
               body: (
-                <>
+                <div className="space-y-4">
+                  <InformeExportBar section="personas" rangeLabel={range} tables={personasCsv} />
                   {data.lists.topClients.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Sin titulares con facturas fechadas en este periodo.</p>
                   ) : (
@@ -466,7 +430,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                     </ul>
                   )}
                   <ListFooter href="/personas?role=titular" label="Ver todos los clientes" />
-                </>
+                </div>
               ),
             },
             {
@@ -476,7 +440,8 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
               title: "Facturas de mayor monto",
               description: `Facturas con monto USD leído en el periodo · ${rangeLabel.toLowerCase()}.`,
               body: (
-                <>
+                <div className="space-y-4">
+                  <InformeExportBar section="facturas" rangeLabel={range} tables={facturasCsv} />
                   {data.lists.topInvoices.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Sin facturas con monto USD en este periodo.</p>
                   ) : (
@@ -494,7 +459,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                     </ul>
                   )}
                   <ListFooter href="/facturas" label="Ver todas las facturas" />
-                </>
+                </div>
               ),
             },
             {
@@ -632,7 +597,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
           </li>
           <li>
             <span className="font-medium text-foreground">Listas</span> muestran hasta 10 filas de muestra; usa Ver todos
-            para el inventario completo.
+            para el inventario completo. Imprimir y CSV están solo en Clientes y Facturas.
           </li>
           <li>
             <span className="font-medium text-foreground">Autorizaciones con factura</span> mide líneas de sábana ya
