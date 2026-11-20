@@ -136,89 +136,80 @@ async function PersonasFilterSection({
   }
 
   const clearHref = filtersActive ? "/personas#lista" : undefined;
-  const shortQueryHint = rawQ.length === 1;
 
   return (
-    <>
-      <ListFilterBar
-        key={JSON.stringify(filterParams)}
-        searchValue={rawQ}
-        searchPlaceholder="Cédula, nombre, teléfono o clave (mín. 2)"
-        searchLabel="Buscar"
-        submitLabel="Filtrar"
-        clearHref={clearHref}
-        activeChips={activeChips}
-        selects={[
-          {
-            name: "has_ci",
-            label: "Cédula",
-            value: hasCi,
-            emptyLabel: "Todas",
-            options: [
-              { value: "1", label: "Con cédula" },
-              { value: "0", label: "Sin cédula" },
-            ],
-          },
-          {
-            name: "has_phone",
-            label: "Teléfono",
-            value: hasPhone,
-            emptyLabel: "Todos",
-            options: [
-              { value: "1", label: "Con teléfono" },
-              { value: "0", label: "Sin teléfono" },
-            ],
-          },
-          {
-            name: "has_invoice",
-            label: "Factura",
-            value: hasInvoice,
-            emptyLabel: "Todas",
-            options: [
-              { value: "1", label: "Con factura" },
-              { value: "0", label: "Sin factura" },
-            ],
-          },
-          {
-            name: "has_contact_gap",
-            label: "Contacto",
-            value: hasContactGap,
-            emptyLabel: "Todos",
-            options: [{ value: "1", label: "Con gaps de contacto" }],
-          },
-          {
-            name: "incomplete_name",
-            label: "Nombre",
-            value: incompleteName,
-            emptyLabel: "Todos",
-            options: [{ value: "1", label: "Nombre incompleto" }],
-          },
-          {
-            name: "role",
-            label: "Rol en factura",
-            value: roleFilter,
-            emptyLabel: "Todos los roles",
-            options: [
-              { value: "titular", label: ROLE_LABELS.titular },
-              { value: "beneficiario", label: ROLE_LABELS.beneficiario },
-              { value: "unknown", label: ROLE_LABELS.unknown },
-            ],
-          },
-          {
-            name: "account",
-            label: "Cuenta",
-            value: account,
-            emptyLabel: "Todas las cuentas",
-            options: accounts.map((a) => ({ value: a.code, label: a.legal_name })),
-          },
-        ]}
-      />
-      {shortQueryHint ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          Escribe al menos 2 caracteres para buscar.
-        </p>
-      ) : null}
-    </>
+    <ListFilterBar
+      searchValue={rawQ}
+      searchPlaceholder="Cédula, nombre, teléfono o clave (mín. 2)"
+      searchLabel="Buscar"
+      clearHref={clearHref}
+      hash="lista"
+      activeChips={activeChips}
+      selects={[
+        {
+          name: "has_ci",
+          label: "Cédula",
+          value: hasCi,
+          emptyLabel: "Todas",
+          options: [
+            { value: "1", label: "Con cédula" },
+            { value: "0", label: "Sin cédula" },
+          ],
+        },
+        {
+          name: "has_phone",
+          label: "Teléfono",
+          value: hasPhone,
+          emptyLabel: "Todos",
+          options: [
+            { value: "1", label: "Con teléfono" },
+            { value: "0", label: "Sin teléfono" },
+          ],
+        },
+        {
+          name: "has_invoice",
+          label: "Factura",
+          value: hasInvoice,
+          emptyLabel: "Todas",
+          options: [
+            { value: "1", label: "Con factura" },
+            { value: "0", label: "Sin factura" },
+          ],
+        },
+        {
+          name: "has_contact_gap",
+          label: "Contacto",
+          value: hasContactGap,
+          emptyLabel: "Todos",
+          options: [{ value: "1", label: "Con gaps de contacto" }],
+        },
+        {
+          name: "incomplete_name",
+          label: "Nombre",
+          value: incompleteName,
+          emptyLabel: "Todos",
+          options: [{ value: "1", label: "Nombre incompleto" }],
+        },
+        {
+          name: "role",
+          label: "Rol en factura",
+          value: roleFilter,
+          emptyLabel: "Todos los roles",
+          options: [
+            { value: "titular", label: ROLE_LABELS.titular },
+            { value: "beneficiario", label: ROLE_LABELS.beneficiario },
+            { value: "unknown", label: ROLE_LABELS.unknown },
+          ],
+        },
+        {
+          name: "account",
+          label: "Cuenta",
+          value: account,
+          emptyLabel: "Todas las cuentas",
+          options: accounts.map((a) => ({ value: a.code, label: a.legal_name })),
+        },
+      ]}
+    />
   );
 }
 

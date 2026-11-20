@@ -151,7 +151,6 @@ export default async function FacturasPage({
         searchValue={rawQ}
         searchPlaceholder="Número de factura (mín. 2)"
         searchLabel="Número"
-        submitLabel="Filtrar"
         clearHref={hasActiveFilters(filterParams) ? "/facturas" : undefined}
         activeChips={activeChips}
         selects={[
