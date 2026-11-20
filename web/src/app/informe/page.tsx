@@ -419,7 +419,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                       {data.lists.topClients.map((c) => (
                         <li key={c.id}>
                           <EntityRow
-                            href={`/personas/${c.id}`}
+                            href={`/personas/${c.id}?tab=facturas`}
                             title={c.name}
                             meta={c.identityNumber ? `Cédula ${c.identityNumber}` : "Sin cédula"}
                             badges={[`${n(c.invoices)} fact.`]}
