@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { PageHeader } from "@/components/page-header";
-import { Pagination, DEFAULT_PAGE_SIZE, parsePage } from "@/components/pagination";
+import { Pagination, DEFAULT_PAGE_SIZE, clampPage, parsePage } from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
 import { sql } from "@/lib/db";
 import { formatAccount, formatInvoiceNumber } from "@/lib/format";
@@ -38,8 +38,7 @@ export default async function FacturasPage({
   const year = firstParam(sp.year);
   const month = firstParam(sp.month);
   const hasPerson = triState(sp.has_person);
-  const page = parsePage(firstParam(sp.page) || undefined);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
+  const requestedPage = parsePage(firstParam(sp.page) || undefined);
   const db = sql();
 
   const accounts = await db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`;
@@ -69,6 +68,8 @@ export default async function FacturasPage({
           )))
   `;
   const total = countRow?.n ?? 0;
+  const page = clampPage(requestedPage, total, DEFAULT_PAGE_SIZE);
+  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const invoices = await db`
     SELECT i.id, i.invoice_number, i.year, i.month, i.lote, a.legal_name AS account,
@@ -191,7 +192,12 @@ export default async function FacturasPage({
           },
         ]}
       />
-      <ResultCount shown={invoices.length} total={total} />
+      <ResultCount
+        shown={invoices.length}
+        total={total}
+        page={page}
+        pageSize={DEFAULT_PAGE_SIZE}
+      />
       {invoices.length === 0 ? (
         <EmptyState
           title="No se encontraron facturas"
@@ -223,6 +229,7 @@ export default async function FacturasPage({
         page={page}
         pageSize={DEFAULT_PAGE_SIZE}
         total={total}
+        shown={invoices.length}
         basePath="/facturas"
         searchParams={filterParams}
       />

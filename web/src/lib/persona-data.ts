@@ -309,6 +309,98 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
 
 export type PersonaDetail = NonNullable<Awaited<ReturnType<typeof getPersonaDetail>>>;
 
+/** Corpus-level KPIs for the Personas list (filter shortcuts, not result-scoped). */
+export async function getPersonaListKpis() {
+  const db = sql();
+  const [row] = await db`
+    SELECT
+      count(*)::int AS total,
+      count(*) FILTER (
+        WHERE p.identity_number IS NOT NULL AND p.identity_number <> ''
+      )::int AS with_ci,
+      count(*) FILTER (
+        WHERE p.identity_number IS NULL OR p.identity_number = ''
+      )::int AS without_ci,
+      count(*) FILTER (
+        WHERE p.phone IS NOT NULL AND p.phone <> ''
+      )::int AS with_phone,
+      count(*) FILTER (
+        WHERE p.phone IS NULL OR p.phone = ''
+      )::int AS without_phone,
+      count(*) FILTER (
+        WHERE EXISTS (
+          SELECT 1 FROM avila.invoice_person ip WHERE ip.person_id = p.id
+        )
+      )::int AS with_invoice,
+      count(*) FILTER (
+        WHERE NOT EXISTS (
+          SELECT 1 FROM avila.invoice_person ip WHERE ip.person_id = p.id
+        )
+      )::int AS without_invoice,
+      count(*) FILTER (
+        WHERE EXISTS (
+          SELECT 1 FROM avila.invoice_person ip
+          WHERE ip.person_id = p.id AND ip.role = 'titular'
+        )
+      )::int AS titulares,
+      count(*) FILTER (
+        WHERE EXISTS (
+          SELECT 1 FROM avila.invoice_person ip
+          WHERE ip.person_id = p.id AND ip.role = 'beneficiario'
+        )
+      )::int AS beneficiarios,
+      count(*) FILTER (
+        WHERE p.contact_gap IS NOT NULL
+          AND (
+            coalesce(p.contact_gap->>'birth_date', 'filled') <> 'filled'
+            OR coalesce(p.contact_gap->>'phone', 'filled') <> 'filled'
+            OR coalesce(p.contact_gap->>'address', 'filled') <> 'filled'
+          )
+      )::int AS with_contact_gaps,
+      count(*) FILTER (
+        WHERE coalesce(nullif(trim(p.full_name), ''), '') = ''
+           OR (
+             p.identity_number IS NOT NULL
+             AND regexp_replace(coalesce(p.full_name, ''), '\\D', '', 'g')
+               = regexp_replace(p.identity_number, '\\D', '', 'g')
+             AND p.full_name ~ '[0-9]'
+           )
+      )::int AS incomplete_name
+    FROM avila.person p
+  `;
+
+  const [reviews] = await db`
+    SELECT count(*)::int AS n
+    FROM avila.review_item
+    WHERE status = 'open'
+      AND (person_id IS NOT NULL OR other_person_id IS NOT NULL)
+  `;
+
+  const [identityDocs] = await db`
+    SELECT count(DISTINCT person_id)::int AS n
+    FROM avila.document
+    WHERE person_id IS NOT NULL
+  `;
+
+  return {
+    total: row?.total ?? 0,
+    withCi: row?.with_ci ?? 0,
+    withoutCi: row?.without_ci ?? 0,
+    withPhone: row?.with_phone ?? 0,
+    withoutPhone: row?.without_phone ?? 0,
+    withInvoice: row?.with_invoice ?? 0,
+    withoutInvoice: row?.without_invoice ?? 0,
+    titulares: row?.titulares ?? 0,
+    beneficiarios: row?.beneficiarios ?? 0,
+    withContactGaps: row?.with_contact_gaps ?? 0,
+    incompleteName: row?.incomplete_name ?? 0,
+    openPersonReviews: reviews?.n ?? 0,
+    withIdentityDocs: identityDocs?.n ?? 0,
+  };
+}
+
+export type PersonaListKpis = Awaited<ReturnType<typeof getPersonaListKpis>>;
+
 /** Resolve which dossier tab to show first. */
 export function resolvePersonaDefaultTab(
   tabParam: string | undefined,

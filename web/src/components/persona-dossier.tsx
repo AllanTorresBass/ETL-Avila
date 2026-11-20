@@ -3,6 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
 import { EntityTabs, type EntityTabPanel } from "@/components/entity-tabs";
+import { Pagination } from "@/components/pagination";
 import { CONTACT_GAP_COPY, contactGapCode } from "@/lib/contact-gap";
 import {
   PERSONA_AUTH_PAGE_SIZE,
@@ -246,7 +247,6 @@ export function PersonaDossierTabs({
     identityDocs,
     authTotal,
     authPage,
-    authOffset,
     lines,
     titulares,
     beneficiaries,
@@ -357,34 +357,15 @@ export function PersonaDossierTabs({
                 </div>
               ))}
             </div>
-            {authTotal > PERSONA_AUTH_PAGE_SIZE ? (
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
-                <span>
-                  Mostrando {lines.length} de {n(authTotal)}
-                  {authTotal > lines.length + authOffset
-                    ? ` · y ${n(authTotal - authOffset - lines.length)} más`
-                    : ""}
-                </span>
-                <div className="flex gap-2">
-                  {authPage > 1 ? (
-                    <Link
-                      href={`/personas/${personId}?tab=autorizaciones&authPage=${authPage - 1}`}
-                      className="rounded-full border border-border bg-card px-3 py-1.5 font-medium text-brand"
-                    >
-                      Anterior
-                    </Link>
-                  ) : null}
-                  {authOffset + lines.length < authTotal ? (
-                    <Link
-                      href={`/personas/${personId}?tab=autorizaciones&authPage=${authPage + 1}`}
-                      className="btn-green-gradient rounded-full px-3 py-1.5 font-medium text-white"
-                    >
-                      Siguiente
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
+            <Pagination
+              page={authPage}
+              pageSize={PERSONA_AUTH_PAGE_SIZE}
+              total={authTotal}
+              shown={lines.length}
+              basePath={`/personas/${personId}`}
+              pageParam="authPage"
+              searchParams={{ tab: "autorizaciones" }}
+            />
           </div>
         ),
     },

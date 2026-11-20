@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { DocumentCard } from "@/components/document-card";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { PageHeader } from "@/components/page-header";
-import { Pagination, DEFAULT_PAGE_SIZE, parsePage } from "@/components/pagination";
+import { Pagination, DEFAULT_PAGE_SIZE, clampPage, parsePage } from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
 import { DOCUMENT_TYPE_LABELS, UPLOAD_STATUS_LABELS, sql } from "@/lib/db";
 import { formatInvoiceNumber } from "@/lib/format";
@@ -36,8 +36,7 @@ export default async function DocumentosPage({
   const type = firstParam(sp.type);
   const uploadStatus = firstParam(sp.upload_status);
   const account = firstParam(sp.account);
-  const page = parsePage(firstParam(sp.page) || undefined);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
+  const requestedPage = parsePage(firstParam(sp.page) || undefined);
   const db = sql();
 
   const typeOk = type in DOCUMENT_TYPE_LABELS ? type : "";
@@ -69,6 +68,8 @@ export default async function DocumentosPage({
            OR coalesce(d.evidence, '') ILIKE ${like})
   `;
   const total = countRow?.n ?? 0;
+  const page = clampPage(requestedPage, total, DEFAULT_PAGE_SIZE);
+  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const docs = await db`
     SELECT d.id, d.page_index, d.document_type::text AS document_type,
@@ -181,7 +182,12 @@ export default async function DocumentosPage({
           },
         ]}
       />
-      <ResultCount shown={docs.length} total={total} />
+      <ResultCount
+        shown={docs.length}
+        total={total}
+        page={page}
+        pageSize={DEFAULT_PAGE_SIZE}
+      />
       {docs.length === 0 ? (
         <EmptyState
           title="No se encontraron documentos"
@@ -205,6 +211,7 @@ export default async function DocumentosPage({
         page={page}
         pageSize={DEFAULT_PAGE_SIZE}
         total={total}
+        shown={docs.length}
         basePath="/documentos"
         searchParams={filterParams}
       />
