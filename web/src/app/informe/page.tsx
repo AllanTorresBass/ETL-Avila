@@ -5,6 +5,8 @@ import { AttentionPanel, type AttentionItem } from "@/components/attention-panel
 import { BreakdownCard, BreakdownList } from "@/components/breakdown-card";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { DashboardNotice } from "@/components/dashboard-notice";
+import { EntityRow } from "@/components/entity-row";
+import { EtlDetailTabs } from "@/components/etl-detail-tabs";
 import { InformeExportBar, type InformeCsvTable } from "@/components/informe-export-bar";
 import { KpiCard } from "@/components/kpi-card";
 import { Meter } from "@/components/meter";
@@ -13,10 +15,10 @@ import { TrendChart } from "@/components/trend-chart";
 import { CONTACT_GAP_COPY } from "@/lib/contact-gap";
 import { BI_RANGES, parseRange } from "@/lib/dashboard-data";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/db";
-import { formatAccount } from "@/lib/format";
+import { formatAccount, formatDate, formatInvoiceNumber } from "@/lib/format";
 import { formatPercent, formatUsd, formatUsdCompact, percentChange } from "@/lib/format-metrics";
 import { getInformeData } from "@/lib/informe-data";
-import { REVIEW_KIND_LABELS } from "@/lib/review";
+import { REVIEW_GROUPS, REVIEW_KIND_LABELS } from "@/lib/review";
 
 export const metadata: Metadata = {
   title: "Informe · Ávila GPS",
@@ -33,6 +35,21 @@ const FIELD_LABELS: Record<string, string> = {
   phone: "Teléfono",
   address: "Dirección",
 };
+
+function reviewHref(kind: string): string {
+  const group = REVIEW_GROUPS.find((g) => g.kinds.includes(kind));
+  return group ? `/revision?tipo=${group.id}` : "/revision";
+}
+
+function ListFooter({ href, label }: { href: string; label: string }) {
+  return (
+    <p className="mt-4 text-center text-sm">
+      <Link href={href} className="font-medium text-brand underline-offset-4 hover:underline">
+        {label}
+      </Link>
+    </p>
+  );
+}
 
 function RangeTabs({ current }: { current: string }) {
   return (
@@ -76,7 +93,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
       label: REVIEW_KIND_LABELS[kind] ?? kind,
       value: count,
       display: n(count),
-      href: "/revision",
+      href: reviewHref(kind),
     }));
 
   const authMatchOpen = openByKind.get("auth_match") ?? 0;
@@ -154,6 +171,27 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
       name: "documentos_archivo",
       headers: ["document_type", "count"],
       rows: data.documentMix.map((d) => [d.key, d.n]),
+    },
+    {
+      name: "clientes_periodo",
+      headers: ["id", "nombre", "ci", "facturas", "usd"],
+      rows: data.lists.topClients.map((c) => [c.id, c.name, c.identityNumber ?? "", c.invoices, c.usd]),
+    },
+    {
+      name: "facturas_periodo",
+      headers: ["id", "factura", "cuenta", "usd", "fecha"],
+      rows: data.lists.topInvoices.map((i) => [
+        i.id,
+        i.invoiceNumber,
+        i.account ?? "",
+        i.usd ?? "",
+        i.issueDate ?? "",
+      ]),
+    },
+    {
+      name: "facturas_sin_titular",
+      headers: ["id", "factura", "cuenta", "fecha"],
+      rows: data.lists.invoicesNoTitular.map((i) => [i.id, i.invoiceNumber, i.account ?? "", i.issueDate ?? ""]),
     },
   ];
 
@@ -365,7 +403,193 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
         <AttentionPanel items={attention} />
       </div>
 
-      <footer className="rise-in space-y-3 border-t border-border pt-6 text-sm text-muted-foreground" style={stagger(7)}>
+      <div className="rise-in" style={stagger(7)}>
+        <EtlDetailTabs
+          panels={[
+            {
+              id: "clientes",
+              label: "Clientes",
+              count: n(data.lists.topClients.length),
+              title: "Principales clientes (titulares)",
+              description: `Titulares con más monto USD en facturas del periodo · ${rangeLabel.toLowerCase()}.`,
+              body: (
+                <>
+                  {data.lists.topClients.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin titulares con facturas fechadas en este periodo.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {data.lists.topClients.map((c) => (
+                        <li key={c.id}>
+                          <EntityRow
+                            href={`/personas/${c.id}`}
+                            title={c.name}
+                            meta={c.identityNumber ? `Cédula ${c.identityNumber}` : "Sin cédula"}
+                            badges={[`${n(c.invoices)} fact.`]}
+                            trailing={c.usd > 0 ? formatUsdCompact(c.usd) : undefined}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ListFooter href="/personas?role=titular" label="Ver todos los clientes" />
+                </>
+              ),
+            },
+            {
+              id: "facturas",
+              label: "Facturas",
+              count: n(data.lists.topInvoices.length),
+              title: "Facturas de mayor monto",
+              description: `Facturas con monto USD leído en el periodo · ${rangeLabel.toLowerCase()}.`,
+              body: (
+                <>
+                  {data.lists.topInvoices.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin facturas con monto USD en este periodo.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {data.lists.topInvoices.map((inv) => (
+                        <li key={inv.id}>
+                          <EntityRow
+                            href={`/facturas/${inv.id}`}
+                            title={formatInvoiceNumber(inv.invoiceNumber)}
+                            meta={[formatAccount(inv.account), formatDate(inv.issueDate)].filter(Boolean).join(" · ")}
+                            trailing={inv.usd != null ? formatUsdCompact(inv.usd) : undefined}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ListFooter href="/facturas" label="Ver todas las facturas" />
+                </>
+              ),
+            },
+            {
+              id: "sin-titular",
+              label: "Sin titular",
+              count: n(data.roles.noTitular),
+              title: "Facturas sin titular",
+              description: "Muestra de facturas que aún no tienen una persona en rol titular.",
+              body: (
+                <>
+                  {data.lists.invoicesNoTitular.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Todas las facturas tienen titular.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {data.lists.invoicesNoTitular.map((inv) => (
+                        <li key={inv.id}>
+                          <EntityRow
+                            href={`/facturas/${inv.id}`}
+                            title={formatInvoiceNumber(inv.invoiceNumber)}
+                            meta={[formatAccount(inv.account), formatDate(inv.issueDate)].filter(Boolean).join(" · ")}
+                            badges={["Sin titular"]}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ListFooter href="/facturas?has_person=0" label="Abrir facturas sin persona vinculada" />
+                </>
+              ),
+            },
+            {
+              id: "sin-ci",
+              label: "Sin cédula",
+              count: n(data.contact.withoutCi),
+              title: "Clientes sin cédula",
+              description: "Personas del archivo sin número de identidad, ordenadas por facturas vinculadas.",
+              body: (
+                <>
+                  {data.lists.clientsNoCi.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Todas las personas tienen cédula registrada.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {data.lists.clientsNoCi.map((c) => (
+                        <li key={c.id}>
+                          <EntityRow
+                            href={`/personas/${c.id}`}
+                            title={c.name}
+                            meta="Sin cédula"
+                            badges={c.invoices > 0 ? [`${n(c.invoices)} fact.`] : ["Sin facturas"]}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ListFooter href="/personas?has_ci=0" label="Ver personas sin cédula" />
+                </>
+              ),
+            },
+            {
+              id: "documentos",
+              label: "Fallidos",
+              count: n(data.counts.failed),
+              title: "Documentos con carga fallida",
+              description: "Últimas páginas que no se subieron a Blob.",
+              body: (
+                <>
+                  {data.lists.failedDocuments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No hay documentos fallidos.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {data.lists.failedDocuments.map((d) => (
+                        <li key={d.id}>
+                          <EntityRow
+                            href={`/documentos/${d.id}`}
+                            title={DOCUMENT_TYPE_LABELS[d.documentType] || d.documentType}
+                            meta={[
+                              d.invoiceNumber ? formatInvoiceNumber(d.invoiceNumber) : null,
+                              d.pageIndex != null ? `Página ${d.pageIndex}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                            badges={["Fallido"]}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ListFooter href="/documentos?upload_status=failed" label="Ver documentos fallidos" />
+                </>
+              ),
+            },
+            {
+              id: "revision",
+              label: "Revisión",
+              count: n(data.kpi.openReviews),
+              title: "Casos abiertos recientes",
+              description: "Muestra de la cola de revisión, priorizada por puntuación.",
+              body: (
+                <>
+                  {data.lists.openReviews.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No hay casos abiertos.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {data.lists.openReviews.map((r) => (
+                        <li key={r.id}>
+                          <EntityRow
+                            href={reviewHref(r.kind)}
+                            title={REVIEW_KIND_LABELS[r.kind] ?? r.kind}
+                            meta={[
+                              r.personName,
+                              r.identityNumber ? `CI ${r.identityNumber}` : null,
+                              r.invoiceNumber ? formatInvoiceNumber(r.invoiceNumber) : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <ListFooter href="/revision" label="Abrir la cola de revisión" />
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
+
+      <footer className="rise-in space-y-3 border-t border-border pt-6 text-sm text-muted-foreground" style={stagger(8)}>
         <h2 className="text-sm font-semibold text-foreground">Cómo leer este informe</h2>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
@@ -373,12 +597,12 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
             emisión en el periodo y con monto USD leído.
           </li>
           <li>
-            <span className="font-medium text-foreground">Autorizaciones con factura</span> mide líneas de sábana ya
-            vinculadas a una factura, no el embudo de montos autorizados.
+            <span className="font-medium text-foreground">Listas</span> muestran hasta 10 filas de muestra; usa Ver todos
+            para el inventario completo.
           </li>
           <li>
-            <span className="font-medium text-foreground">Gaps de contacto</span> vienen del enriquecimiento de personas
-            (códigos de nacimiento, teléfono y dirección); el CSV solo exporta conteos.
+            <span className="font-medium text-foreground">Autorizaciones con factura</span> mide líneas de sábana ya
+            vinculadas a una factura, no el embudo de montos autorizados.
           </li>
           <li>
             Periodo activo: <span className="font-medium text-foreground">{rangeLabel}</span>. Generado al cargar la
