@@ -32,6 +32,8 @@ export default async function PersonasPage({
     has_ci?: string;
     has_phone?: string;
     has_invoice?: string;
+    has_contact_gap?: string;
+    incomplete_name?: string;
     role?: string;
     account?: string;
     page?: string;
@@ -43,6 +45,8 @@ export default async function PersonasPage({
   const hasCi = triState(sp.has_ci);
   const hasPhone = triState(sp.has_phone);
   const hasInvoice = triState(sp.has_invoice);
+  const hasContactGap = triState(sp.has_contact_gap);
+  const incompleteName = triState(sp.incomplete_name);
   const role = firstParam(sp.role);
   const account = firstParam(sp.account);
   const requestedPage = parsePage(firstParam(sp.page) || undefined);
@@ -56,6 +60,8 @@ export default async function PersonasPage({
     has_ci: hasCi || undefined,
     has_phone: hasPhone || undefined,
     has_invoice: hasInvoice || undefined,
+    has_contact_gap: hasContactGap || undefined,
+    incomplete_name: incompleteName || undefined,
     role: roleFilter || undefined,
     account: account || undefined,
   });
@@ -83,6 +89,21 @@ export default async function PersonasPage({
            ))
            OR (${hasInvoice} = '0' AND NOT EXISTS (
              SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p.id
+           )))
+      AND (${hasContactGap} = '' OR (${hasContactGap} = '1' AND p.contact_gap IS NOT NULL
+           AND (
+             coalesce(p.contact_gap->>'birth_date', 'filled') <> 'filled'
+             OR coalesce(p.contact_gap->>'phone', 'filled') <> 'filled'
+             OR coalesce(p.contact_gap->>'address', 'filled') <> 'filled'
+           )))
+      AND (${incompleteName} = '' OR (${incompleteName} = '1' AND (
+             coalesce(nullif(trim(p.full_name), ''), '') = ''
+             OR (
+               p.identity_number IS NOT NULL
+               AND regexp_replace(coalesce(p.full_name, ''), '\\D', '', 'g')
+                 = regexp_replace(p.identity_number, '\\D', '', 'g')
+               AND p.full_name ~ '[0-9]'
+             )
            )))
       AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
       AND (${account} = '' OR a.code = ${account})
@@ -130,6 +151,21 @@ export default async function PersonasPage({
              OR (${hasInvoice} = '0' AND NOT EXISTS (
                SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
              )))
+        AND (${hasContactGap} = '' OR (${hasContactGap} = '1' AND p2.contact_gap IS NOT NULL
+             AND (
+               coalesce(p2.contact_gap->>'birth_date', 'filled') <> 'filled'
+               OR coalesce(p2.contact_gap->>'phone', 'filled') <> 'filled'
+               OR coalesce(p2.contact_gap->>'address', 'filled') <> 'filled'
+             )))
+        AND (${incompleteName} = '' OR (${incompleteName} = '1' AND (
+               coalesce(nullif(trim(p2.full_name), ''), '') = ''
+               OR (
+                 p2.identity_number IS NOT NULL
+                 AND regexp_replace(coalesce(p2.full_name, ''), '\\D', '', 'g')
+                   = regexp_replace(p2.identity_number, '\\D', '', 'g')
+                 AND p2.full_name ~ '[0-9]'
+               )
+             )))
         AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
         AND (${account} = '' OR a.code = ${account})
     )
@@ -144,6 +180,8 @@ export default async function PersonasPage({
     has_ci: hasCi || undefined,
     has_phone: hasPhone || undefined,
     has_invoice: hasInvoice || undefined,
+    has_contact_gap: hasContactGap || undefined,
+    incomplete_name: incompleteName || undefined,
     role: roleFilter || undefined,
     account: account || undefined,
   };
@@ -195,6 +233,20 @@ export default async function PersonasPage({
       clearHref: buildListHref("/personas", omitParam(filterParams, "has_invoice")),
     });
   }
+  if (hasContactGap === "1") {
+    activeChips.push({
+      key: "has_contact_gap",
+      label: "Gaps de contacto",
+      clearHref: buildListHref("/personas", omitParam(filterParams, "has_contact_gap")),
+    });
+  }
+  if (incompleteName === "1") {
+    activeChips.push({
+      key: "incomplete_name",
+      label: "Nombre incompleto",
+      clearHref: buildListHref("/personas", omitParam(filterParams, "incomplete_name")),
+    });
+  }
   if (roleFilter) {
     activeChips.push({
       key: "role",
@@ -227,8 +279,19 @@ export default async function PersonasPage({
         title="Personas"
         description="Cliente = titular o beneficiario. Busca por cédula, nombre, teléfono o clave RMS."
       />
-      <PersonaListKpisStrip kpis={kpis} />
+      <PersonaListKpisStrip
+        kpis={kpis}
+        filters={{
+          has_ci: hasCi || undefined,
+          has_phone: hasPhone || undefined,
+          has_invoice: hasInvoice || undefined,
+          has_contact_gap: hasContactGap || undefined,
+          incomplete_name: incompleteName || undefined,
+          role: roleFilter || undefined,
+        }}
+      />
       <ListFilterBar
+        key={JSON.stringify(filterParams)}
         searchValue={rawQ}
         searchPlaceholder="Cédula, nombre, teléfono o clave (mín. 2)"
         searchLabel="Buscar"
@@ -265,6 +328,20 @@ export default async function PersonasPage({
               { value: "1", label: "Con factura" },
               { value: "0", label: "Sin factura" },
             ],
+          },
+          {
+            name: "has_contact_gap",
+            label: "Contacto",
+            value: hasContactGap,
+            emptyLabel: "Todos",
+            options: [{ value: "1", label: "Con gaps de contacto" }],
+          },
+          {
+            name: "incomplete_name",
+            label: "Nombre",
+            value: incompleteName,
+            emptyLabel: "Todos",
+            options: [{ value: "1", label: "Nombre incompleto" }],
           },
           {
             name: "role",
