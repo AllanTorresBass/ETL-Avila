@@ -3,9 +3,9 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PersonaDossierTabs, PersonaSummary } from "@/components/persona-dossier";
-import { sql } from "@/lib/db";
 import {
   getPersonaDetail,
+  getPersonaPageTitle,
   resolvePersonaDefaultTab,
 } from "@/lib/persona-data";
 
@@ -17,12 +17,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const db = sql();
-  const [row] = await db`
-    SELECT full_name, identity_number FROM avila.person WHERE id = ${id}::uuid
-  `;
-  if (!row) return { title: "Persona · Ávila GPS" };
-  const title = row.full_name?.trim() || row.identity_number || "Persona";
+  const title = await getPersonaPageTitle(id);
+  if (!title) return { title: "Persona · Ávila GPS" };
   return { title: `${title} · Personas · Ávila GPS` };
 }
 

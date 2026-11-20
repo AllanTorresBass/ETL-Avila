@@ -402,6 +402,16 @@ export const getPersonaListKpis = cache(async function getPersonaListKpis() {
 
 export type PersonaListKpis = Awaited<ReturnType<typeof getPersonaListKpis>>;
 
+/** Title for the persona route. Null when the id is not a person. */
+export async function getPersonaPageTitle(id: string): Promise<string | null> {
+  const db = sql();
+  const [row] = await db`
+    SELECT full_name, identity_number FROM avila.person WHERE id = ${id}::uuid
+  `;
+  if (!row) return null;
+  return row.full_name?.trim() || row.identity_number || "Persona";
+}
+
 /** Resolve which dossier tab to show first. */
 export function resolvePersonaDefaultTab(
   tabParam: string | undefined,

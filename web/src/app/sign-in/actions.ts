@@ -2,9 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { canAccessPath, isAppRole } from "@/lib/access";
-import { sql } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, destroySession } from "@/lib/session";
+import { deleteExpiredSessions, findStaffByEmail } from "@/lib/user-data";
 
 function safeNext(value: string): string {
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/sign-in")) return "/etl";
@@ -24,14 +24,8 @@ export async function signIn(formData: FormData) {
   const next = safeNext(String(formData.get("next") || ""));
   const failed = `/sign-in?error=1${next !== "/etl" ? `&next=${encodeURIComponent(next)}` : ""}`;
 
-  const db = sql();
-  await db`DELETE FROM avila.app_session WHERE expires_at < now()`;
-  const [user] = await db`
-    SELECT id::text AS id, password_hash, role, active
-    FROM avila.app_user
-    WHERE email = ${email}
-    LIMIT 1
-  `;
+  await deleteExpiredSessions();
+  const user = await findStaffByEmail(email);
   const valid = await verifyPassword(password, user?.password_hash || (await rejectHash()));
   if (!user || !user.active || !isAppRole(user.role) || !valid) redirect(failed);
 

@@ -8,7 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
 import { UploadStatusBadge } from "@/components/upload-status-badge";
 import { DocumentPreview } from "@/components/document-preview";
-import { DOCUMENT_TYPE_LABELS, ROLE_LABELS, sql } from "@/lib/db";
+import { getDocumentoDetail } from "@/lib/document-data";
+import { DOCUMENT_TYPE_LABELS, ROLE_LABELS } from "@/lib/db";
 import { formatInvoiceNumber, formatSourceFileTitle } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -19,46 +20,9 @@ export default async function DocumentoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const db = sql();
-  const [doc] = await db`
-    SELECT d.id, d.page_index, d.document_type::text AS document_type, d.evidence,
-           d.upload_status::text AS upload_status, d.upload_error, d.blob_url, d.blob_pathname,
-           d.invoice_id, d.person_id, d.source_file_id,
-           i.invoice_number,
-           p.identity_number, p.full_name,
-           sf.file_label, sf.extension, sf.pages AS source_pages, sf.rule_id,
-           sf.backup_path
-    FROM avila.document d
-    LEFT JOIN avila.invoice i ON i.id = d.invoice_id
-    LEFT JOIN avila.person p ON p.id = d.person_id
-    LEFT JOIN avila.source_file sf ON sf.id = d.source_file_id
-    WHERE d.id = ${id}::uuid
-  `;
-  if (!doc) notFound();
-
-  const siblings = doc.source_file_id
-    ? await db`
-        SELECT id, page_index, document_type::text AS document_type,
-               upload_status::text AS upload_status
-        FROM avila.document
-        WHERE source_file_id = ${doc.source_file_id}::uuid
-        ORDER BY page_index
-      `
-    : [];
-
-  const invoicePeople = doc.invoice_id
-    ? await db`
-        SELECT p.id, p.full_name, p.identity_number, ip.role::text AS role
-        FROM avila.invoice_person ip
-        JOIN avila.person p ON p.id = ip.person_id
-        WHERE ip.invoice_id = ${doc.invoice_id}::uuid
-        ORDER BY CASE ip.role
-          WHEN 'titular' THEN 0
-          WHEN 'beneficiario' THEN 1
-          ELSE 2
-        END, p.full_name
-      `
-    : [];
+  const detail = await getDocumentoDetail(id);
+  if (!detail) notFound();
+  const { doc, siblings, invoicePeople } = detail;
 
   const currentIdx = siblings.findIndex((s) => s.id === doc.id);
   const prev = currentIdx > 0 ? siblings[currentIdx - 1] : null;

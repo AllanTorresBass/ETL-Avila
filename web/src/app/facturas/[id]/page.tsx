@@ -7,7 +7,7 @@ import { EntityRow } from "@/components/entity-row";
 import { PageHeader } from "@/components/page-header";
 import { RelationSection } from "@/components/relation-section";
 import { SectionNav } from "@/components/section-nav";
-import { sql } from "@/lib/db";
+import { FACTURA_AUTH_LIMIT, getFacturaDetail } from "@/lib/factura-detail-data";
 import {
   formatAccount,
   formatDate,
@@ -20,7 +20,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const AUTH_LIMIT = 20;
+const AUTH_LIMIT = FACTURA_AUTH_LIMIT;
 
 export default async function FacturaDetailPage({
   params,
@@ -31,71 +31,9 @@ export default async function FacturaDetailPage({
 }) {
   const { id } = await params;
   const { file: fileFilter = "" } = await searchParams;
-  const db = sql();
-
-  const [invoice] = await db`
-    SELECT i.*, a.legal_name AS account, a.code AS account_code
-    FROM avila.invoice i
-    LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE i.id = ${id}::uuid
-  `;
-  if (!invoice) notFound();
-
-  const people = await db`
-    SELECT p.id, p.identity_number, p.full_name, ip.role::text AS role, ip.parentesco
-    FROM avila.invoice_person ip
-    JOIN avila.person p ON p.id = ip.person_id
-    WHERE ip.invoice_id = ${id}::uuid
-    ORDER BY CASE ip.role WHEN 'titular' THEN 0 WHEN 'beneficiario' THEN 1 ELSE 2 END, p.full_name
-  `;
-
-  const [authCountRow] = await db`
-    SELECT count(*)::int AS n
-    FROM avila.authorization_line
-    WHERE invoice_id = ${id}::uuid
-  `;
-  const authTotal = authCountRow?.n ?? 0;
-
-  const authLines = await db`
-    SELECT al.id, al.clave_rms, al.diagnosis, al.service_description, al.amount_bs, al.amount_usd,
-           al.person_id, al.service_date, al.contratante, al.provider_name,
-           p.full_name AS person_name, p.identity_number
-    FROM avila.authorization_line al
-    LEFT JOIN avila.person p ON p.id = al.person_id
-    WHERE al.invoice_id = ${id}::uuid
-    ORDER BY coalesce(al.service_date, al.created_at) DESC
-    LIMIT ${AUTH_LIMIT}
-  `;
-
-  const files = await db`
-    SELECT id, file_label, extension, pages, rule_id, backup_path
-    FROM avila.source_file WHERE invoice_id = ${id}::uuid
-    ORDER BY backup_path, created_at
-  `;
-
-  const docs = fileFilter
-    ? await db`
-        SELECT d.id, d.page_index, d.document_type::text AS document_type,
-               d.upload_status::text AS upload_status, d.source_file_id
-        FROM avila.document d
-        WHERE d.invoice_id = ${id}::uuid
-          AND d.source_file_id = ${fileFilter}::uuid
-        ORDER BY d.page_index, d.document_type
-      `
-    : await db`
-        SELECT d.id, d.page_index, d.document_type::text AS document_type,
-               d.upload_status::text AS upload_status, d.source_file_id
-        FROM avila.document d
-        WHERE d.invoice_id = ${id}::uuid
-        ORDER BY d.page_index, d.document_type
-      `;
-
-  const [docCountRow] = await db`
-    SELECT count(*)::int AS n FROM avila.document WHERE invoice_id = ${id}::uuid
-  `;
-  const docTotal = docCountRow?.n ?? 0;
-
-  const activeFile = files.find((f) => f.id === fileFilter);
+  const detail = await getFacturaDetail(id, fileFilter);
+  if (!detail) notFound();
+  const { invoice, people, authTotal, authLines, files, docs, docTotal, activeFile } = detail;
   const relatedTotal = people.length + authTotal + files.length + docTotal;
 
   return (

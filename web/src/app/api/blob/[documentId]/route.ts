@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { get } from "@vercel/blob";
 import { requireReaderApi } from "@/lib/auth";
-import { sql } from "@/lib/db";
+import { getUploadedDocumentBlob } from "@/lib/document-blob-data";
 import { ensureEnv } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +19,8 @@ export async function GET(
 
   ensureEnv();
   const { documentId } = await context.params;
-  const db = sql();
-  const [doc] = await db`
-    SELECT blob_url, blob_pathname, content_type, upload_status::text AS upload_status
-    FROM avila.document
-    WHERE id = ${documentId}::uuid
-  `;
-  if (!doc || doc.upload_status !== "uploaded") {
+  const doc = await getUploadedDocumentBlob(documentId);
+  if (!doc) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 

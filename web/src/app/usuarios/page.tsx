@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { ACCESS_ROLE_HINTS, ACCESS_ROLE_LABELS, APP_ROLES, type AppRole } from "@/lib/access";
+import { ACCESS_ROLE_HINTS, ACCESS_ROLE_LABELS, APP_ROLES } from "@/lib/access";
 import { requirePermission } from "@/lib/auth";
-import { sql } from "@/lib/db";
+import { listStaffUsers } from "@/lib/user-data";
 import { PageHeader } from "@/components/page-header";
 import { createUser, updateUser } from "./actions";
 
@@ -19,14 +19,6 @@ const ERRORS: Record<string, string> = {
   last: "Tiene que quedar al menos un super admin activo.",
 };
 
-type UserRow = {
-  id: string;
-  email: string;
-  full_name: string | null;
-  role: AppRole;
-  active: boolean;
-};
-
 const fieldClass =
   "mt-1 block w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground";
 
@@ -37,12 +29,7 @@ export default async function UsuariosPage({
 }) {
   const actor = await requirePermission("manage_users");
   const sp = await searchParams;
-  const db = sql();
-  const users = (await db`
-    SELECT id::text AS id, email, full_name, role, active
-    FROM avila.app_user
-    ORDER BY CASE role WHEN 'super_admin' THEN 0 WHEN 'revisor' THEN 1 ELSE 2 END, email
-  `) as UserRow[];
+  const users = await listStaffUsers();
 
   return (
     <div className="space-y-8">

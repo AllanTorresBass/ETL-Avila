@@ -2,9 +2,10 @@ import { EmptyState } from "@/components/empty-state";
 import { DocumentCard } from "@/components/document-card";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { PageHeader } from "@/components/page-header";
-import { Pagination, DEFAULT_PAGE_SIZE, clampPage, parsePage } from "@/components/pagination";
+import { Pagination, DEFAULT_PAGE_SIZE, parsePage } from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
-import { DOCUMENT_TYPE_LABELS, UPLOAD_STATUS_LABELS, sql } from "@/lib/db";
+import { queryDocumentoList } from "@/lib/document-data";
+import { DOCUMENT_TYPE_LABELS, UPLOAD_STATUS_LABELS } from "@/lib/db";
 import { formatInvoiceNumber } from "@/lib/format";
 import {
   buildListHref,
@@ -37,54 +38,20 @@ export default async function DocumentosPage({
   const uploadStatus = firstParam(sp.upload_status);
   const account = firstParam(sp.account);
   const requestedPage = parsePage(firstParam(sp.page) || undefined);
-  const db = sql();
 
   const typeOk = type in DOCUMENT_TYPE_LABELS ? type : "";
   const statusOk = (UPLOAD_STATUSES as readonly string[]).includes(uploadStatus)
     ? uploadStatus
     : "";
 
-  const accounts = await db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`;
-  const types = await db`
-    SELECT document_type::text AS document_type, count(*)::int AS n
-    FROM avila.document GROUP BY 1 ORDER BY n DESC
-  `;
-  const statusCounts = await db`
-    SELECT upload_status::text AS upload_status, count(*)::int AS n
-    FROM avila.document GROUP BY 1 ORDER BY n DESC
-  `;
-
-  const like = `%${query}%`;
-
-  const [countRow] = await db`
-    SELECT count(*)::int AS n
-    FROM avila.document d
-    LEFT JOIN avila.invoice i ON i.id = d.invoice_id
-    LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE (${typeOk} = '' OR d.document_type::text = ${typeOk})
-      AND (${statusOk} = '' OR d.upload_status::text = ${statusOk})
-      AND (${account} = '' OR a.code = ${account})
-      AND (${query} = '' OR coalesce(i.invoice_number, '') ILIKE ${like}
-           OR coalesce(d.evidence, '') ILIKE ${like})
-  `;
-  const total = countRow?.n ?? 0;
-  const page = clampPage(requestedPage, total, DEFAULT_PAGE_SIZE);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
-
-  const docs = await db`
-    SELECT d.id, d.page_index, d.document_type::text AS document_type,
-           d.upload_status::text AS upload_status, i.invoice_number
-    FROM avila.document d
-    LEFT JOIN avila.invoice i ON i.id = d.invoice_id
-    LEFT JOIN avila.account a ON a.id = i.account_id
-    WHERE (${typeOk} = '' OR d.document_type::text = ${typeOk})
-      AND (${statusOk} = '' OR d.upload_status::text = ${statusOk})
-      AND (${account} = '' OR a.code = ${account})
-      AND (${query} = '' OR coalesce(i.invoice_number, '') ILIKE ${like}
-           OR coalesce(d.evidence, '') ILIKE ${like})
-    ORDER BY d.created_at DESC
-    LIMIT ${DEFAULT_PAGE_SIZE} OFFSET ${offset}
-  `;
+  const { accounts, types, statusCounts, total, page, docs } = await queryDocumentoList({
+    typeOk,
+    statusOk,
+    account,
+    query,
+    pageSize: DEFAULT_PAGE_SIZE,
+    requestedPage,
+  });
 
   const filterParams: Record<string, string | undefined> = {
     q: query || undefined,

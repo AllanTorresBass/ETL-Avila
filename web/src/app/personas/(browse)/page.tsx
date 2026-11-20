@@ -3,7 +3,8 @@ import { ListFilterBar } from "@/components/list-filter-bar";
 import { PersonasFilterSkeleton, PersonasListSkeleton } from "@/components/personas-page-skeleton";
 import { PersonasResults } from "@/components/personas-results";
 import { ScrollToAnchor } from "@/components/scroll-to-anchor";
-import { ROLE_LABELS, sql } from "@/lib/db";
+import { listAccounts } from "@/lib/account-data";
+import { ROLE_LABELS } from "@/lib/db";
 import {
   buildListHref,
   firstParam,
@@ -40,7 +41,6 @@ async function PersonasFilterSection({
   const incompleteName = triState(sp.incomplete_name);
   const role = firstParam(sp.role);
   const account = firstParam(sp.account);
-  const db = sql();
 
   const roleOk = role === "titular" || role === "beneficiario" || role === "unknown";
   const roleFilter = roleOk ? role : "";
@@ -56,7 +56,7 @@ async function PersonasFilterSection({
   };
   const filtersActive = hasActiveFilters(filterParams);
 
-  const accounts = await db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`;
+  const accounts = await listAccounts();
 
   const activeChips: ActiveChip[] = [];
   if (query) {
