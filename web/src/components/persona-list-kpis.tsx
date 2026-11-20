@@ -55,7 +55,7 @@ export function PersonaListKpisStrip({
         label="Personas"
         value={n(kpis.total)}
         hint={`${n(kpis.withIdentityDocs)} con docs de identidad · quita filtros`}
-        href="/personas"
+        href="/personas#lista"
         active={isActive(filters, {})}
         icon={<Users className="size-4" />}
       />
@@ -63,7 +63,7 @@ export function PersonaListKpisStrip({
         label="Con cédula"
         value={n(kpis.withCi)}
         hint={`${n(kpis.withoutCi)} sin cédula`}
-        href="/personas?has_ci=1"
+        href="/personas?has_ci=1#lista"
         active={isActive(filters, { has_ci: "1" })}
         icon={<IdCard className="size-4" />}
       />
@@ -71,7 +71,7 @@ export function PersonaListKpisStrip({
         label="Sin cédula"
         value={n(kpis.withoutCi)}
         hint="Prioridad de enriquecimiento"
-        href="/personas?has_ci=0"
+        href="/personas?has_ci=0#lista"
         active={isActive(filters, { has_ci: "0" })}
         icon={<FileWarning className="size-4" />}
       />
@@ -79,7 +79,7 @@ export function PersonaListKpisStrip({
         label="Con factura"
         value={n(kpis.withInvoice)}
         hint={`${n(kpis.withoutInvoice)} sin factura`}
-        href="/personas?has_invoice=1"
+        href="/personas?has_invoice=1#lista"
         active={isActive(filters, { has_invoice: "1" })}
         icon={<ReceiptText className="size-4" />}
       />
@@ -87,7 +87,7 @@ export function PersonaListKpisStrip({
         label="Sin factura"
         value={n(kpis.withoutInvoice)}
         hint="Huérfanos del archivo"
-        href="/personas?has_invoice=0"
+        href="/personas?has_invoice=0#lista"
         active={isActive(filters, { has_invoice: "0" })}
         icon={<Link2 className="size-4" />}
       />
@@ -95,14 +95,14 @@ export function PersonaListKpisStrip({
         label="Titulares"
         value={n(kpis.titulares)}
         hint={`${n(kpis.beneficiarios)} beneficiarios`}
-        href="/personas?role=titular"
+        href="/personas?role=titular#lista"
         active={isActive(filters, { role: "titular" })}
         icon={<BadgeCheck className="size-4" />}
       />
       <KpiCard
         label="Beneficiarios"
         value={n(kpis.beneficiarios)}
-        href="/personas?role=beneficiario"
+        href="/personas?role=beneficiario#lista"
         active={isActive(filters, { role: "beneficiario" })}
         icon={<UserRound className="size-4" />}
       />
@@ -110,7 +110,7 @@ export function PersonaListKpisStrip({
         label="Con teléfono"
         value={n(kpis.withPhone)}
         hint={`${n(kpis.withoutPhone)} sin teléfono`}
-        href="/personas?has_phone=1"
+        href="/personas?has_phone=1#lista"
         active={isActive(filters, { has_phone: "1" })}
         icon={<Phone className="size-4" />}
       />
@@ -118,7 +118,7 @@ export function PersonaListKpisStrip({
         label="Sin teléfono"
         value={n(kpis.withoutPhone)}
         hint="Falta contacto usable"
-        href="/personas?has_phone=0"
+        href="/personas?has_phone=0#lista"
         active={isActive(filters, { has_phone: "0" })}
         icon={<Phone className="size-4" />}
       />
@@ -126,7 +126,7 @@ export function PersonaListKpisStrip({
         label="Gaps de contacto"
         value={n(kpis.withContactGaps)}
         hint={`${n(kpis.incompleteName)} nombre incompleto`}
-        href="/personas?has_contact_gap=1"
+        href="/personas?has_contact_gap=1#lista"
         active={isActive(filters, { has_contact_gap: "1" })}
         icon={<FileWarning className="size-4" />}
       />
@@ -134,7 +134,7 @@ export function PersonaListKpisStrip({
         label="Nombre incompleto"
         value={n(kpis.incompleteName)}
         hint="Vacío o igual a la cédula"
-        href="/personas?incomplete_name=1"
+        href="/personas?incomplete_name=1#lista"
         active={isActive(filters, { incomplete_name: "1" })}
         icon={<UserRound className="size-4" />}
       />

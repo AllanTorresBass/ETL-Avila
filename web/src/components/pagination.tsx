@@ -61,6 +61,7 @@ function buildHref(
   searchParams: Record<string, string | undefined>,
   pageParam: string,
   page: number,
+  hash?: string,
 ) {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
@@ -68,7 +69,8 @@ function buildHref(
   }
   if (page > 1) params.set(pageParam, String(page));
   const qs = params.toString();
-  return qs ? `${basePath}?${qs}` : basePath;
+  const path = qs ? `${basePath}?${qs}` : basePath;
+  return hash ? `${path}#${hash.replace(/^#/, "")}` : path;
 }
 
 /**
@@ -83,6 +85,7 @@ export function Pagination({
   searchParams,
   pageParam = "page",
   shown,
+  hash,
 }: {
   page: number;
   pageSize: number;
@@ -93,6 +96,8 @@ export function Pagination({
   pageParam?: string;
   /** Rows on the current page; defaults to a full page estimate. */
   shown?: number;
+  /** Optional hash (e.g. `lista`) so paging keeps the viewport on the list. */
+  hash?: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / Math.max(1, pageSize)));
   if (totalPages <= 1 || total <= 0) return null;
@@ -101,7 +106,7 @@ export function Pagination({
   const estimatedShown = shown ?? Math.min(pageSize, total - (safePage - 1) * pageSize);
   const { from, to } = pageRange(safePage, pageSize, estimatedShown, total);
   const numbers = visiblePageNumbers(safePage, totalPages);
-  const hrefFor = (p: number) => buildHref(basePath, searchParams, pageParam, p);
+  const hrefFor = (p: number) => buildHref(basePath, searchParams, pageParam, p, hash);
 
   const pill =
     "inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";

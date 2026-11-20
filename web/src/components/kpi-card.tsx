@@ -80,8 +80,9 @@ export function KpiCard({
   }`;
 
   if (!href) return <div className={base}>{body}</div>;
+  // Keep default scroll so hash targets like `#lista` can move the viewport.
   return (
-    <Link href={href} className={base} aria-current={active ? "true" : undefined} scroll={false}>
+    <Link href={href} className={base} aria-current={active ? "true" : undefined}>
       {body}
     </Link>
   );
