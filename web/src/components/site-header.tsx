@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 const links = [
   { href: "/etl", label: "ETL" },
   { href: "/bi", label: "Negocio" },
+  { href: "/informe", label: "Informe" },
   { href: "/personas", label: "Personas" },
   { href: "/facturas", label: "Facturas" },
   { href: "/documentos", label: "Documentos" },

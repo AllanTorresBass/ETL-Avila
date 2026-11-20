@@ -205,6 +205,14 @@ export default async function BiDashboardPage({ searchParams }: PageProps<"/bi">
           {n(data.undated)} facturas no tienen fecha de emisión y no se incluyen en los totales por periodo.
         </p>
       ) : null}
+
+      <p className="text-center text-sm text-muted-foreground">
+        ¿Quieres el resumen de calidad y negocio juntos?{" "}
+        <Link href="/informe" className="font-medium text-brand underline-offset-4 hover:underline">
+          Abre el informe
+        </Link>
+        .
+      </p>
     </div>
   );
 }

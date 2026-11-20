@@ -301,6 +301,10 @@ export default async function EtlDashboardPage() {
         <Link href="/bi" className="font-medium text-brand underline-offset-4 hover:underline">
           Abre el tablero de negocio
         </Link>
+        {" · "}
+        <Link href="/informe" className="font-medium text-brand underline-offset-4 hover:underline">
+          Ver el informe
+        </Link>
         .
       </p>
     </div>
