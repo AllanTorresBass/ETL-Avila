@@ -13,4 +13,4 @@ python3 scripts/upload_documents_to_blob.py
 
 5. Confirm the reader preview still uses `/api/blob/[documentId]` (authenticated). Legacy public `blob_url` rows keep working via the fetch fallback until re-uploaded.
 6. For local uploads, pull the new `BLOB_READ_WRITE_TOKEN` from the Vercel project env (Dashboard → etl-avila → Settings → Environment Variables) into repo-root `.env`. Do not commit it.
-7. Add Clerk keys (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`) the same way before deploying the reader.
+7. Apply `sql/007_app_access.sql` and seed staff with `scripts/seed_app_users.mjs` before deploying the reader.

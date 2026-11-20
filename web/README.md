@@ -1,9 +1,9 @@
 # Ávila GPS invoice reader
 
-Next.js + shadcn UI for browsing people, invoices, and page-level documents loaded into Neon (`avila` schema) and Vercel Blob. Staff-only: Clerk auth + Vercel Deployment Protection.
+Next.js + shadcn UI for browsing people, invoices, and page-level documents loaded into Neon (`avila` schema) and Vercel Blob. Staff-only: email and password plus a role, and Vercel Deployment Protection.
 
 ```bash
-# From repo root, with DATABASE_URL, BLOB_*, and Clerk keys in ../.env
+# From repo root, with DATABASE_URL and BLOB_* in ../.env
 cd web
 cp .env.example .env.local   # or symlink ../.env
 npm install
@@ -12,8 +12,10 @@ npm run dev
 
 ## Auth
 
-- `proxy.ts` runs `clerkMiddleware` and `auth.protect()` on all routes except `/sign-in` and `/sign-up`.
-- Optional `CLERK_ALLOWED_EMAILS` (comma-separated) restricts API blob access to listed staff.
+- Apply `sql/007_app_access.sql`, then seed accounts with `AUTH_BOOTSTRAP_USERS` (see `.env.example`) and `node scripts/seed_app_users.mjs`.
+- `proxy.ts` requires a session cookie on every route except `/sign-in`.
+- Roles: `super_admin` (lectura, revisión y cuentas), `revisor` (lectura y revisión), `lector` (solo lectura).
+- Super admins create the other accounts at `/usuarios`.
 - Vercel project `etl-avila` uses SSO Deployment Protection on all deployments.
 
 ## Blob

@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { refresh } from "next/cache";
-import { requireStaffAction } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { sql } from "@/lib/db";
 
 type Db = ReturnType<typeof sql>;
@@ -114,7 +114,7 @@ function promoteQueries(
 }
 
 export async function resolveReview(formData: FormData): Promise<void> {
-  const reviewer = await requireStaffAction();
+  const reviewer = (await requirePermission("review")).email;
   const id = String(formData.get("id") || "");
   const decision = String(formData.get("decision") || "");
   if (!/^[0-9a-f-]{36}$/i.test(id) || !["accept", "reject"].includes(decision)) {
