@@ -1,12 +1,9 @@
 import { Suspense } from "react";
 import { ListFilterBar } from "@/components/list-filter-bar";
-import { PageHeader } from "@/components/page-header";
-import { PersonaListKpisStrip } from "@/components/persona-list-kpis";
-import { PersonasListSkeleton } from "@/components/personas-page-skeleton";
+import { PersonasFilterSkeleton, PersonasListSkeleton } from "@/components/personas-page-skeleton";
 import { PersonasResults } from "@/components/personas-results";
 import { ScrollToAnchor } from "@/components/scroll-to-anchor";
 import { ROLE_LABELS, sql } from "@/lib/db";
-import { getPersonaListKpis } from "@/lib/persona-data";
 import {
   buildListHref,
   firstParam,
@@ -19,10 +16,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function PersonasPage({
-  searchParams,
+async function PersonasFilterSection({
+  sp,
 }: {
-  searchParams: Promise<{
+  sp: {
     q?: string;
     has_ci?: string;
     has_phone?: string;
@@ -32,9 +29,8 @@ export default async function PersonasPage({
     role?: string;
     account?: string;
     page?: string;
-  }>;
+  };
 }) {
-  const sp = await searchParams;
   const query = normalizeQuery(sp.q);
   const rawQ = firstParam(sp.q);
   const hasCi = triState(sp.has_ci);
@@ -59,12 +55,8 @@ export default async function PersonasPage({
     account: account || undefined,
   };
   const filtersActive = hasActiveFilters(filterParams);
-  const listKey = JSON.stringify({ ...filterParams, page: firstParam(sp.page) || "1" });
 
-  const [accounts, kpis] = await Promise.all([
-    db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`,
-    getPersonaListKpis(),
-  ]);
+  const accounts = await db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`;
 
   const activeChips: ActiveChip[] = [];
   if (query) {
@@ -147,26 +139,7 @@ export default async function PersonasPage({
   const shortQueryHint = rawQ.length === 1;
 
   return (
-    <div className="space-y-6">
-      <Suspense fallback={null}>
-        <ScrollToAnchor id="lista" />
-      </Suspense>
-
-      <PageHeader
-        title="Personas"
-        description="Cliente = titular o beneficiario. Busca por cédula, nombre, teléfono o clave RMS."
-      />
-      <PersonaListKpisStrip
-        kpis={kpis}
-        filters={{
-          has_ci: hasCi || undefined,
-          has_phone: hasPhone || undefined,
-          has_invoice: hasInvoice || undefined,
-          has_contact_gap: hasContactGap || undefined,
-          incomplete_name: incompleteName || undefined,
-          role: roleFilter || undefined,
-        }}
-      />
+    <>
       <ListFilterBar
         key={JSON.stringify(filterParams)}
         searchValue={rawQ}
@@ -245,6 +218,47 @@ export default async function PersonasPage({
           Escribe al menos 2 caracteres para buscar.
         </p>
       ) : null}
+    </>
+  );
+}
+
+export default async function PersonasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    has_ci?: string;
+    has_phone?: string;
+    has_invoice?: string;
+    has_contact_gap?: string;
+    incomplete_name?: string;
+    role?: string;
+    account?: string;
+    page?: string;
+  }>;
+}) {
+  const sp = await searchParams;
+  const listKey = JSON.stringify({
+    q: firstParam(sp.q),
+    has_ci: firstParam(sp.has_ci),
+    has_phone: firstParam(sp.has_phone),
+    has_invoice: firstParam(sp.has_invoice),
+    has_contact_gap: firstParam(sp.has_contact_gap),
+    incomplete_name: firstParam(sp.incomplete_name),
+    role: firstParam(sp.role),
+    account: firstParam(sp.account),
+    page: firstParam(sp.page) || "1",
+  });
+
+  return (
+    <div className="space-y-6">
+      <Suspense fallback={null}>
+        <ScrollToAnchor id="lista" />
+      </Suspense>
+
+      <Suspense fallback={<PersonasFilterSkeleton />}>
+        <PersonasFilterSection sp={sp} />
+      </Suspense>
 
       <Suspense key={listKey} fallback={<PersonasListSkeleton />}>
         <PersonasResults sp={sp} />

@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { PersonasKpiSkeleton } from "@/components/personas-kpi-skeleton";
 
 /** Full-page skeleton for first load / hard navigation to /personas. */
 export function PersonasPageSkeleton() {
@@ -9,15 +10,32 @@ export function PersonasPageSkeleton() {
         <Skeleton className="h-4 w-96 max-w-full rounded-lg" />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-32 rounded-3xl" />
-        ))}
-      </div>
-
-      <Skeleton className="h-28 rounded-3xl" />
-
+      <PersonasKpiSkeleton />
+      <PersonasFilterSkeleton />
       <PersonasListSkeleton />
+    </div>
+  );
+}
+
+/** Filter bar placeholder while accounts / chips resolve. */
+export function PersonasFilterSkeleton() {
+  return (
+    <div
+      className="space-y-3"
+      aria-busy="true"
+      aria-label="Cargando filtros"
+    >
+      <div className="flex flex-wrap items-end gap-3">
+        <Skeleton className="h-11 min-w-[12rem] flex-1 rounded-xl" />
+        <Skeleton className="h-11 w-28 rounded-xl" />
+        <Skeleton className="h-11 w-28 rounded-xl" />
+        <Skeleton className="h-11 w-28 rounded-xl" />
+        <Skeleton className="h-11 w-24 rounded-full" />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-28 rounded-full" />
+      </div>
     </div>
   );
 }
