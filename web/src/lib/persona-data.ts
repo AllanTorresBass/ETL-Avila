@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { IDENTITY_TYPE_LABELS, sql } from "@/lib/db";
 import { formatInvoiceNumber, roleLabel } from "@/lib/format";
 
@@ -310,7 +311,7 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
 export type PersonaDetail = NonNullable<Awaited<ReturnType<typeof getPersonaDetail>>>;
 
 /** Corpus-level KPIs for the Personas list (filter shortcuts, not result-scoped). */
-export async function getPersonaListKpis() {
+export const getPersonaListKpis = cache(async function getPersonaListKpis() {
   const db = sql();
   const [row] = await db`
     SELECT
@@ -397,7 +398,7 @@ export async function getPersonaListKpis() {
     openPersonReviews: reviews?.n ?? 0,
     withIdentityDocs: identityDocs?.n ?? 0,
   };
-}
+});
 
 export type PersonaListKpis = Awaited<ReturnType<typeof getPersonaListKpis>>;
 
