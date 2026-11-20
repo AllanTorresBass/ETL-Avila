@@ -2,10 +2,16 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import { PageHeader } from "@/components/page-header";
-import { Pagination, DEFAULT_PAGE_SIZE, parsePage } from "@/components/pagination";
+import { PersonaListKpisStrip } from "@/components/persona-list-kpis";
+import {
+  Pagination,
+  DEFAULT_PAGE_SIZE,
+  clampPage,
+  parsePage,
+} from "@/components/pagination";
 import { ResultCount } from "@/components/result-count";
 import { ROLE_LABELS, sql } from "@/lib/db";
-import { isIncompleteName } from "@/lib/persona-data";
+import { getPersonaListKpis, isIncompleteName } from "@/lib/persona-data";
 import {
   buildListHref,
   firstParam,
@@ -39,11 +45,9 @@ export default async function PersonasPage({
   const hasInvoice = triState(sp.has_invoice);
   const role = firstParam(sp.role);
   const account = firstParam(sp.account);
-  const page = parsePage(firstParam(sp.page) || undefined);
-  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
+  const requestedPage = parsePage(firstParam(sp.page) || undefined);
   const db = sql();
 
-  const accounts = await db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`;
   const like = `%${query}%`;
   const roleOk = role === "titular" || role === "beneficiario" || role === "unknown";
   const roleFilter = roleOk ? role : "";
@@ -56,7 +60,10 @@ export default async function PersonasPage({
     account: account || undefined,
   });
 
-  const [countRow] = await db`
+  const [accounts, kpis, countRow] = await Promise.all([
+    db`SELECT code, legal_name FROM avila.account ORDER BY legal_name`,
+    getPersonaListKpis(),
+    db`
     SELECT count(DISTINCT p.id)::int AS n
     FROM avila.person p
     LEFT JOIN avila.authorization_line al ON al.person_id = p.id
@@ -79,8 +86,11 @@ export default async function PersonasPage({
            )))
       AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
       AND (${account} = '' OR a.code = ${account})
-  `;
-  const total = countRow?.n ?? 0;
+  `,
+  ]);
+  const total = countRow[0]?.n ?? 0;
+  const page = clampPage(requestedPage, total, DEFAULT_PAGE_SIZE);
+  const offset = (page - 1) * DEFAULT_PAGE_SIZE;
 
   const people = await db`
     SELECT p.id, p.identity_type::text AS identity_type, p.identity_number, p.full_name,
@@ -217,6 +227,7 @@ export default async function PersonasPage({
         title="Personas"
         description="Cliente = titular o beneficiario. Busca por cédula, nombre, teléfono o clave RMS."
       />
+      <PersonaListKpisStrip kpis={kpis} />
       <ListFilterBar
         searchValue={rawQ}
         searchPlaceholder="Cédula, nombre, teléfono o clave (mín. 2)"
@@ -280,7 +291,12 @@ export default async function PersonasPage({
           Escribe al menos 2 caracteres para buscar.
         </p>
       ) : null}
-      <ResultCount shown={people.length} total={total} />
+      <ResultCount
+        shown={people.length}
+        total={total}
+        page={page}
+        pageSize={DEFAULT_PAGE_SIZE}
+      />
       {people.length === 0 ? (
         <EmptyState
           title={filtersActive ? "No hay coincidencias" : "Aún no hay personas"}
@@ -357,6 +373,7 @@ export default async function PersonasPage({
         page={page}
         pageSize={DEFAULT_PAGE_SIZE}
         total={total}
+        shown={people.length}
         basePath="/personas"
         searchParams={filterParams}
       />

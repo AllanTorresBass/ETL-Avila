@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DocumentPreview } from "@/components/document-preview";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { Pagination, parsePage } from "@/components/pagination";
+import { Pagination, clampPage, parsePage } from "@/components/pagination";
 import { DOCUMENT_TYPE_LABELS, sql } from "@/lib/db";
 import { formatDate, formatInvoiceNumber } from "@/lib/format";
 import { buildListHref, firstParam } from "@/lib/list-params";
@@ -46,7 +46,7 @@ export default async function RevisionPage({
   const sp = await searchParams;
   const group = REVIEW_GROUPS.find((g) => g.id === firstParam(sp.tipo));
   const status = STATUSES[firstParam(sp.estado)] ? firstParam(sp.estado) : "open";
-  const page = parsePage(firstParam(sp.page) || undefined);
+  const requestedPage = parsePage(firstParam(sp.page) || undefined);
   const kinds = group ? group.kinds : REVIEW_GROUPS.flatMap((g) => g.kinds);
   const db = sql();
 
@@ -57,6 +57,7 @@ export default async function RevisionPage({
   const byKind = new Map(counts.map((r) => [r.kind as string, r.n as number]));
   const groupCount = (k: string[]) => k.reduce((sum, kind) => sum + (byKind.get(kind) || 0), 0);
   const total = groupCount(kinds);
+  const page = clampPage(requestedPage, total, PAGE_SIZE);
 
   const items = await db`
     SELECT r.id, r.kind, r.status, r.score, r.evidence, r.created_at, r.resolved_by, r.resolved_at,
@@ -229,6 +230,7 @@ export default async function RevisionPage({
         page={page}
         pageSize={PAGE_SIZE}
         total={total}
+        shown={items.length}
         basePath="/revision"
         searchParams={params}
       />
