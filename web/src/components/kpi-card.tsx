@@ -11,6 +11,8 @@ type KpiCardProps = {
   icon?: React.ReactNode;
   href?: string;
   featured?: boolean;
+  /** Marks this card as the filter currently applied on the list. */
+  active?: boolean;
 };
 
 function DeltaChip({ delta, label }: { delta: number; label?: string }) {
@@ -28,7 +30,17 @@ function DeltaChip({ delta, label }: { delta: number; label?: string }) {
   );
 }
 
-export function KpiCard({ label, value, hint, delta, deltaLabel, icon, href, featured }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  hint,
+  delta,
+  deltaLabel,
+  icon,
+  href,
+  featured,
+  active,
+}: KpiCardProps) {
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
@@ -50,19 +62,26 @@ export function KpiCard({ label, value, hint, delta, deltaLabel, icon, href, fea
         {hint ? (
           <span className={`text-xs ${featured ? "text-hero-foreground/70" : "text-muted-foreground"}`}>{hint}</span>
         ) : null}
+        {active ? (
+          <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-medium text-brand">
+            Filtro activo
+          </span>
+        ) : null}
       </div>
     </>
   );
 
-  const base = `group block rounded-3xl border p-5 shadow-sm transition-[border-color,box-shadow] ${
+  const base = `group block rounded-3xl border p-5 shadow-sm transition-[border-color,box-shadow,ring] ${
     featured
       ? "border-transparent bg-hero text-hero-foreground"
       : "border-border bg-card text-foreground hover:border-brand/40 hover:shadow-md"
+  } ${active && !featured ? "border-brand ring-2 ring-brand/25" : ""} ${
+    active && featured ? "ring-2 ring-white/40" : ""
   }`;
 
   if (!href) return <div className={base}>{body}</div>;
   return (
-    <Link href={href} className={base}>
+    <Link href={href} className={base} aria-current={active ? "true" : undefined} scroll={false}>
       {body}
     </Link>
   );
