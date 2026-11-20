@@ -214,6 +214,9 @@
   .personas-no-print,
   .personas-pagination,
   .personas-screen-list,
+  .facturas-no-print,
+  .facturas-pagination,
+  .facturas-screen-list,
   [data-slot="sheet-trigger"],
   button[aria-label^="Cambiar a modo"],
   .cl-userButton-root,
@@ -221,7 +224,8 @@
     display: none !important;
   }
 
-  .personas-print-table {
+  .personas-print-table,
+  .facturas-print-table {
     display: block !important;
   }
 
