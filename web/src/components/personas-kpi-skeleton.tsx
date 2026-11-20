@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-const KPI_SLOTS = 12;
+const KPI_SLOTS = 8;
 
 /** Card-shaped KPI placeholders that match KpiCard anatomy while corpus metrics load. */
 export function PersonasKpiSkeleton() {

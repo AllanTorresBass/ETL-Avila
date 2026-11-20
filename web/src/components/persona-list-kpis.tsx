@@ -114,37 +114,6 @@ export function PersonaListKpisStrip({
         active={isActive(filters, { has_phone: "1" })}
         icon={<Phone className="size-4" />}
       />
-      <KpiCard
-        label="Sin teléfono"
-        value={n(kpis.withoutPhone)}
-        hint="Falta contacto usable"
-        href="/personas?has_phone=0#lista"
-        active={isActive(filters, { has_phone: "0" })}
-        icon={<Phone className="size-4" />}
-      />
-      <KpiCard
-        label="Gaps de contacto"
-        value={n(kpis.withContactGaps)}
-        hint={`${n(kpis.incompleteName)} nombre incompleto`}
-        href="/personas?has_contact_gap=1#lista"
-        active={isActive(filters, { has_contact_gap: "1" })}
-        icon={<FileWarning className="size-4" />}
-      />
-      <KpiCard
-        label="Nombre incompleto"
-        value={n(kpis.incompleteName)}
-        hint="Vacío o igual a la cédula"
-        href="/personas?incomplete_name=1#lista"
-        active={isActive(filters, { incomplete_name: "1" })}
-        icon={<UserRound className="size-4" />}
-      />
-      <KpiCard
-        label="Revisión abierta"
-        value={n(kpis.openPersonReviews)}
-        hint="Casos con persona vinculada"
-        href="/revision"
-        icon={<BadgeCheck className="size-4" />}
-      />
     </section>
   );
 }
