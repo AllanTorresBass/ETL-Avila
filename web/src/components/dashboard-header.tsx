@@ -1,19 +1,20 @@
 import Link from "next/link";
-import { Activity, BarChart3, Search } from "lucide-react";
+import { Activity, BarChart3, FileText, Search } from "lucide-react";
 import { formatDateTime } from "@/lib/format-metrics";
 
-export type DashboardId = "etl" | "bi";
+export type DashboardId = "etl" | "bi" | "informe";
 
 const DASHBOARDS: { id: DashboardId; href: string; label: string; icon: typeof Activity }[] = [
   { id: "etl", href: "/etl", label: "ETL · Operación", icon: Activity },
   { id: "bi", href: "/bi", label: "BI · Negocio", icon: BarChart3 },
+  { id: "informe", href: "/informe", label: "Informe · Resumen", icon: FileText },
 ];
 
 function DashboardSwitcher({ current }: { current: DashboardId }) {
   return (
     <nav
       aria-label="Tablero"
-      className="inline-flex w-full gap-1 rounded-full border border-border bg-muted p-1 sm:w-auto"
+      className="inline-flex w-full flex-wrap gap-1 rounded-full border border-border bg-muted p-1 sm:w-auto"
     >
       {DASHBOARDS.map(({ id, href, label, icon: Icon }) => {
         const active = id === current;
