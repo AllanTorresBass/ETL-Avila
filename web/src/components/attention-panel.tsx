@@ -16,34 +16,55 @@ const TONE: Record<AttentionItem["tone"], string> = {
   info: "bg-brand/10 text-brand",
 };
 
-export function AttentionPanel({ items }: { items: AttentionItem[] }) {
+export function AttentionPanel({
+  items,
+  /** Skip the outer card chrome when already inside DashboardTabs. */
+  embedded = false,
+}: {
+  items: AttentionItem[];
+  embedded?: boolean;
+}) {
   const open = items.filter((i) => i.count > 0);
+
+  const header = embedded ? (
+    <p className="mb-4 text-sm text-muted-foreground">
+      {open.length > 0
+        ? `${open.length} ${open.length === 1 ? "tema pendiente" : "temas pendientes"}`
+        : "Sin pendientes"}
+    </p>
+  ) : (
+    <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 id="atencion-titulo" className="text-lg font-semibold text-foreground">
+        Requiere atención
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        {open.length > 0
+          ? `${open.length} ${open.length === 1 ? "tema pendiente" : "temas pendientes"}`
+          : "Sin pendientes"}
+      </p>
+    </div>
+  );
 
   return (
     <section
-      aria-labelledby="atencion-titulo"
-      className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"
+      aria-labelledby={embedded ? undefined : "atencion-titulo"}
+      className={
+        embedded ? undefined : "rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6"
+      }
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="atencion-titulo" className="text-lg font-semibold text-foreground">
-          Requiere atención
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {open.length > 0
-            ? `${open.length} ${open.length === 1 ? "tema pendiente" : "temas pendientes"}`
-            : "Sin pendientes"}
-        </p>
-      </div>
+      {header}
 
       {open.length === 0 ? (
-        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-success-soft p-4 text-success">
+        <div
+          className={`${embedded ? "" : "mt-4 "}flex items-center gap-3 rounded-2xl bg-success-soft p-4 text-success`}
+        >
           <CircleCheck aria-hidden="true" className="size-5 shrink-0" />
           <p className="text-sm font-medium">
             Todo en orden: no hay casos abiertos ni cargas fallidas.
           </p>
         </div>
       ) : (
-        <ul className="mt-4 divide-y divide-border">
+        <ul className={`${embedded ? "" : "mt-4 "}divide-y divide-border`}>
           {open.map((item) => (
             <li key={item.id}>
               <Link

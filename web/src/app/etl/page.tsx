@@ -4,11 +4,10 @@ import { Files, FileText, ReceiptText, Users } from "lucide-react";
 import { AttentionPanel, type AttentionItem } from "@/components/attention-panel";
 import { BreakdownList } from "@/components/breakdown-card";
 import { DashboardHeader } from "@/components/dashboard-header";
-import { EtlDetailTabs } from "@/components/etl-detail-tabs";
 import { DashboardNotice } from "@/components/dashboard-notice";
+import { DashboardTabs } from "@/components/dashboard-tabs";
 import { KpiCard } from "@/components/kpi-card";
 import { Meter } from "@/components/meter";
-import { SectionCard } from "@/components/section-card";
 import { StatusStack, type StatusSegment } from "@/components/status-stack";
 import { getEtlData } from "@/lib/dashboard-data";
 import { DOCUMENT_TYPE_LABELS, UPLOAD_STATUS_LABELS } from "@/lib/db";
@@ -159,6 +158,7 @@ export default async function EtlDashboardPage() {
 
   const resolved = data.reviews.filter((r) => r.status !== "open").reduce((sum, r) => sum + r.n, 0);
   const totalReviews = resolved + kpi.openReviews;
+  const attentionCount = attention.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="space-y-8">
@@ -185,56 +185,76 @@ export default async function EtlDashboardPage() {
       <DashboardNotice failures={data.failures} />
 
       <div className="rise-in" style={stagger(1)}>
-        <AttentionPanel items={attention} />
-      </div>
-
-      <section
-        aria-label="Inventario"
-        className="rise-in grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        style={stagger(2)}
-      >
-        <KpiCard label="Personas" value={n(counts.persons)} href="/personas" icon={<Users className="size-4" />} />
-        <KpiCard label="Facturas" value={n(counts.invoices)} href="/facturas" icon={<ReceiptText className="size-4" />} />
-        <KpiCard label="Documentos" value={n(counts.documents)} href="/documentos" icon={<FileText className="size-4" />} />
-        <KpiCard
-          label="Archivos fuente"
-          value={n(counts.sourceFiles)}
-          hint={`${n(kpi.scanFiles)} de escáner`}
-          icon={<Files className="size-4" />}
-        />
-      </section>
-
-      <div className="rise-in grid gap-6 lg:grid-cols-5" style={stagger(3)}>
-        <SectionCard
-          className="lg:col-span-3"
-          title="Calidad del vínculo"
-          description="Qué tan completo está el cruce entre fuentes."
-        >
-          <div className="grid gap-6 md:grid-cols-2">
-            <Meter label="Autorizaciones con factura" value={kpi.authLinked} total={kpi.authLines} />
-            <Meter label="Facturas con titular por cédula" value={kpi.invoicesCiTitular} total={counts.invoices} />
-            <Meter label="Facturas con beneficiario" value={kpi.invoicesWithBeneficiario} total={counts.invoices} />
-            <Meter
-              label="Documentos subidos a Blob"
-              value={counts.uploaded}
-              total={counts.documents}
-              href="/documentos?upload_status=failed"
-            />
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          className="lg:col-span-2"
-          title="Estado de carga a Blob"
-          description="Distribución de los documentos por resultado."
-        >
-          <StatusStack segments={uploadSegments} empty="Aún no hay documentos cargados." />
-        </SectionCard>
-      </div>
-
-      <div className="rise-in" style={stagger(4)}>
-        <EtlDetailTabs
+        <DashboardTabs
+          ariaLabel="Secciones del tablero ETL"
           panels={[
+            {
+              id: "atencion",
+              label: "Atención",
+              count: n(attentionCount),
+              title: "Qué necesita atención",
+              description: "Prioridades operativas del pipeline.",
+              body: <AttentionPanel items={attention} embedded />,
+            },
+            {
+              id: "inventario",
+              label: "Inventario",
+              count: n(counts.persons + counts.invoices + counts.documents),
+              title: "Inventario del archivo",
+              description: "Personas, facturas, documentos y archivos fuente.",
+              body: (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <KpiCard label="Personas" value={n(counts.persons)} href="/personas" icon={<Users className="size-4" />} />
+                  <KpiCard
+                    label="Facturas"
+                    value={n(counts.invoices)}
+                    href="/facturas"
+                    icon={<ReceiptText className="size-4" />}
+                  />
+                  <KpiCard
+                    label="Documentos"
+                    value={n(counts.documents)}
+                    href="/documentos"
+                    icon={<FileText className="size-4" />}
+                  />
+                  <KpiCard
+                    label="Archivos fuente"
+                    value={n(counts.sourceFiles)}
+                    hint={`${n(kpi.scanFiles)} de escáner`}
+                    icon={<Files className="size-4" />}
+                  />
+                </div>
+              ),
+            },
+            {
+              id: "calidad",
+              label: "Calidad",
+              title: "Calidad del vínculo",
+              description: "Cruce entre fuentes y estado de carga a Blob.",
+              body: (
+                <div className="grid gap-6 lg:grid-cols-5">
+                  <div className="grid gap-6 md:grid-cols-2 lg:col-span-3">
+                    <Meter label="Autorizaciones con factura" value={kpi.authLinked} total={kpi.authLines} />
+                    <Meter label="Facturas con titular por cédula" value={kpi.invoicesCiTitular} total={counts.invoices} />
+                    <Meter
+                      label="Facturas con beneficiario"
+                      value={kpi.invoicesWithBeneficiario}
+                      total={counts.invoices}
+                    />
+                    <Meter
+                      label="Documentos subidos a Blob"
+                      value={counts.uploaded}
+                      total={counts.documents}
+                      href="/documentos?upload_status=failed"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <h3 className="mb-3 text-sm font-medium text-foreground">Estado de carga a Blob</h3>
+                    <StatusStack segments={uploadSegments} empty="Aún no hay documentos cargados." />
+                  </div>
+                </div>
+              ),
+            },
             {
               id: "revision",
               label: "Revisión",

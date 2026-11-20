@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BadgeCheck, CircleDollarSign, Link2, ReceiptText } from "lucide-react";
 import { AttentionPanel, type AttentionItem } from "@/components/attention-panel";
-import { BreakdownCard, BreakdownList } from "@/components/breakdown-card";
+import { BreakdownList } from "@/components/breakdown-card";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { DashboardNotice } from "@/components/dashboard-notice";
+import { DashboardTabs } from "@/components/dashboard-tabs";
 import { EntityRow } from "@/components/entity-row";
-import { EtlDetailTabs } from "@/components/etl-detail-tabs";
 import { InformeExportBar, type InformeCsvTable } from "@/components/informe-export-bar";
 import { KpiCard } from "@/components/kpi-card";
 import { Meter } from "@/components/meter";
-import { SectionCard } from "@/components/section-card";
 import { TrendChart } from "@/components/trend-chart";
 import { CONTACT_GAP_COPY } from "@/lib/contact-gap";
 import { BI_RANGES, parseRange } from "@/lib/dashboard-data";
@@ -97,6 +96,13 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
     }));
 
   const authMatchOpen = openByKind.get("auth_match") ?? 0;
+  const attentionCount = [
+    data.counts.failed,
+    data.kpi.openRoleReviews,
+    authMatchOpen,
+    data.roles.noTitular,
+    data.contact.withAnyGap,
+  ].reduce((sum, c) => sum + c, 0);
 
   const attention: AttentionItem[] = [
     {
@@ -213,199 +219,227 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
 
       <DashboardNotice failures={data.failures} />
 
-      <section aria-label="Resumen ejecutivo" className="rise-in grid gap-4 sm:grid-cols-2 lg:grid-cols-4" style={stagger(1)}>
-        <KpiCard
-          featured
-          label={`Facturado en USD · ${rangeLabel.toLowerCase()}`}
-          value={formatUsdCompact(data.totals.usd)}
-          hint={data.totals.usd > 0 ? formatUsd(data.totals.usd) : "Sin montos en el periodo"}
-          delta={usdDelta}
-          deltaLabel="frente al periodo anterior"
-          href="/bi"
-          icon={<CircleDollarSign className="size-4" />}
-        />
-        <KpiCard
-          label="Facturas del periodo"
-          value={n(data.totals.invoices)}
-          delta={invoiceDelta}
-          hint={comparable ? "vs. periodo anterior" : undefined}
-          href="/facturas"
-          icon={<ReceiptText className="size-4" />}
-        />
-        <KpiCard
-          label="Cola de revisión abierta"
-          value={n(data.kpi.openReviews)}
-          hint={`${n(data.kpi.openRoleReviews)} de rol`}
-          href="/revision"
-          icon={<BadgeCheck className="size-4" />}
-        />
-        <KpiCard
-          label="Autorizaciones con factura"
-          value={data.authLinkage.lines > 0 ? formatPercent(data.authLinkage.ratio) : "—"}
-          hint={`${n(data.authLinkage.linked)} de ${n(data.authLinkage.lines)}`}
-          href="/etl"
-          icon={<Link2 className="size-4" />}
-        />
-      </section>
-
-      <section
-        aria-label="Confianza de los datos"
-        className="rise-in rounded-3xl border border-border bg-muted/60 px-5 py-4"
-        style={stagger(2)}
-      >
-        <h2 className="text-sm font-semibold text-foreground">Confianza de los datos</h2>
-        <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-          <li>
-            Solo {formatPercent(data.totals.usdCoverage)} de las facturas con fecha en el periodo tiene monto USD leído (
-            {n(data.totals.withUsd)} de {n(data.totals.invoices)}). Los totales de dinero usan únicamente esas facturas.
-          </li>
-          <li>
-            {n(data.undated)} facturas no tienen fecha de emisión y quedan fuera de los totales por periodo.
-          </li>
-          <li>
-            La composición documental más abajo describe todo el archivo, no solo el periodo seleccionado.
-          </li>
-        </ul>
-      </section>
-
-      <SectionCard
-        className="rise-in"
-        title="Evolución mensual"
-        description={`Monto facturado y número de facturas por mes de emisión · ${rangeLabel.toLowerCase()}.`}
-      >
-        <TrendChart data={data.monthly} />
-      </SectionCard>
-
-      <div className="rise-in grid gap-6 lg:grid-cols-2" style={stagger(3)}>
-        <BreakdownCard
-          title="Principales cuentas"
-          description="Ordenadas por monto facturado en USD en el periodo."
-          rows={data.byAccount.map((a) => ({
-            key: a.code ?? a.name,
-            label: formatAccount(a.name),
-            value: a.usd > 0 ? a.usd : a.invoices,
-            display: a.usd > 0 ? formatUsdCompact(a.usd) : "—",
-            hint: `${n(a.invoices)} fact.`,
-            href: a.code ? `/facturas?account=${a.code}` : "/facturas",
-          }))}
-          empty="Sin facturas con fecha en este periodo."
-        />
-        <BreakdownCard
-          title="Canales de ingreso"
-          description="Facturas del periodo agrupadas por canal."
-          rows={data.byChannel.map((c) => ({
-            key: c.channel,
-            label: c.channel,
-            value: c.invoices,
-            display: n(c.invoices),
-            hint: c.usd > 0 ? formatUsdCompact(c.usd) : undefined,
-          }))}
-          empty="Sin facturas con fecha en este periodo."
-        />
-      </div>
-
-      <div className="rise-in grid gap-6 lg:grid-cols-5" style={stagger(4)}>
-        <SectionCard
-          className="lg:col-span-3"
-          title="Calidad del vínculo"
-          description="Qué tan completo está el cruce entre personas, facturas y autorizaciones."
-        >
-          <div className="grid gap-6 md:grid-cols-2">
-            <Meter
-              label="Facturas con titular"
-              value={data.roles.withTitular}
-              total={data.roles.invoices}
-              href="/facturas"
-            />
-            <Meter
-              label="Facturas con titular y beneficiario"
-              value={data.roles.titularAndBeneficiario}
-              total={data.roles.invoices}
-            />
-            <Meter
-              label="Autorizaciones con factura"
-              value={data.authLinkage.linked}
-              total={data.authLinkage.lines}
-              href="/revision?tipo=autorizacion"
-            />
-            <Meter
-              label="Documentos subidos a Blob"
-              value={data.counts.uploaded}
-              total={data.counts.documents}
-              href="/documentos?upload_status=failed"
-            />
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          className="lg:col-span-2"
-          title="Completitud de contacto"
-          description="Personas con gaps registrados por el enriquecimiento."
-        >
-          {data.contact.withAnyGap === 0 && data.contact.byCode.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin gaps de contacto registrados.</p>
-          ) : (
-            <div className="space-y-5">
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl bg-muted px-3 py-2">
-                  <dt className="text-xs text-muted-foreground">Con cédula</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.withCi)}</dd>
-                </div>
-                <div className="rounded-2xl bg-muted px-3 py-2">
-                  <dt className="text-xs text-muted-foreground">Sin cédula</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.withoutCi)}</dd>
-                </div>
-                <div className="rounded-2xl bg-muted px-3 py-2">
-                  <dt className="text-xs text-muted-foreground">Gaps nacimiento</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.birthDateGaps)}</dd>
-                </div>
-                <div className="rounded-2xl bg-muted px-3 py-2">
-                  <dt className="text-xs text-muted-foreground">Gaps teléfono</dt>
-                  <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.phoneGaps)}</dd>
-                </div>
-              </dl>
-              <BreakdownList
-                rows={data.contact.byCode.map((g) => ({
-                  key: `${g.field}-${g.code}`,
-                  label: `${FIELD_LABELS[g.field] ?? g.field}: ${CONTACT_GAP_COPY[g.code] ?? g.code}`,
-                  value: g.n,
-                  display: n(g.n),
-                }))}
-                empty="Sin gaps de contacto registrados."
-              />
-            </div>
-          )}
-        </SectionCard>
-      </div>
-
-      <div className="rise-in grid gap-6 lg:grid-cols-2" style={stagger(5)}>
-        <BreakdownCard
-          title="Cola de revisión abierta"
-          description="Casos que necesitan una decisión humana, por tipo."
-          rows={reviewRows}
-          empty="No hay casos abiertos. La cola está al día."
-        />
-        <BreakdownCard
-          title="Documentos del archivo"
-          description="Inventario clasificado · todo el archivo, sin filtro de periodo."
-          rows={data.documentMix.map((row) => ({
-            key: row.key,
-            label: DOCUMENT_TYPE_LABELS[row.key] || row.key,
-            value: row.n,
-            display: n(row.n),
-            href: `/documentos?type=${row.key}`,
-          }))}
-          empty="Aún no hay documentos cargados."
-        />
-      </div>
-
-      <div className="rise-in" style={stagger(6)}>
-        <AttentionPanel items={attention} />
-      </div>
-
-      <div className="rise-in" style={stagger(7)}>
-        <EtlDetailTabs
+      <div className="rise-in" style={stagger(1)}>
+        <DashboardTabs
+          ariaLabel="Secciones del informe"
           panels={[
+            {
+              id: "resumen",
+              label: "Resumen",
+              title: "Resumen ejecutivo",
+              description: `Indicadores del periodo · ${rangeLabel.toLowerCase()}.`,
+              body: (
+                <div className="space-y-5">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <KpiCard
+                      featured
+                      label={`Facturado en USD · ${rangeLabel.toLowerCase()}`}
+                      value={formatUsdCompact(data.totals.usd)}
+                      hint={data.totals.usd > 0 ? formatUsd(data.totals.usd) : "Sin montos en el periodo"}
+                      delta={usdDelta}
+                      deltaLabel="frente al periodo anterior"
+                      href="/bi"
+                      icon={<CircleDollarSign className="size-4" />}
+                    />
+                    <KpiCard
+                      label="Facturas del periodo"
+                      value={n(data.totals.invoices)}
+                      delta={invoiceDelta}
+                      hint={comparable ? "vs. periodo anterior" : undefined}
+                      href="/facturas"
+                      icon={<ReceiptText className="size-4" />}
+                    />
+                    <KpiCard
+                      label="Cola de revisión abierta"
+                      value={n(data.kpi.openReviews)}
+                      hint={`${n(data.kpi.openRoleReviews)} de rol`}
+                      href="/revision"
+                      icon={<BadgeCheck className="size-4" />}
+                    />
+                    <KpiCard
+                      label="Autorizaciones con factura"
+                      value={data.authLinkage.lines > 0 ? formatPercent(data.authLinkage.ratio) : "—"}
+                      hint={`${n(data.authLinkage.linked)} de ${n(data.authLinkage.lines)}`}
+                      href="/etl"
+                      icon={<Link2 className="size-4" />}
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-border bg-muted/60 px-4 py-3">
+                    <h3 className="text-sm font-semibold text-foreground">Confianza de los datos</h3>
+                    <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                      <li>
+                        Solo {formatPercent(data.totals.usdCoverage)} de las facturas con fecha en el periodo tiene
+                        monto USD leído ({n(data.totals.withUsd)} de {n(data.totals.invoices)}). Los totales de dinero
+                        usan únicamente esas facturas.
+                      </li>
+                      <li>
+                        {n(data.undated)} facturas no tienen fecha de emisión y quedan fuera de los totales por
+                        periodo.
+                      </li>
+                      <li>
+                        La pestaña Documentos describe todo el archivo, no solo el periodo seleccionado.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              id: "evolucion",
+              label: "Evolución",
+              title: "Evolución mensual",
+              description: `Monto facturado y número de facturas por mes de emisión · ${rangeLabel.toLowerCase()}.`,
+              body: <TrendChart data={data.monthly} />,
+            },
+            {
+              id: "negocio",
+              label: "Negocio",
+              count: n(data.byAccount.length),
+              title: "Cuentas y canales",
+              description: "Principales cuentas y canales de ingreso en el periodo.",
+              body: (
+                <div className="grid gap-8 lg:grid-cols-2">
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground">Principales cuentas</h3>
+                    <p className="mb-3 text-xs text-muted-foreground">Ordenadas por monto facturado en USD.</p>
+                    <BreakdownList
+                      rows={data.byAccount.map((a) => ({
+                        key: a.code ?? a.name,
+                        label: formatAccount(a.name),
+                        value: a.usd > 0 ? a.usd : a.invoices,
+                        display: a.usd > 0 ? formatUsdCompact(a.usd) : "—",
+                        hint: `${n(a.invoices)} fact.`,
+                        href: a.code ? `/facturas?account=${a.code}` : "/facturas",
+                      }))}
+                      empty="Sin facturas con fecha en este periodo."
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground">Canales de ingreso</h3>
+                    <p className="mb-3 text-xs text-muted-foreground">Facturas del periodo agrupadas por canal.</p>
+                    <BreakdownList
+                      rows={data.byChannel.map((c) => ({
+                        key: c.channel,
+                        label: c.channel,
+                        value: c.invoices,
+                        display: n(c.invoices),
+                        hint: c.usd > 0 ? formatUsdCompact(c.usd) : undefined,
+                      }))}
+                      empty="Sin facturas con fecha en este periodo."
+                    />
+                  </div>
+                </div>
+              ),
+            },
+            {
+              id: "calidad",
+              label: "Calidad",
+              title: "Calidad del vínculo y contacto",
+              description: "Cruce entre personas, facturas y autorizaciones, más gaps de contacto.",
+              body: (
+                <div className="grid gap-8 lg:grid-cols-5">
+                  <div className="grid gap-6 md:grid-cols-2 lg:col-span-3">
+                    <Meter
+                      label="Facturas con titular"
+                      value={data.roles.withTitular}
+                      total={data.roles.invoices}
+                      href="/facturas"
+                    />
+                    <Meter
+                      label="Facturas con titular y beneficiario"
+                      value={data.roles.titularAndBeneficiario}
+                      total={data.roles.invoices}
+                    />
+                    <Meter
+                      label="Autorizaciones con factura"
+                      value={data.authLinkage.linked}
+                      total={data.authLinkage.lines}
+                      href="/revision?tipo=autorizacion"
+                    />
+                    <Meter
+                      label="Documentos subidos a Blob"
+                      value={data.counts.uploaded}
+                      total={data.counts.documents}
+                      href="/documentos?upload_status=failed"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <h3 className="mb-3 text-sm font-medium text-foreground">Completitud de contacto</h3>
+                    {data.contact.withAnyGap === 0 && data.contact.byCode.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Sin gaps de contacto registrados.</p>
+                    ) : (
+                      <div className="space-y-5">
+                        <dl className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="rounded-2xl bg-muted px-3 py-2">
+                            <dt className="text-xs text-muted-foreground">Con cédula</dt>
+                            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.withCi)}</dd>
+                          </div>
+                          <div className="rounded-2xl bg-muted px-3 py-2">
+                            <dt className="text-xs text-muted-foreground">Sin cédula</dt>
+                            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.withoutCi)}</dd>
+                          </div>
+                          <div className="rounded-2xl bg-muted px-3 py-2">
+                            <dt className="text-xs text-muted-foreground">Gaps nacimiento</dt>
+                            <dd className="mt-0.5 text-lg font-semibold tabular-nums">
+                              {n(data.contact.birthDateGaps)}
+                            </dd>
+                          </div>
+                          <div className="rounded-2xl bg-muted px-3 py-2">
+                            <dt className="text-xs text-muted-foreground">Gaps teléfono</dt>
+                            <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.phoneGaps)}</dd>
+                          </div>
+                        </dl>
+                        <BreakdownList
+                          rows={data.contact.byCode.map((g) => ({
+                            key: `${g.field}-${g.code}`,
+                            label: `${FIELD_LABELS[g.field] ?? g.field}: ${CONTACT_GAP_COPY[g.code] ?? g.code}`,
+                            value: g.n,
+                            display: n(g.n),
+                          }))}
+                          empty="Sin gaps de contacto registrados."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              id: "atencion",
+              label: "Atención",
+              count: n(attentionCount),
+              title: "Qué necesita atención",
+              description: "Cola de revisión, documentos fallidos y gaps operativos.",
+              body: (
+                <div className="space-y-8">
+                  <AttentionPanel items={attention} embedded />
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <div>
+                      <h3 className="text-sm font-medium text-foreground">Cola de revisión abierta</h3>
+                      <p className="mb-3 text-xs text-muted-foreground">Casos por tipo.</p>
+                      <BreakdownList
+                        rows={reviewRows}
+                        empty="No hay casos abiertos. La cola está al día."
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-foreground">Documentos del archivo</h3>
+                      <p className="mb-3 text-xs text-muted-foreground">Inventario clasificado · todo el archivo.</p>
+                      <BreakdownList
+                        rows={data.documentMix.map((row) => ({
+                          key: row.key,
+                          label: DOCUMENT_TYPE_LABELS[row.key] || row.key,
+                          value: row.n,
+                          display: n(row.n),
+                          href: `/documentos?type=${row.key}`,
+                        }))}
+                        empty="Aún no hay documentos cargados."
+                      />
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
             {
               id: "clientes",
               label: "Clientes",
@@ -520,7 +554,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
               ),
             },
             {
-              id: "documentos",
+              id: "fallidos",
               label: "Fallidos",
               count: n(data.counts.failed),
               title: "Documentos con carga fallida",
@@ -589,7 +623,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
         />
       </div>
 
-      <footer className="rise-in space-y-3 border-t border-border pt-6 text-sm text-muted-foreground" style={stagger(8)}>
+      <footer className="rise-in space-y-3 border-t border-border pt-6 text-sm text-muted-foreground" style={stagger(2)}>
         <h2 className="text-sm font-semibold text-foreground">Cómo leer este informe</h2>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
