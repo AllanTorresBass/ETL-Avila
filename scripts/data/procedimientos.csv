@@ -34,3 +34,6 @@ espirometria,Espirometría,neumonologia,funcional
 terapia_respiratoria,Terapia respiratoria,neumonologia,funcional
 quimioterapia,Quimioterapia,oncologia_medica,consulta
 radioterapia,Radioterapia,oncologia_medica,consulta
+campo_visual,Campo visual,oftalmologia,funcional
+mapa,MAPA,cardiologia,funcional
+flujometria,Flujometría,urologia,funcional

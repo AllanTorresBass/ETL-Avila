@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { sql } from "@/lib/db";
+import { queryEstudiosForPerson } from "@/lib/estudio-data";
 import { formatIdentity, formatInvoiceNumber, roleLabel } from "@/lib/format";
 import { getPersonaMedicos } from "@/lib/medico-data";
 
@@ -11,6 +12,7 @@ export const PERSONA_TAB_IDS = [
   "identidad",
   "autorizaciones",
   "medicos",
+  "estudios",
   "red",
   "archivos",
   "historial",
@@ -296,12 +298,13 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
   }
 
   const primaryTitular = pickPrimaryTitular(titulares as LinkedPerson[]);
-  const clinical = await getPersonaMedicos(id);
+  const [clinical, estudios] = await Promise.all([getPersonaMedicos(id), queryEstudiosForPerson(id)]);
 
   return {
     person,
     medicos: clinical.medicos,
     atenciones: clinical.atenciones,
+    estudios,
     identityLine,
     incompleteName: isIncompleteName(person.full_name, person.identity_number),
     roleCounts,

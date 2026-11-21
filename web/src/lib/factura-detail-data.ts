@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { queryEstudiosForInvoice, type EstudioLine } from "@/lib/estudio-data";
 import { queryAtenciones, type AtencionRow } from "@/lib/medico-data";
 
 export const FACTURA_AUTH_LIMIT = 20;
@@ -70,6 +71,7 @@ export type FacturaDetail = {
   fileFilter: string;
   activeFile: FacturaSourceFile | undefined;
   atenciones: AtencionRow[];
+  estudios: EstudioLine[];
 };
 
 export async function getFacturaDetail(id: string, fileRaw: string): Promise<FacturaDetail | null> {
@@ -136,11 +138,15 @@ export async function getFacturaDetail(id: string, fileRaw: string): Promise<Fac
     SELECT count(*)::int AS n FROM avila.document WHERE invoice_id = ${id}::uuid
   `;
 
-  const atenciones = await queryAtenciones({ medicoId: "", personId: "", invoiceId: id });
+  const [atenciones, estudios] = await Promise.all([
+    queryAtenciones({ medicoId: "", personId: "", invoiceId: id }),
+    queryEstudiosForInvoice(id),
+  ]);
 
   const fileRows = files as FacturaSourceFile[];
   return {
     atenciones,
+    estudios,
     invoice: invoice as FacturaInvoice,
     people: people as FacturaPerson[],
     authTotal,

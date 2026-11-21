@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, CircleDollarSign, Link2, ReceiptText, Stethoscope } from "lucide-react";
+import { BadgeCheck, CircleDollarSign, FlaskConical, Link2, ReceiptText, Stethoscope } from "lucide-react";
 import { AttentionPanel, type AttentionItem } from "@/components/attention-panel";
 import { BreakdownList } from "@/components/breakdown-card";
 import { DashboardHeader } from "@/components/dashboard-header";
@@ -451,6 +451,35 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                       label="Casos clínicos abiertos"
                       value={n(data.clinical.kpis.openReviews)}
                       href="/revision?tipo=medico"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <KpiCard
+                      label="Facturas con un estudio"
+                      value={n(data.estudios.facturas)}
+                      href="/estudios"
+                      icon={<FlaskConical className="size-4" />}
+                    />
+                    <KpiCard label="Con cargo del estudio" value={n(data.estudios.charged)} href="/estudios" />
+                    <KpiCard label="Con hoja de resultado" value={n(data.estudios.withResult)} href="/estudios" />
+                    <KpiCard
+                      label="Cobradas sin resultado"
+                      value={n(data.estudios.chargedWithoutResult)}
+                      href="/estudios"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground">Estudios por tipo</h3>
+                    <p className="mb-3 text-xs text-muted-foreground">Facturas con el cargo, la hoja o la orden. La consulta no entra.</p>
+                    <BreakdownList
+                      rows={data.estudios.families.map((row) => ({
+                        key: row.id,
+                        label: row.label,
+                        value: row.n,
+                        display: n(row.n),
+                        href: `/estudios?familia=${row.id}`,
+                      }))}
+                      empty="Aún no hay estudios cargados."
                     />
                   </div>
                   <div className="grid gap-8 lg:grid-cols-2">

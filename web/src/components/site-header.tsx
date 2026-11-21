@@ -16,6 +16,7 @@ import {
   Menu,
   Receipt,
   Shield,
+  FlaskConical,
   Stethoscope,
   Users,
   type LucideIcon,
@@ -107,6 +108,13 @@ const MEDICOS: Destination = {
   permission: "read",
   icon: Stethoscope,
 };
+const ESTUDIOS: Destination = {
+  href: "/estudios",
+  label: "Estudios",
+  hint: "Pruebas diagnósticas",
+  permission: "read",
+  icon: FlaskConical,
+};
 const ESPECIALIDADES: Destination = {
   href: "/especialidades",
   label: "Especialidades",
@@ -140,7 +148,7 @@ const ENTRIES: NavEntry[] = [
   { kind: "menu", id: "paneles", label: "Paneles", items: [ETL, NEGOCIO, INFORME] },
   { kind: "link", item: PERSONAS },
   { kind: "link", item: FACTURAS },
-  { kind: "menu", id: "clinica", label: "Clínica", items: [MEDICOS, ESPECIALIDADES] },
+  { kind: "menu", id: "clinica", label: "Clínica", items: [MEDICOS, ESTUDIOS, ESPECIALIDADES] },
   { kind: "link", item: DOCUMENTOS },
   { kind: "link", item: REVISION, separated: true },
 ];
@@ -150,7 +158,7 @@ const SECTIONS: { id: string; label: string; items: Destination[] }[] = [
   {
     id: "registros",
     label: "Registros",
-    items: [PERSONAS, FACTURAS, MEDICOS, ESPECIALIDADES, DOCUMENTOS],
+    items: [PERSONAS, FACTURAS, MEDICOS, ESTUDIOS, ESPECIALIDADES, DOCUMENTOS],
   },
   { id: "trabajo", label: "Trabajo", items: [REVISION] },
 ];

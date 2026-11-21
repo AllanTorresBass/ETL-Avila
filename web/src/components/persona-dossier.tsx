@@ -4,6 +4,7 @@ import { AtencionList } from "@/components/atencion-list";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
 import { EntityTabs, type EntityTabPanel } from "@/components/entity-tabs";
+import { EstudioList } from "@/components/estudio-list";
 import { Pagination } from "@/components/pagination";
 import { CONTACT_GAP_COPY, contactGapCode } from "@/lib/contact-gap";
 import {
@@ -256,6 +257,7 @@ export function PersonaDossierTabs({
     history,
     medicos,
     atenciones,
+    estudios,
   } = detail;
 
   const panels: EntityTabPanel[] = [
@@ -413,6 +415,22 @@ export function PersonaDossierTabs({
               emptyHint="Ningún informe quedó vinculado a esta persona."
             />
           </div>
+        ),
+    },
+    {
+      id: "estudios",
+      label: "Estudios",
+      count: n(estudios.length),
+      title: "Estudios",
+      description: "Laboratorio, imagen y otras pruebas de las facturas de esta persona. La consulta no entra.",
+      body:
+        estudios.length === 0 ? (
+          <EmptyHint
+            title="Sin estudios"
+            hint="Ninguna factura de esta persona tiene un laboratorio, una imagen u otra prueba."
+          />
+        ) : (
+          <EstudioList rows={estudios} linkInvoice />
         ),
     },
   ];
