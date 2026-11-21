@@ -49,6 +49,9 @@ TYPES = (
 )
 # Neighborhood from the read-only scan. Below this, the catalog is still short.
 MIN_ESTUDIO_INVOICES = 3200
+# Clear patients: one beneficiario (2268) plus self-titular (1249). A drop means
+# those invoices fell into the unresolved cohorts.
+MIN_LINKED_INVOICES = 3200
 CONSULT_ONLY = ("9379", "17345", "18092", "18215", "18252", "18910", "19619", "23803")
 
 PAGE_SQL = """
@@ -65,12 +68,12 @@ WHERE d.document_type::text = ANY(%s)
   AND d.invoice_id IS NOT NULL
 """
 
-ROLE_SQL = """
+PERSON_SQL = """
 SELECT invoice_id::text AS invoice_id,
-       count(*) FILTER (WHERE role = 'beneficiario')::int AS beneficiarios,
-       count(*) FILTER (WHERE role = 'titular')::int AS titulares
+       person_id::text AS person_id,
+       role
 FROM avila.invoice_person
-GROUP BY invoice_id
+WHERE role IN ('beneficiario', 'titular')
 """
 
 
@@ -84,15 +87,23 @@ def _page_text(data: dict, page_index: int) -> str:
     return ""
 
 
-def _ambiguous(roles: dict[str, tuple[int, int]], invoice_id: str) -> bool:
-    beneficiarios, titulares = roles.get(invoice_id, (0, 0))
-    return beneficiarios > 1 or (beneficiarios == 0 and titulares > 1)
+def resolve_patient(beneficiarios: list[str], titulares: list[str]) -> tuple[str | None, str]:
+    """One patient per factura. The sole beneficiario wins; otherwise the sole titular."""
+    patients = list(dict.fromkeys(beneficiarios))
+    holders = list(dict.fromkeys(titulares))
+    if len(patients) == 1:
+        return patients[0], "linked_beneficiario"
+    if not patients and len(holders) == 1:
+        return holders[0], "linked_self"
+    if not patients and not holders:
+        return None, "nobody"
+    return None, "review_ambiguous"
 
 
-def _status(kind: str, code: str | None, ambiguous: bool) -> str:
+def _status(kind: str, code: str | None, cohort: str) -> str:
     if kind != "estudio":
         return "matched"
-    if ambiguous:
+    if cohort in {"review_ambiguous", "nobody"}:
         return "review"
     if not code:
         return "unmatched"
@@ -118,8 +129,18 @@ def _label(kind: str, code: str | None, raw: str, document_type: str) -> str:
 def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
     cur.execute(PAGE_SQL, (list(TYPES),))
     pages = cur.fetchall()
-    cur.execute(ROLE_SQL)
-    roles = {row["invoice_id"]: (row["beneficiarios"], row["titulares"]) for row in cur.fetchall()}
+    cur.execute(PERSON_SQL)
+    people: dict[str, dict[str, list[str]]] = defaultdict(lambda: {"beneficiario": [], "titular": []})
+    for row in cur.fetchall():
+        people[row["invoice_id"]][row["role"]].append(row["person_id"])
+    resolved: dict[str, tuple[str | None, str]] = {}
+
+    def patient_of(invoice_id: str) -> tuple[str | None, str]:
+        if invoice_id not in resolved:
+            bucket = people.get(invoice_id) or {"beneficiario": [], "titular": []}
+            resolved[invoice_id] = resolve_patient(bucket["beneficiario"], bucket["titular"])
+        return resolved[invoice_id]
+
     by_path: dict[str, list[dict]] = defaultdict(list)
     for row in pages:
         by_path[row["backup_path"]].append(row)
@@ -131,6 +152,7 @@ def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
     families: dict[str, set[str]] = defaultdict(set)
     estudio_invoices: set[str] = set()
     leaks: set[str] = set()
+    cohort_invoices: dict[str, set[str]] = defaultdict(set)
 
     for path, docs in by_path.items():
         cache = cache_path(path)
@@ -145,7 +167,7 @@ def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
                 continue
             invoice_id = doc["invoice_id"]
             number = doc["invoice_number"]
-            ambiguous = _ambiguous(roles, invoice_id)
+            person_id, cohort = patient_of(invoice_id)
             dtype = doc["document_type"]
             found: list[tuple[str, int, str, str | None]] = []
             if dtype == "factura_fiscal":
@@ -189,6 +211,7 @@ def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
                 stats[f"kind:{kind}"] += 1
                 if kind == "estudio":
                     estudio_invoices.add(number or invoice_id)
+                    cohort_invoices[cohort].add(invoice_id)
                     families[number or invoice_id].add(family_of(code) or "sin_procedimiento")
                     if number in CONSULT_ONLY:
                         leaks.add(number)
@@ -203,11 +226,14 @@ def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
                         "service_label": _label(kind, code, raw, dtype),
                         "kind": kind,
                         "code": code,
-                        "link_status": _status(kind, code, ambiguous),
+                        "person_id": person_id,
+                        "link_status": _status(kind, code, cohort),
                     }
                 )
     stats["estudio_invoices"] = len(estudio_invoices)
     stats["consult_only_leaks"] = len(leaks)
+    for cohort, invoices in cohort_invoices.items():
+        stats[cohort] = len(invoices)
     family_counts: Counter = Counter()
     for fams in families.values():
         for fam in fams:
@@ -238,6 +264,8 @@ def _write_provenance(cur, rows: list[dict], stored: dict) -> None:
         if saved["procedimiento_id"]:
             pending.append({**base, "field": "procedimiento_id", "new": saved["procedimiento_id"]})
         pending.append({**base, "field": "link_status", "new": row["link_status"]})
+        if row["person_id"]:
+            pending.append({**base, "field": "person_id", "new": row["person_id"]})
     for start in range(0, len(pending), 2000):
         with cur.connection.pipeline():
             for item in pending[start : start + 2000]:
@@ -249,6 +277,9 @@ def _gate(stats: Counter) -> str | None:
         return "consult-only factura gained an estudio"
     if stats["estudio_invoices"] < MIN_ESTUDIO_INVOICES:
         return f"estudio invoices {stats['estudio_invoices']} below {MIN_ESTUDIO_INVOICES}"
+    linked = stats["linked_beneficiario"] + stats["linked_self"]
+    if linked < MIN_LINKED_INVOICES:
+        return f"clear patient cohort {linked} below {MIN_LINKED_INVOICES}"
     return None
 
 
@@ -275,6 +306,7 @@ def apply_rows(cur, rows: list[dict], observations: list[tuple]) -> None:
                 proc,
                 esp,
                 row["link_status"],
+                row["person_id"],
                 provenance.current_run_id(),
             )
         )
@@ -283,9 +315,9 @@ def apply_rows(cur, rows: list[dict], observations: list[tuple]) -> None:
             """
             INSERT INTO avila.invoice_service (
               invoice_id, document_id, source, line_no, service_label, kind,
-              procedimiento_id, especialidad_id, link_status, run_id
+              procedimiento_id, especialidad_id, link_status, person_id, run_id
             ) VALUES (
-              %s::uuid, %s::uuid, %s, %s, %s, %s, %s::uuid, %s::uuid, %s, %s::uuid
+              %s::uuid, %s::uuid, %s, %s, %s, %s, %s::uuid, %s::uuid, %s, %s::uuid, %s::uuid
             )
             """,
             payload,

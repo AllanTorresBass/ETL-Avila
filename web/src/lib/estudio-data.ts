@@ -29,6 +29,7 @@ export const ESTUDIO_FAMILIES: { id: string; label: string; codes: string[] }[] 
   { id: "medicina_nuclear", label: "Medicina nuclear", codes: ["gammagrama"] },
   { id: "oftalmologia", label: "Oftalmología", codes: ["fluororetinografia", "campo_visual"] },
   { id: "sin_nombre", label: "Orden sin nombre", codes: [] },
+  { id: "sin_paciente", label: "Sin paciente", codes: [] },
 ];
 
 const FAMILY_BY_CODE = new Map(ESTUDIO_FAMILIES.flatMap((family) => family.codes.map((code) => [code, family.label])));
@@ -41,6 +42,18 @@ export function familyLabel(code: string | null): string {
 export function isEstudioFamily(value: string): boolean {
   return ESTUDIO_FAMILIES.some((family) => family.id === value);
 }
+
+export function isEstudioProcedure(value: string): boolean {
+  return value === "sin_nombre" || value === "sin_paciente" || ESTUDIO_FAMILIES.some((family) => family.codes.includes(value));
+}
+
+export type EstudioProcedureTile = {
+  code: string;
+  name: string;
+  familyId: string;
+  facturas: number;
+  withResult: number;
+};
 
 export const ESTUDIO_SOURCE_LABELS: Record<string, string> = {
   fiscal_line: "Cargo de la factura",
@@ -109,7 +122,7 @@ function familyCodes(familyId: string): string[] {
 export async function getEstudioSummary(): Promise<EstudioSummary> {
   const db = sql();
   const namedFamilies = ESTUDIO_FAMILIES.filter((family) => family.codes.length > 0);
-  const [totals, unnamed, ...familyCounts] = await Promise.all([
+  const [totals, unnamed, unlinked, ...familyCounts] = await Promise.all([
     db`
       SELECT
         count(DISTINCT invoice_id) FILTER (WHERE kind = 'estudio')::int AS facturas,
@@ -131,6 +144,11 @@ export async function getEstudioSummary(): Promise<EstudioSummary> {
       FROM avila.invoice_service
       WHERE kind = 'estudio' AND source = 'study_order' AND procedimiento_id IS NULL
     `,
+    db`
+      SELECT count(DISTINCT invoice_id)::int AS n
+      FROM avila.invoice_service
+      WHERE kind = 'estudio' AND person_id IS NULL
+    `,
     ...namedFamilies.map((family) =>
       db`
         SELECT count(DISTINCT s.invoice_id)::int AS n
@@ -145,6 +163,7 @@ export async function getEstudioSummary(): Promise<EstudioSummary> {
     counts.set(family.id, num(familyCounts[index]?.[0]?.n));
   });
   if (num(unnamed[0]?.n) > 0) counts.set("sin_nombre", num(unnamed[0]?.n));
+  if (num(unlinked[0]?.n) > 0) counts.set("sin_paciente", num(unlinked[0]?.n));
   const header = totals[0];
   return {
     facturas: num(header?.facturas),
@@ -173,6 +192,36 @@ function mapLine(row: Record<string, unknown>): EstudioLine {
     invoiceNumber: text(row.invoice_number),
     issueDate: text(row.issue_date)?.slice(0, 10) ?? null,
   };
+}
+
+export async function queryEstudioCatalog(): Promise<EstudioProcedureTile[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT pr.code,
+           pr.name_es,
+           count(DISTINCT s.invoice_id)::int AS facturas,
+           count(DISTINCT s.invoice_id) FILTER (WHERE s.source = 'result_page')::int AS with_result
+    FROM avila.invoice_service s
+    JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
+    WHERE s.kind = 'estudio'
+    GROUP BY pr.code, pr.name_es
+  `;
+  return rows
+    .flatMap((row) => {
+      const code = String(row.code);
+      const family = ESTUDIO_FAMILIES.find((item) => item.codes.includes(code));
+      if (!family) return [];
+      return [
+        {
+          code,
+          name: String(row.name_es || code),
+          familyId: family.id,
+          facturas: num(row.facturas),
+          withResult: num(row.with_result),
+        },
+      ];
+    })
+    .sort((a, b) => b.facturas - a.facturas || a.name.localeCompare(b.name, "es"));
 }
 
 export async function queryEstudiosForInvoice(invoiceId: string): Promise<EstudioLine[]> {
@@ -211,18 +260,16 @@ export async function queryEstudiosForPerson(personId: string): Promise<EstudioL
     FROM avila.invoice_service s
     JOIN avila.invoice i ON i.id = s.invoice_id
     LEFT JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
-    WHERE s.kind = 'estudio'
-      AND s.invoice_id IN (
-        SELECT ip.invoice_id FROM avila.invoice_person ip WHERE ip.person_id = ${personId}::uuid
-      )
+    WHERE s.kind = 'estudio' AND s.person_id = ${personId}::uuid
     ORDER BY i.issue_date DESC NULLS LAST, i.invoice_number, s.source, s.line_no
   `;
   return rows.map((row) => mapLine(row));
 }
 
-export async function queryEstudioList(input: { query: string; family: string; page: number }) {
+export async function queryEstudioList(input: { query: string; family: string; procedure: string; page: number }) {
   const db = sql();
   const family = isEstudioFamily(input.family) ? input.family : "";
+  const procedure = isEstudioProcedure(input.procedure) ? input.procedure : "";
   const codes = familyCodes(family);
   const like = input.query ? `%${input.query}%` : "";
   const pageSize = LIST_PAGE_SIZE;
@@ -233,19 +280,19 @@ export async function queryEstudioList(input: { query: string; family: string; p
       FROM avila.invoice i
       JOIN avila.invoice_service s ON s.invoice_id = i.id
       LEFT JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
-      LEFT JOIN LATERAL (
-        SELECT pe.full_name
-        FROM avila.invoice_person ip
-        JOIN avila.person pe ON pe.id = ip.person_id
-        WHERE ip.invoice_id = i.id AND ip.role IN ('beneficiario', 'titular')
-        ORDER BY CASE ip.role WHEN 'beneficiario' THEN 0 ELSE 1 END
-        LIMIT 1
-      ) patient ON true
+      LEFT JOIN avila.person patient ON patient.id = s.person_id
       WHERE s.kind = 'estudio'
         AND (
           ${family} = ''
           OR (${family} = 'sin_nombre' AND s.procedimiento_id IS NULL AND s.source = 'study_order')
+          OR (${family} = 'sin_paciente' AND s.person_id IS NULL)
           OR pr.code = ANY(${codes})
+        )
+        AND (
+          ${procedure} = ''
+          OR (${procedure} = 'sin_nombre' AND s.procedimiento_id IS NULL AND s.source = 'study_order')
+          OR (${procedure} = 'sin_paciente' AND s.person_id IS NULL)
+          OR pr.code = ${procedure}
         )
         AND (
           ${input.query} = ''
@@ -269,19 +316,19 @@ export async function queryEstudioList(input: { query: string; family: string; p
     FROM avila.invoice i
     JOIN avila.invoice_service s ON s.invoice_id = i.id
     LEFT JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
-    LEFT JOIN LATERAL (
-      SELECT pe.full_name
-      FROM avila.invoice_person ip
-      JOIN avila.person pe ON pe.id = ip.person_id
-      WHERE ip.invoice_id = i.id AND ip.role IN ('beneficiario', 'titular')
-      ORDER BY CASE ip.role WHEN 'beneficiario' THEN 0 ELSE 1 END
-      LIMIT 1
-    ) patient ON true
+    LEFT JOIN avila.person patient ON patient.id = s.person_id
     WHERE s.kind = 'estudio'
       AND (
         ${family} = ''
         OR (${family} = 'sin_nombre' AND s.procedimiento_id IS NULL AND s.source = 'study_order')
+        OR (${family} = 'sin_paciente' AND s.person_id IS NULL)
         OR pr.code = ANY(${codes})
+      )
+      AND (
+        ${procedure} = ''
+        OR (${procedure} = 'sin_nombre' AND s.procedimiento_id IS NULL AND s.source = 'study_order')
+        OR (${procedure} = 'sin_paciente' AND s.person_id IS NULL)
+        OR pr.code = ${procedure}
       )
       AND (
         ${input.query} = ''

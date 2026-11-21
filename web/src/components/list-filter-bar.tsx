@@ -48,6 +48,7 @@ export function ListFilterBar({
   activeChips = [],
   clearHref,
   hash,
+  carry = {},
   minQueryLength = 2,
 }: {
   searchName?: string;
@@ -60,6 +61,8 @@ export function ListFilterBar({
   clearHref?: string;
   /** Optional URL hash (e.g. `lista`) appended on filter navigation. */
   hash?: string;
+  /** Params that stay in the URL when the search changes. */
+  carry?: Record<string, string>;
   minQueryLength?: number;
   /** @deprecated Live filters no longer use a submit button. */
   submitLabel?: string;
@@ -109,6 +112,9 @@ export function ListFilterBar({
     for (const group of chipGroups) {
       const v = patch[group.param] ?? group.value;
       if (v) params[group.param] = v;
+    }
+    for (const [key, value] of Object.entries(carry)) {
+      if (value) params[key] = value;
     }
     const href = `${buildListHref(pathname, params)}${hash ? `#${hash}` : ""}`;
     startTransition(() => {
