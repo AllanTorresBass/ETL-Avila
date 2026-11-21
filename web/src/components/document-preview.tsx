@@ -197,32 +197,33 @@ export function DocumentPreview({
         />
       </div>
       <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/80 bg-white/90 px-1.5 py-1 shadow-sm backdrop-blur">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/80 bg-white/95 px-1.5 py-1 text-hero shadow-sm backdrop-blur-md dark:border-white/25 dark:bg-hero/95 dark:text-hero-foreground dark:shadow-lg">
           <button
             type="button"
             aria-label="Alejar"
             disabled={scale <= MIN_SCALE}
             onClick={() => applyZoom(scale - STEP)}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-40"
+            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium text-inherit outline-none hover:bg-hero/8 focus-visible:ring-2 focus-visible:ring-ring disabled:text-hero/35 dark:hover:bg-white/12 dark:disabled:text-white/45"
           >
             −
           </button>
-          <span className="min-w-12 text-center text-xs font-medium text-foreground">{percent}%</span>
+          <span className="min-w-12 text-center text-xs font-medium tabular-nums">{percent}%</span>
           <button
             type="button"
             aria-label="Acercar"
             disabled={scale >= MAX_SCALE}
             onClick={() => applyZoom(scale + STEP)}
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-40"
+            className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium text-inherit outline-none hover:bg-hero/8 focus-visible:ring-2 focus-visible:ring-ring disabled:text-hero/35 dark:hover:bg-white/12 dark:disabled:text-white/45"
           >
             +
           </button>
+          <span aria-hidden="true" className="mx-1 h-4 w-px bg-hero/15 dark:bg-white/30" />
           <button
             type="button"
             aria-label="Ajustar"
             disabled={scale === MIN_SCALE}
             onClick={() => applyZoom(MIN_SCALE)}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-brand hover:bg-muted disabled:opacity-40"
+            className="inline-flex min-h-9 items-center rounded-full px-3 text-xs font-medium text-brand outline-none hover:bg-hero/8 focus-visible:ring-2 focus-visible:ring-ring disabled:text-hero/35 dark:hover:bg-white/12 dark:disabled:text-white/45"
           >
             Ajustar
           </button>
