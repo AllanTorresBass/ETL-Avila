@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 const points = [
-  { icon: Users, title: "Personas", text: "Expedientes y vínculos del grupo familiar." },
-  { icon: ReceiptText, title: "Facturas", text: "Cargos ligados a cada persona." },
-  { icon: FileText, title: "Documentos", text: "Revisión según el rol de tu cuenta." },
+  { icon: Users, title: "Personas", text: "Cada titular con su grupo familiar, en un solo expediente." },
+  { icon: ReceiptText, title: "Facturas", text: "Los servicios de cada paciente, ligados a quien los recibió." },
+  { icon: FileText, title: "Documentos", text: "Cédulas, carnets y soportes listos para revisar según tu rol." },
 ];
 
 export default async function SignInPage({
@@ -42,11 +42,14 @@ export default async function SignInPage({
           <div className="relative rise-in" style={{ "--i": 0 } as CSSProperties}>
             <p className="inline-flex items-center gap-2 text-xs font-medium tracking-wider text-[#9ed4ff] uppercase">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              Lector interno
+              Equipo Ávila GPS
             </p>
-            <p className="mt-4 max-w-sm text-3xl font-medium tracking-tight">El inventario del equipo, según tu rol.</p>
+            <p className="mt-4 max-w-sm text-3xl font-medium tracking-tight">
+              La atención integral empieza con <span className="text-[#5BB2F5]">información en orden</span>.
+            </p>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/75">
-              Una sesión para personas, facturas y documentos. Entras con la cuenta que te asignaron.
+              Personas, facturas y documentos de cada paciente en un solo lugar, para atender con un enfoque humano,
+              digno y cercano.
             </p>
           </div>
           <ul className="relative mt-10 space-y-4">
@@ -69,8 +72,10 @@ export default async function SignInPage({
         </aside>
         <div className="flex flex-col justify-center px-6 py-10 sm:px-10">
           <div className="mb-8 rounded-2xl border border-border bg-muted/50 px-4 py-3 lg:hidden">
-            <p className="text-xs font-medium tracking-wider text-info uppercase">Lector interno</p>
-            <p className="mt-1 text-sm text-muted-foreground">Personas, facturas y documentos según tu rol.</p>
+            <p className="text-xs font-medium tracking-wider text-info uppercase">Equipo Ávila GPS</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              La información de cada paciente, en orden y en un solo lugar.
+            </p>
           </div>
           <SignInForm nextPath={next} initialError={sp.error === "1"} />
         </div>
