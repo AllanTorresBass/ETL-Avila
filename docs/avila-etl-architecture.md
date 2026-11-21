@@ -260,7 +260,56 @@ Baseline / cleanup notes: `output/invoices/person-enrichment-baseline.md`, `outp
 
 Worked example (titular CI vs path patient, document naming, reader links): [case-titular-beneficiario.md](./case-titular-beneficiario.md). Agent playbook: [`.cursor/skills/avila-etl-persons/`](../.cursor/skills/avila-etl-persons/SKILL.md).
 
-## 15. Roadmap
+## 15. Clinical phase: médico, especialidad, atención
+
+Schema: `sql/011_medico_especialidad.sql`. It adds the especialidad taxonomy (`especialidad_area`, `especialidad`, `procedimiento`, `especialidad_term`, `especialidad_observation`), the doctor tables (`medico`, `medico_especialidad`, `medico_mention`), the per-report `atencion`, and the views `v_person_medico` and `v_especialidad_tree`.
+
+### Especialidad normalization
+
+One normalizer (`scripts/especialidad_normalize.py`) serves OCR pages, fiscal lines, and sábana service text. It works in five levels:
+
+| Level | What happens |
+| --- | --- |
+| L0 Raw | The term plus its context: `label`, `doctor_title`, `report_title`, `referral`, `fiscal_line`, `workbook_servicio`, `auth_line`, `directory` |
+| L1 Clean | Fold accents and case, strip the university, fold gender (`-ICA` to `-ICO`), repair misread `MEDICO` |
+| L2 Match | Exact, then phrase, then glued prefix, then suffix fragment, then guarded fuzzy (7+ letters, one unique best concept), else `none` |
+| L3 Kind | `discipline`, `practitioner`, `adjective`, `procedure`, `role`, `degree`, `stop`. Adjectives count only in report titles, fiscal lines, auth lines, and sábana service |
+| L4 Hierarchy | Area, especialidad (level 1), subespecialidad (level 2). A subespecialidad wins over its parent |
+
+`MEDICO CIRUJANO` is the degree, never Cirugía. The catalog lives in `scripts/data/*.csv`; `especialidad_catalog.py load --apply` loads it, and `especialidad_catalog.py mine` lists unknown terms and opens `especialidad_unknown` reviews. `especialidad_backfill.py` normalizes `authorization_line.service_description`.
+
+### Pipeline
+
+| Step | Script | Output |
+| --- | --- | --- |
+| Extract | `clinical_extract.py [--limit N] [--invoices …]` | `output/runs/clinical-truth.jsonl`: one record per report (consecutive pages merged) with doctors, terms, patient block, date, diagnosis, fingerprint, invoice persons, fiscal and auth especialidades. No Neon writes |
+| Resolve | `medico_resolve.py` | `output/runs/clinical-decisions.jsonl`: médico clusters, atenciones, reviews. No Neon |
+| Apply | `clinical_apply.py [--apply]` | Upserts médicos, especialidades, mentions, atenciones, observations, reviews. Dry-run runs every write and rolls back |
+| Verify | `clinical_verify.py [--apply] [--sample N] [--score CSV]` | Coverage cohorts, `clinical_verify_snapshot`, precision worksheet |
+
+Rules the resolver applies:
+
+1. Doctor. Mentions with the same MPPS are one médico. A name without MPPS joins the only MPPS cluster whose name matches (every token of the shorter name, one OCR edit allowed); otherwise it opens a provisional `name:` cluster. Two names under one MPPS open `medico_mpps_conflict`; two MPPS with the same name open `medico_duplicate`. Neither merges automatically. A `DR.` line in the body without a license is `referido` and never creates a médico. The GPS RIF `J-41029281-4` is the provider, never the doctor.
+2. Treating doctor. `tratante` label first, then a stamp with MPPS, footer before header. An orden falls back to the `solicitante`.
+3. Visit especialidad. Label, sello, report title, fiscal line, a single auth-line especialidad, the doctor's primary, the procedure's owner, then the report kind (laboratorio, imagen). `atencion.especialidad_source` records which one.
+4. Patient. `ci_exact`, `name_on_invoice`, `sole_beneficiario`, `self_visit`, else `atencion_patient` review. The review suggests one person when exactly one candidate exists on the invoice or elsewhere. A person is never created from a report.
+5. Duplicates. The same letter fingerprint is one report; later copies are `duplicate` with `duplicate_of`.
+
+A patient, especialidad, or médico set by a reviewer is not overwritten by a later apply. Merged médicos keep their row with `merged_into`, and atenciones follow the merge target.
+
+### Reader
+
+`/medicos` (directory with area, especialidad, and MPPS filters), `/medicos/[id]` (ficha, especialidades, pacientes, atenciones), `/especialidades` (tree plus an unknown-term backlog for revisors), a Médicos tab on `/personas/[id]`, Atenciones on `/facturas/[id]`, a Clínico panel on `/informe`, and the Médico group on `/revision`. JSON: `/api/v1/medicos`, `/api/v1/medicos/[id]`, `/api/v1/especialidades`. Queries live in `web/src/lib/medico-data.ts`.
+
+Accept effects: `medico_duplicate` merges the second médico into the first; `atencion_patient` links the report to the suggested person; `medico_mpps_conflict` and `especialidad_unknown` close the case only.
+
+### Baseline (dry-run, 2026-11-21)
+
+16,634 clinical pages make 15,588 reports (104 duplicates). Of the 15,484 unique reports, 58% have a médico, 61% an especialidad, and 72% a patient. The resolver finds 866 médicos (419 with MPPS). Unknown especialidad terms are 0.33% of 12,689 observations (target under 3%). Open reviews would be 3,960 `atencion_patient` (2,422 of them name a person linked to another invoice), 242 `medico_duplicate`, and 18 `medico_mpps_conflict`.
+
+Run `clinical_apply.py --apply` only after the precision worksheet (`clinical_verify.py --sample 200`, then `--score`) meets the targets: doctor 95%, especialidad 90%, patient 95%.
+
+## 16. Roadmap
 
 - Scanner packets whose fiscal sheet has neither a readable invoice number nor a control number (still orphaned).
 - Improve cintillo workbooks that are image-only (OCR sheet embeds).

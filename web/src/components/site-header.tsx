@@ -16,6 +16,8 @@ const links: { href: string; label: string; permission: Permission }[] = [
   { href: "/informe", label: "Informe", permission: "read" },
   { href: "/personas", label: "Personas", permission: "read" },
   { href: "/facturas", label: "Facturas", permission: "read" },
+  { href: "/medicos", label: "Médicos", permission: "read" },
+  { href: "/especialidades", label: "Especialidades", permission: "read" },
   { href: "/documentos", label: "Documentos", permission: "read" },
   { href: "/revision", label: "Revisión", permission: "review" },
   { href: "/usuarios", label: "Acceso", permission: "manage_users" },

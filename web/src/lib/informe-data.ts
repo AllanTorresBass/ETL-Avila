@@ -1,5 +1,12 @@
 import { sql } from "./db";
 import { BI_RANGES, getBiData, getEtlData, type BiRange } from "./dashboard-data";
+import { getClinicalSummary, type ClinicalSummary } from "./medico-data";
+
+const EMPTY_CLINICAL: ClinicalSummary = {
+  kpis: { medicos: 0, conMpps: 0, conEspecialidad: 0, atenciones: 0, completas: 0, openReviews: 0 },
+  topEspecialidades: [],
+  statuses: [],
+};
 
 const num = (v: unknown) => {
   const n = Number(v);
@@ -308,6 +315,7 @@ export async function getInformeData(range: BiRange) {
   ]);
 
   failures.push(...bi.failures, ...etl.failures);
+  const clinical = await safe(getClinicalSummary(), EMPTY_CLINICAL, failures, "médicos y especialidades");
 
   const contact = contactSummary[0];
   const roles = roleCohorts[0];
@@ -331,6 +339,7 @@ export async function getInformeData(range: BiRange) {
     documentMix: bi.documentMix,
     counts: etl.counts,
     kpi: etl.kpi,
+    clinical,
     reviews: etl.reviews,
     contact: {
       persons: num(contact.persons),

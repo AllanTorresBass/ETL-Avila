@@ -85,6 +85,40 @@ class TitularWithMinorAndActaTests(unittest.TestCase):
         self.assertNotIn("acta_nacimiento", CI_TITULAR_TYPES)
 
 
+INFORME_STAMPED = """G.P.S. GESTION PROFESIONAL DE SALUD RIF J-41029281-4
+INFORME MÉDICO
+PACIENTE: LUIS PEREZ DIAZ
+FECHA DE NACIMIENTO: 01/02/2018 EDAD: 6 FECHA DE CONSULTA: 05/03/2025
+EXAMEN FISICO: EXAMEN NEUROLOGICO NORMAL
+DIAGNÓSTICO: Otitis media aguda
+PLAN: antibiótico
+DRA. ANA TORRES MENDEZ
+MÉDICO PEDIATRA
+CMT: 1.111 MPPS: 222222
+"""
+
+
+class InformeMedicoGoldenTests(unittest.TestCase):
+    def test_informe_reads_doctor_specialty_patient_and_diagnosis(self):
+        from clinical_parse import parse_page, visit_specialty
+
+        self.assertEqual(classify_document(INFORME_STAMPED)[0], "informe_medico")
+        parsed = parse_page(INFORME_STAMPED)
+        doctor = parsed["doctors"][0]
+        self.assertEqual((doctor["mpps"], doctor["especialidad"], doctor["role"]), ("222222", "pediatria", "firmante"))
+        self.assertEqual(parsed["patient"]["name"], "Luis Perez Diaz")
+        self.assertEqual(parsed["encounter_date"], "2025-03-05")
+        self.assertEqual(parsed["diagnosis"], "Otitis media aguda")
+        self.assertEqual(visit_specialty(parsed["terms"]), ("pediatria", "doctor_title"))
+
+    def test_minimal_informe_has_no_doctor(self):
+        from clinical_parse import parse_page
+
+        parsed = parse_page(INFORME)
+        self.assertEqual(parsed["doctors"], [])
+        self.assertEqual(parsed["diagnosis"], "OTITIS")
+
+
 class ClaimFormGoldenTests(unittest.TestCase):
     def test_claim_form_never_opens_a_packet(self):
         self.assertEqual(judge_page(CLAIM_FORM), ("attachment", "claim_form"))

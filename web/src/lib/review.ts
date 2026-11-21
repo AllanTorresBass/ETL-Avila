@@ -9,6 +9,10 @@ export const REVIEW_KIND_LABELS: Record<string, string> = {
   address_conflict: "Dirección distinta",
   auth_match: "Autorización sin factura",
   segment_review: "Paquete escaneado",
+  medico_duplicate: "Médico repetido",
+  medico_mpps_conflict: "MPPS con dos nombres",
+  atencion_patient: "Paciente del informe",
+  especialidad_unknown: "Especialidad sin catálogo",
 };
 
 /** Filter pills: one pill can cover several kinds. */
@@ -26,6 +30,11 @@ export const REVIEW_GROUPS: { id: string; label: string; kinds: string[] }[] = [
   },
   { id: "autorizacion", label: "Autorización sin factura", kinds: ["auth_match"] },
   { id: "paquete", label: "Paquete escaneado", kinds: ["segment_review"] },
+  {
+    id: "medico",
+    label: "Médico",
+    kinds: ["medico_duplicate", "medico_mpps_conflict", "atencion_patient", "especialidad_unknown"],
+  },
 ];
 
 /** What “Aceptar” does for each kind (shown on the card so the reviewer knows). */
@@ -41,6 +50,12 @@ export const ACCEPT_EFFECT: Record<string, string> = {
   phone_conflict: "Aceptar confirma el teléfono guardado; la otra fuente se ignora.",
   address_conflict: "Aceptar confirma la dirección guardada; la otra fuente se ignora.",
   segment_review: "Aceptar marca el paquete como revisado para la próxima carga.",
+  medico_duplicate:
+    "Aceptar fusiona el segundo médico en el primero: sus atenciones, menciones y especialidades pasan al primero.",
+  medico_mpps_conflict: "Aceptar confirma el nombre principal de este MPPS; el otro nombre queda como lectura errada.",
+  atencion_patient: "Aceptar vincula el informe con la persona sugerida.",
+  especialidad_unknown:
+    "Aceptar marca el término como revisado. Para que cuente, agrégalo a especialidad_terms.csv y recarga el catálogo.",
 };
 
 export const SOURCE_KIND_LABELS: Record<string, string> = {

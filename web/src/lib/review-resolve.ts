@@ -109,6 +109,54 @@ function promoteQueries(
   ];
 }
 
+function mergeMedicoQueries(
+  db: Db,
+  survivor: string,
+  alias: string,
+  reviewer: string,
+  reviewId: string,
+): Query[] {
+  return [
+    db`
+      INSERT INTO avila.medico_especialidad (medico_id, especialidad_id, source, evidence_count, is_primary)
+      SELECT ${survivor}::uuid, especialidad_id, source, evidence_count, false
+      FROM avila.medico_especialidad WHERE medico_id = ${alias}::uuid
+      ON CONFLICT (medico_id, especialidad_id) DO UPDATE SET
+        evidence_count = avila.medico_especialidad.evidence_count + EXCLUDED.evidence_count,
+        updated_at = now()
+    `,
+    db`UPDATE avila.atencion SET medico_id = ${survivor}::uuid, updated_at = now() WHERE medico_id = ${alias}::uuid`,
+    db`UPDATE avila.medico_mention SET medico_id = ${survivor}::uuid WHERE medico_id = ${alias}::uuid`,
+    db`UPDATE avila.medico SET merged_into = ${survivor}::uuid, updated_at = now() WHERE id = ${alias}::uuid`,
+    db`UPDATE avila.medico SET merged_into = ${survivor}::uuid, updated_at = now() WHERE merged_into = ${alias}::uuid`,
+    prov(db, "medico", survivor, "merged_from", alias, "review_merge_medico", reviewer, reviewId),
+    prov(db, "medico", alias, "merged_into", survivor, "review_merge_medico", reviewer, reviewId),
+  ];
+}
+
+function linkAtencionPersonQueries(
+  db: Db,
+  atencionId: string,
+  personId: string,
+  reviewer: string,
+  reviewId: string,
+): Query[] {
+  return [
+    db`
+      UPDATE avila.atencion SET
+        person_id = ${personId}::uuid,
+        person_link_rule = 'review',
+        link_status = CASE
+          WHEN medico_id IS NOT NULL AND especialidad_id IS NOT NULL THEN 'complete'
+          ELSE 'partial'
+        END,
+        updated_at = now()
+      WHERE id = ${atencionId}::uuid
+    `,
+    prov(db, "atencion", atencionId, "person_id", personId, "review_atencion_patient", reviewer, reviewId),
+  ];
+}
+
 export async function resolveReviewDecision(
   reviewer: string,
   id: string,
@@ -116,7 +164,8 @@ export async function resolveReviewDecision(
 ): Promise<"missing" | "done"> {
   const db = sql();
   const [item] = await db`
-    SELECT id, kind, status, person_id, other_person_id, invoice_id, authorization_line_id
+    SELECT id, kind, status, person_id, other_person_id, invoice_id, authorization_line_id,
+           medico_id, other_medico_id, atencion_id
     FROM avila.review_item WHERE id = ${id}::uuid
   `;
   if (!item || item.status !== "open") return "missing";
@@ -192,6 +241,12 @@ export async function resolveReviewDecision(
           ),
         );
       }
+    } else if (item.kind === "medico_duplicate" && item.medico_id && item.other_medico_id) {
+      if (item.medico_id === item.other_medico_id) throw new Error("SAME_MEDICO");
+      effects.push(...mergeMedicoQueries(db, item.medico_id, item.other_medico_id, reviewer, id));
+    } else if (item.kind === "atencion_patient") {
+      if (!item.atencion_id || !item.person_id) throw new Error("NO_CANDIDATE");
+      effects.push(...linkAtencionPersonQueries(db, item.atencion_id, item.person_id, reviewer, id));
     }
   }
   await db.transaction([close, ...effects]);

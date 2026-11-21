@@ -7,7 +7,7 @@ import { DOCUMENT_TYPE_LABELS } from "@/lib/db";
 import { formatDate, formatInvoiceNumber } from "@/lib/format";
 import { buildListHref, firstParam } from "@/lib/list-params";
 import { requirePermission } from "@/lib/auth";
-import { queryReviewQueue } from "@/lib/review-queue-data";
+import { queryReviewQueue, type ReviewQueueItem } from "@/lib/review-queue-data";
 import { ACCEPT_EFFECT, REVIEW_GROUPS, REVIEW_KIND_LABELS } from "@/lib/review";
 import { resolveReview } from "./actions";
 
@@ -38,6 +38,22 @@ function PersonLink({ id, name, ci }: { id: string | null; name: string | null; 
       {ci ? <span className="ml-1 text-xs text-muted-foreground">CI {ci}</span> : null}
     </Link>
   );
+}
+
+function MedicoLink({ id, name, mpps }: { id: string; name: string | null; mpps: string | null }) {
+  return (
+    <Link href={`/medicos/${id}`} className="font-medium text-brand hover:underline">
+      {name || "(sin nombre)"}
+      {mpps ? <span className="ml-1 text-xs text-muted-foreground">MPPS {mpps}</span> : null}
+    </Link>
+  );
+}
+
+const NO_CANDIDATE_NOTE =
+  "Sin una persona sugerida. Abre la factura, identifica al paciente y rechaza este caso si el informe no es de esa factura.";
+
+function needsCandidate(item: ReviewQueueItem): boolean {
+  return item.kind === "atencion_patient" && !item.person_id;
 }
 
 export default async function RevisionPage({
@@ -142,6 +158,14 @@ export default async function RevisionPage({
                       ) : null}
                     </div>
                   ) : null}
+                  {item.medico_id ? (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-2xl bg-background p-3">
+                      <MedicoLink id={item.medico_id} name={item.m_name} mpps={item.m_mpps} />
+                      {item.other_medico_id ? (
+                        <MedicoLink id={item.other_medico_id} name={item.om_name} mpps={item.om_mpps} />
+                      ) : null}
+                    </div>
+                  ) : null}
                   {item.invoice_id ? (
                     <p>
                       <Link href={`/facturas/${item.invoice_id}`} className="text-brand hover:underline">
@@ -169,7 +193,9 @@ export default async function RevisionPage({
                     </dl>
                   ) : null}
                   {item.status === "open" ? (
-                    <p className="text-xs text-muted-foreground">{ACCEPT_EFFECT[item.kind]}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {needsCandidate(item) ? NO_CANDIDATE_NOTE : ACCEPT_EFFECT[item.kind]}
+                    </p>
                   ) : null}
                 </div>
 
@@ -186,14 +212,16 @@ export default async function RevisionPage({
               {item.status === "open" ? (
                 <form action={resolveReview} className="mt-5 flex flex-wrap gap-2">
                   <input type="hidden" name="id" value={item.id} />
-                  <button
-                    type="submit"
-                    name="decision"
-                    value="accept"
-                    className="btn-green-gradient rounded-full px-5 py-2.5 text-xs font-medium text-white"
-                  >
-                    Aceptar
-                  </button>
+                  {needsCandidate(item) ? null : (
+                    <button
+                      type="submit"
+                      name="decision"
+                      value="accept"
+                      className="btn-green-gradient rounded-full px-5 py-2.5 text-xs font-medium text-white"
+                    >
+                      Aceptar
+                    </button>
+                  )}
                   <button
                     type="submit"
                     name="decision"

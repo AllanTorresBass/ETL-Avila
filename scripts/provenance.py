@@ -44,6 +44,10 @@ REVIEW_KINDS = {
     "auth_match",
     "segment_review",
     "acta_titular",
+    "medico_duplicate",
+    "medico_mpps_conflict",
+    "atencion_patient",
+    "especialidad_unknown",
 }
 
 # invoice_person.source values (sql/006 check constraint).
@@ -211,6 +215,9 @@ def open_review(
     invoice_id: Any = None,
     document_id: Any = None,
     authorization_line_id: Any = None,
+    medico_id: Any = None,
+    other_medico_id: Any = None,
+    atencion_id: Any = None,
     evidence: dict | None = None,
     score: float | None = None,
 ) -> None:
@@ -221,8 +228,8 @@ def open_review(
         """
         INSERT INTO avila.review_item (
           kind, dedupe_key, person_id, other_person_id, invoice_id, document_id,
-          authorization_line_id, evidence, score, run_id
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)
+          authorization_line_id, medico_id, other_medico_id, atencion_id, evidence, score, run_id
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)
         ON CONFLICT (dedupe_key) DO UPDATE SET
           evidence = EXCLUDED.evidence,
           score = EXCLUDED.score,
@@ -238,6 +245,9 @@ def open_review(
             _s(invoice_id),
             _s(document_id),
             _s(authorization_line_id),
+            _s(medico_id),
+            _s(other_medico_id),
+            _s(atencion_id),
             json.dumps(evidence or {}, default=str),
             score,
             _RUN_ID.get(),

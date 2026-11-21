@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { sql } from "@/lib/db";
 import { formatIdentity, formatInvoiceNumber, roleLabel } from "@/lib/format";
+import { getPersonaMedicos } from "@/lib/medico-data";
 
 export const PERSONA_AUTH_PAGE_SIZE = 20;
 export const PERSONA_HISTORY_LIMIT = 50;
@@ -9,6 +10,7 @@ export const PERSONA_TAB_IDS = [
   "facturas",
   "identidad",
   "autorizaciones",
+  "medicos",
   "red",
   "archivos",
   "historial",
@@ -294,9 +296,12 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
   }
 
   const primaryTitular = pickPrimaryTitular(titulares as LinkedPerson[]);
+  const clinical = await getPersonaMedicos(id);
 
   return {
     person,
+    medicos: clinical.medicos,
+    atenciones: clinical.atenciones,
     identityLine,
     incompleteName: isIncompleteName(person.full_name, person.identity_number),
     roleCounts,
@@ -437,6 +442,7 @@ export function resolvePersonaDefaultTab(
     | "invoices"
     | "identityDocs"
     | "authTotal"
+    | "medicos"
     | "titulares"
     | "beneficiaries"
     | "sourceFiles"
@@ -448,6 +454,7 @@ export function resolvePersonaDefaultTab(
   if (detail.invoices.length > 0) return "facturas";
   if (detail.identityDocs.length > 0) return "identidad";
   if (detail.authTotal > 0) return "autorizaciones";
+  if (detail.medicos.length > 0) return "medicos";
   if (detail.titulares.length > 0 || detail.beneficiaries.length > 0) return "red";
   if (detail.sourceFiles.length > 0) return "archivos";
   return "historial";

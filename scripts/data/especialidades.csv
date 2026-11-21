@@ -1,0 +1,53 @@
+code,name_es,name_practitioner_m,name_practitioner_f,area,parent_code,level,marketing_category
+medicina_general,Medicina General,Médico General,Médica General,clinica,,1,Medicina General
+medicina_familiar,Medicina Familiar,Médico Familiar,Médica Familiar,clinica,,1,Otras Especialidades
+medicina_ocupacional,Medicina Ocupacional,Médico Ocupacional,Médica Ocupacional,clinica,,1,Otras Especialidades
+medicina_interna,Medicina Interna,Internista,Internista,clinica,,1,Medicina Interna
+cardiologia,Cardiología,Cardiólogo,Cardióloga,clinica,medicina_interna,2,Cardiología
+endocrinologia,Endocrinología,Endocrinólogo,Endocrinóloga,clinica,medicina_interna,2,Otras Especialidades
+gastroenterologia,Gastroenterología,Gastroenterólogo,Gastroenteróloga,clinica,medicina_interna,2,Otras Especialidades
+nefrologia,Nefrología,Nefrólogo,Nefróloga,clinica,medicina_interna,2,Otras Especialidades
+neumonologia,Neumonología,Neumonólogo,Neumonóloga,clinica,medicina_interna,2,Otras Especialidades
+reumatologia,Reumatología,Reumatólogo,Reumatóloga,clinica,medicina_interna,2,Otras Especialidades
+hematologia,Hematología,Hematólogo,Hematóloga,clinica,medicina_interna,2,Otras Especialidades
+infectologia,Infectología,Infectólogo,Infectóloga,clinica,medicina_interna,2,Otras Especialidades
+oncologia_medica,Oncología Médica,Oncólogo,Oncóloga,clinica,medicina_interna,2,Otras Especialidades
+alergologia,Alergología e Inmunología,Alergólogo,Alergóloga,clinica,medicina_interna,2,Otras Especialidades
+geriatria,Geriatría,Geriatra,Geriatra,clinica,medicina_interna,2,Otras Especialidades
+medicina_intensiva,Medicina Crítica,Intensivista,Intensivista,clinica,,1,Otras Especialidades
+medicina_deporte,Medicina del Deporte,Médico Deportólogo,Médica Deportóloga,clinica,,1,Otras Especialidades
+dermatologia,Dermatología,Dermatólogo,Dermatóloga,clinica,,1,Otras Especialidades
+neurologia,Neurología,Neurólogo,Neuróloga,clinica,,1,Otras Especialidades
+nutricion,Nutrición,Nutricionista,Nutricionista,clinica,,1,Otras Especialidades
+cirugia_general,Cirugía General,Cirujano General,Cirujana General,quirurgica,,1,Cirugía
+cirugia_vascular,Cirugía Vascular,Cirujano Vascular,Cirujana Vascular,quirurgica,cirugia_general,2,Cirugía
+cirugia_cardiovascular,Cirugía Cardiovascular,Cirujano Cardiovascular,Cirujana Cardiovascular,quirurgica,cirugia_general,2,Cirugía
+cirugia_oncologica,Cirugía Oncológica,Cirujano Oncólogo,Cirujana Oncóloga,quirurgica,cirugia_general,2,Cirugía
+cirugia_plastica,Cirugía Plástica,Cirujano Plástico,Cirujana Plástica,quirurgica,cirugia_general,2,Cirugía
+cirugia_toracica,Cirugía de Tórax,Cirujano de Tórax,Cirujana de Tórax,quirurgica,cirugia_general,2,Cirugía
+cirugia_pediatrica,Cirugía Pediátrica,Cirujano Pediatra,Cirujana Pediatra,quirurgica,cirugia_general,2,Cirugía
+cirugia_maxilofacial,Cirugía Bucal y Maxilofacial,Cirujano Maxilofacial,Cirujana Maxilofacial,quirurgica,cirugia_general,2,Cirugía
+coloproctologia,Coloproctología,Coloproctólogo,Coloproctóloga,quirurgica,cirugia_general,2,Cirugía
+mastologia,Mastología,Mastólogo,Mastóloga,quirurgica,cirugia_general,2,Cirugía
+traumatologia,Traumatología y Ortopedia,Traumatólogo,Traumatóloga,quirurgica,,1,Traumatología
+cirugia_mano,Cirugía de Mano,Cirujano de Mano,Cirujana de Mano,quirurgica,traumatologia,2,Traumatología
+neurocirugia,Neurocirugía,Neurocirujano,Neurocirujana,quirurgica,,1,Otras Especialidades
+urologia,Urología,Urólogo,Uróloga,quirurgica,,1,Otras Especialidades
+oftalmologia,Oftalmología,Oftalmólogo,Oftalmóloga,quirurgica,,1,Otras Especialidades
+otorrinolaringologia,Otorrinolaringología,Otorrinolaringólogo,Otorrinolaringóloga,quirurgica,,1,Otras Especialidades
+foniatria,Foniatría,Foniatra,Foniatra,quirurgica,otorrinolaringologia,2,Otras Especialidades
+anestesiologia,Anestesiología,Anestesiólogo,Anestesióloga,quirurgica,,1,Otras Especialidades
+pediatria,Pediatría,Pediatra,Pediatra,materno_infantil,,1,Pediatría
+neonatologia,Neonatología,Neonatólogo,Neonatóloga,materno_infantil,pediatria,2,Pediatría
+cardiologia_pediatrica,Cardiología Pediátrica,Cardiólogo Pediatra,Cardióloga Pediatra,materno_infantil,pediatria,2,Pediatría
+neuropediatria,Neurología Pediátrica,Neuropediatra,Neuropediatra,materno_infantil,pediatria,2,Pediatría
+neumonologia_pediatrica,Neumonología Pediátrica,Neumonólogo Pediatra,Neumonóloga Pediatra,materno_infantil,pediatria,2,Pediatría
+ginecologia_obstetricia,Ginecología y Obstetricia,Ginecólogo Obstetra,Ginecóloga Obstetra,materno_infantil,,1,Ginecología
+radiologia,Radiología e Imagenología,Radiólogo,Radióloga,diagnostico_apoyo,,1,Otras Especialidades
+anatomia_patologica,Anatomía Patológica,Patólogo,Patóloga,diagnostico_apoyo,,1,Otras Especialidades
+laboratorio_clinico,Laboratorio Clínico,Bioanalista,Bioanalista,diagnostico_apoyo,,1,Otras Especialidades
+psiquiatria,Psiquiatría,Psiquiatra,Psiquiatra,salud_mental,,1,Otras Especialidades
+psicologia_clinica,Psicología Clínica,Psicólogo Clínico,Psicóloga Clínica,salud_mental,,1,Otras Especialidades
+fisiatria,Medicina Física y Rehabilitación,Fisiatra,Fisiatra,rehabilitacion,,1,Otras Especialidades
+fisioterapia,Fisioterapia,Fisioterapeuta,Fisioterapeuta,rehabilitacion,,1,Otras Especialidades
+odontologia,Odontología,Odontólogo,Odontóloga,odontologia,,1,Otras Especialidades

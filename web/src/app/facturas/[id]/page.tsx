@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AtencionList } from "@/components/atencion-list";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
@@ -33,8 +34,21 @@ export default async function FacturaDetailPage({
   const { file: fileFilter = "" } = await searchParams;
   const detail = await getFacturaDetail(id, fileFilter);
   if (!detail) notFound();
-  const { invoice, people, authTotal, authLines, files, docs, docTotal, activeFile } = detail;
-  const relatedTotal = people.length + authTotal + files.length + docTotal;
+  const { invoice, people, authTotal, authLines, files, docs, docTotal, activeFile, atenciones } = detail;
+  const relatedTotal = people.length + atenciones.length + authTotal + files.length + docTotal;
+  const doctors = [
+    ...new Map(
+      atenciones
+        .filter((a) => a.medico_id && a.medico_name)
+        .map((a) => [
+          a.medico_id as string,
+          {
+            id: a.medico_id as string,
+            label: `${a.medico_title === "dra" ? "Dra." : "Dr."} ${a.medico_name}${a.especialidad ? ` · ${a.especialidad}` : ""}`,
+          },
+        ]),
+    ).values(),
+  ];
 
   return (
     <div className="space-y-6">
@@ -56,6 +70,7 @@ export default async function FacturaDetailPage({
           items={[
             { id: "resumen", label: "Resumen", count: 1 },
             { id: "personas", label: "Personas", count: people.length },
+            { id: "atenciones", label: "Atenciones", count: atenciones.length },
             { id: "autorizaciones", label: "Autorizaciones", count: authTotal },
             { id: "archivos", label: "Archivos", count: files.length },
             { id: "paginas", label: "Páginas", count: docTotal },
@@ -138,6 +153,37 @@ export default async function FacturaDetailPage({
               meta={[p.identity_number, p.parentesco].filter(Boolean).join(" · ")}
             />
           ))}
+        </div>
+      </RelationSection>
+
+      <RelationSection
+        collapsible
+        id="atenciones"
+        title="Atenciones"
+        count={atenciones.length}
+        emptyTitle="Sin atenciones"
+        emptyHint="Ningún informe médico, orden o resultado de esta factura quedó leído."
+      >
+        <div className="space-y-3">
+          {doctors.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {doctors.map((d) => (
+                <Link
+                  key={d.id}
+                  href={`/medicos/${d.id}`}
+                  className="rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand hover:bg-brand/15"
+                >
+                  {d.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+          <AtencionList
+            rows={atenciones}
+            hide="factura"
+            emptyTitle="Sin atenciones"
+            emptyHint="Ningún informe de esta factura quedó leído."
+          />
         </div>
       </RelationSection>
 

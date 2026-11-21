@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import { AtencionList } from "@/components/atencion-list";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
 import { EntityTabs, type EntityTabPanel } from "@/components/entity-tabs";
@@ -253,6 +254,8 @@ export function PersonaDossierTabs({
     beneficiaries,
     sourceFiles,
     history,
+    medicos,
+    atenciones,
   } = detail;
 
   const panels: EntityTabPanel[] = [
@@ -366,6 +369,48 @@ export function PersonaDossierTabs({
               basePath={`/personas/${personId}`}
               pageParam="authPage"
               searchParams={{ tab: "autorizaciones" }}
+            />
+          </div>
+        ),
+    },
+    {
+      id: "medicos",
+      label: "Médicos",
+      count: n(medicos.length),
+      title: "Médicos y atenciones",
+      description: "Médicos y especialidades leídos de los informes, órdenes y resultados de esta persona.",
+      body:
+        medicos.length === 0 && atenciones.length === 0 ? (
+          <EmptyHint
+            title="Sin atenciones"
+            hint="Ningún informe médico, orden o resultado quedó vinculado a esta persona."
+          />
+        ) : (
+          <div className="space-y-5">
+            {medicos.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {medicos.map((m) => (
+                  <EntityRow
+                    key={m.medico_id}
+                    href={`/medicos/${m.medico_id}`}
+                    title={`${m.medico_title === "dra" ? "Dra." : "Dr."} ${m.medico_name}`}
+                    meta={[
+                      m.mpps ? `MPPS ${m.mpps}` : null,
+                      m.last_seen ? `Última atención ${formatDate(m.last_seen)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    badges={m.especialidades}
+                    trailing={`${n(m.atenciones)} ${m.atenciones === 1 ? "atención" : "atenciones"}`}
+                  />
+                ))}
+              </div>
+            ) : null}
+            <AtencionList
+              rows={atenciones}
+              hide="persona"
+              emptyTitle="Sin atenciones"
+              emptyHint="Ningún informe quedó vinculado a esta persona."
             />
           </div>
         ),

@@ -66,13 +66,13 @@ def upsert_authorization_line(
         INSERT INTO avila.authorization_line (
           invoice_id, person_id, clave_rms, contratante,
           service_date, request_date, diagnosis, service_description,
-          provider_name, provider_rif,
+          provider_name, provider_rif, aps_code,
           amount_bs, amount_usd, coverage_amount, authorized_amount,
           source_file, source_row, source_hash
         ) VALUES (
           %s, %s, %s, %s,
           %s, %s, %s, %s,
-          %s, %s,
+          %s, %s, %s,
           %s, %s, %s, %s,
           %s, %s, %s
         )
@@ -89,6 +89,7 @@ def upsert_authorization_line(
           ),
           provider_name = coalesce(EXCLUDED.provider_name, avila.authorization_line.provider_name),
           provider_rif = coalesce(EXCLUDED.provider_rif, avila.authorization_line.provider_rif),
+          aps_code = coalesce(EXCLUDED.aps_code, avila.authorization_line.aps_code),
           amount_bs = coalesce(EXCLUDED.amount_bs, avila.authorization_line.amount_bs),
           amount_usd = coalesce(EXCLUDED.amount_usd, avila.authorization_line.amount_usd),
           coverage_amount = coalesce(
@@ -110,6 +111,7 @@ def upsert_authorization_line(
             row.get("service_description"),
             row.get("provider_name"),
             row.get("provider_rif"),
+            row.get("aps_code"),
             row.get("amount_bs"),
             row.get("amount_usd"),
             row.get("coverage_amount"),

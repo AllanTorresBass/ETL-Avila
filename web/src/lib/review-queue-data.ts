@@ -29,6 +29,13 @@ export type ReviewQueueItem = {
   clave_rms: string | null;
   request_date: string | Date | null;
   service_description: string | null;
+  medico_id: string | null;
+  m_name: string | null;
+  m_mpps: string | null;
+  other_medico_id: string | null;
+  om_name: string | null;
+  om_mpps: string | null;
+  atencion_id: string | null;
 };
 
 export async function queryReviewQueue(input: {
@@ -56,8 +63,13 @@ export async function queryReviewQueue(input: {
            r.other_person_id, o.full_name AS o_name, o.identity_number AS o_ci, o.birth_date AS o_dob,
            r.invoice_id, i.invoice_number, i.issue_date,
            r.document_id, d.document_type, d.blob_pathname,
-           r.authorization_line_id, al.clave_rms, al.request_date, al.service_description
+           r.authorization_line_id, al.clave_rms, al.request_date, al.service_description,
+           r.medico_id, m.full_name AS m_name, m.mpps AS m_mpps,
+           r.other_medico_id, om.full_name AS om_name, om.mpps AS om_mpps,
+           r.atencion_id
     FROM avila.review_item r
+    LEFT JOIN avila.medico m ON m.id = r.medico_id
+    LEFT JOIN avila.medico om ON om.id = r.other_medico_id
     LEFT JOIN avila.person p ON p.id = r.person_id
     LEFT JOIN avila.person o ON o.id = r.other_person_id
     LEFT JOIN avila.invoice i ON i.id = r.invoice_id
