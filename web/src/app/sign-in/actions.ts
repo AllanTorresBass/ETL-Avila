@@ -18,16 +18,20 @@ async function rejectHash(): Promise<string> {
   return dummyHash;
 }
 
-export async function signIn(formData: FormData) {
+export async function signIn(
+  prev: { attempt: number } | null,
+  formData: FormData,
+): Promise<{ error: string; attempt: number }> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
   const next = safeNext(String(formData.get("next") || ""));
-  const failed = `/sign-in?error=1${next !== "/etl" ? `&next=${encodeURIComponent(next)}` : ""}`;
+  const attempt = (prev?.attempt ?? 0) + 1;
+  const failed = { error: "Correo o contraseña incorrectos.", attempt };
 
   await deleteExpiredSessions();
   const user = await findStaffByEmail(email);
   const valid = await verifyPassword(password, user?.password_hash || (await rejectHash()));
-  if (!user || !user.active || !isAppRole(user.role) || !valid) redirect(failed);
+  if (!user || !user.active || !isAppRole(user.role) || !valid) return failed;
 
   await createSession(user.id);
   const destination = canAccessPath(user.role, next) ? next : "/etl";
