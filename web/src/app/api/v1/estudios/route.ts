@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const result = await queryEstudioList({
     query: normalizeQuery(sp.get("q") || undefined),
     family: isEstudioFamily(family) ? family : "",
+    procedure: sp.get("procedimiento") || "",
     page: estudioListPage(sp.get("page")),
   });
 
