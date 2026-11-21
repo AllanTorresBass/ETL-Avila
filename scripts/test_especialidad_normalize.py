@@ -14,6 +14,7 @@ from especialidad_normalize import (
     normalize_text,
     osa_distance,
 )
+from estudio_kind import classify_line
 
 
 def _one(raw: str, context: str = "doctor_title"):
@@ -139,6 +140,24 @@ class Kinds(unittest.TestCase):
     def test_unknown_shaped_word_is_backlog(self):
         matches = normalize_text("XYLOFONOLOGIA", "label")
         self.assertEqual([m.method for m in matches], ["none"])
+
+    def test_hematologia_completa_is_a_lab_panel(self):
+        matches = normalize_text("HEMATOLOGIA COMPLETA", "fiscal_line")
+        self.assertEqual(first_procedure(matches).procedimiento, "examenes_laboratorio")
+        self.assertIsNone(best_specialty(matches))
+
+    def test_glued_imaging_and_footer(self):
+        self.assertEqual(first_procedure(normalize_text("RXTORAX", "fiscal_line")).procedimiento, "rayos_x")
+        self.assertEqual(first_procedure(normalize_text("TCTORAX", "fiscal_line")).procedimiento, "tomografia")
+        footer = normalize_text("SIN ENMIENDA NI TACHADURAS", "report_title")
+        self.assertTrue(any(match.kind == "stop" and match.term and match.term.term == "TACHADURAS" for match in footer))
+        self.assertIsNone(first_procedure(footer))
+
+    def test_consulta_and_estudio_on_two_lines(self):
+        self.assertEqual(classify_line("CONSULTA CARDIOLOGIA"), ("consulta", None))
+        self.assertEqual(classify_line("ELECTROCARDIOGRAMA"), ("estudio", "electrocardiograma"))
+        self.assertEqual(classify_line("VALORACION CARDIOVASCULAR"), ("consulta", None))
+        self.assertEqual(classify_line("USO DE QUIROFANO"), ("cargo", None))
 
 
 class Distance(unittest.TestCase):

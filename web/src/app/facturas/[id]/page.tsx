@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AtencionList } from "@/components/atencion-list";
+import { EstudioList } from "@/components/estudio-list";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
@@ -34,8 +35,8 @@ export default async function FacturaDetailPage({
   const { file: fileFilter = "" } = await searchParams;
   const detail = await getFacturaDetail(id, fileFilter);
   if (!detail) notFound();
-  const { invoice, people, authTotal, authLines, files, docs, docTotal, activeFile, atenciones } = detail;
-  const relatedTotal = people.length + atenciones.length + authTotal + files.length + docTotal;
+  const { invoice, people, authTotal, authLines, files, docs, docTotal, activeFile, atenciones, estudios } = detail;
+  const relatedTotal = people.length + atenciones.length + estudios.length + authTotal + files.length + docTotal;
   const doctors = [
     ...new Map(
       atenciones
@@ -71,6 +72,7 @@ export default async function FacturaDetailPage({
             { id: "resumen", label: "Resumen", count: 1 },
             { id: "personas", label: "Personas", count: people.length },
             { id: "atenciones", label: "Atenciones", count: atenciones.length },
+            { id: "estudios", label: "Estudios", count: estudios.length },
             { id: "autorizaciones", label: "Autorizaciones", count: authTotal },
             { id: "archivos", label: "Archivos", count: files.length },
             { id: "paginas", label: "Páginas", count: docTotal },
@@ -185,6 +187,17 @@ export default async function FacturaDetailPage({
             emptyHint="Ningún informe de esta factura quedó leído."
           />
         </div>
+      </RelationSection>
+
+      <RelationSection
+        collapsible
+        id="estudios"
+        title="Estudios"
+        count={estudios.length}
+        emptyTitle="Sin estudios"
+        emptyHint="Esta factura no tiene un laboratorio, una imagen ni otra prueba. La consulta no entra aquí."
+      >
+        <EstudioList rows={estudios} />
       </RelationSection>
 
       <RelationSection

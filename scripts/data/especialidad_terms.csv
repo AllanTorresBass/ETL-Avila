@@ -287,3 +287,63 @@ VISTA,stop,,noise
 PROGRAMA,stop,,noise
 ESPECIALIZADO,stop,,generic word
 ESPECIALIZADA,stop,,generic word
+HEMATOLOGIA COMPLETA,procedure,examenes_laboratorio,panel; not the hematologia specialty
+CREATININA,procedure,examenes_laboratorio,
+GLICEMIA,procedure,examenes_laboratorio,
+GLUCEMIA,procedure,examenes_laboratorio,
+ORINA,procedure,examenes_laboratorio,
+PCR,procedure,examenes_laboratorio,
+PSA,procedure,examenes_laboratorio,
+VITAMINA D,procedure,examenes_laboratorio,
+FACTOR REUMATOIDEO,procedure,examenes_laboratorio,
+FACTOR REMATOIDEO,procedure,examenes_laboratorio,ocr spelling
+ANA,procedure,examenes_laboratorio,fiscal line only; short token
+TOXOPLASMOSIS,procedure,examenes_laboratorio,
+GGT,procedure,examenes_laboratorio,
+NT PROBNP,procedure,examenes_laboratorio,
+NT PROB,procedure,examenes_laboratorio,ocr of NT-proBNP
+TSH,procedure,examenes_laboratorio,
+UREA,procedure,examenes_laboratorio,
+COLESTEROL,procedure,examenes_laboratorio,
+TRIGLICERIDOS,procedure,examenes_laboratorio,
+BILIRRUBINA,procedure,examenes_laboratorio,
+HEMOGLOBINA,procedure,examenes_laboratorio,
+HEMOGRAMA,procedure,examenes_laboratorio,
+INSULINA,procedure,examenes_laboratorio,
+ACIDO URICO,procedure,examenes_laboratorio,
+FOSFATASA ALCALINA,procedure,examenes_laboratorio,
+PROTEINA C REACTIVA,procedure,examenes_laboratorio,
+HELICOBACTER,procedure,examenes_laboratorio,
+SANGRE OCULTA,procedure,examenes_laboratorio,
+ANTIESTREPTOLISINA,procedure,examenes_laboratorio,
+ASTO,procedure,examenes_laboratorio,
+CITOMEGALOVIRUS,procedure,examenes_laboratorio,
+PLAQUETAS,procedure,examenes_laboratorio,
+FERRITINA,procedure,examenes_laboratorio,
+TROPONINA,procedure,examenes_laboratorio,
+GLICOSILADA,procedure,examenes_laboratorio,
+UROCULTIVO,procedure,examenes_laboratorio,
+VDRL,procedure,examenes_laboratorio,
+TRANSAMINASA,procedure,examenes_laboratorio,
+ALBUMINA,procedure,examenes_laboratorio,
+IONOGRAMA,procedure,examenes_laboratorio,
+GASOMETRIA,procedure,examenes_laboratorio,
+PROLACTINA,procedure,examenes_laboratorio,
+CORTISOL,procedure,examenes_laboratorio,
+RXTORAX,procedure,rayos_x,glued
+TCTORAX,procedure,tomografia,glued
+UROTAC,procedure,tomografia,
+FLUORANGIOGRAFIA,procedure,fluororetinografia,
+CAMPO VISUAL,procedure,campo_visual,
+MAPA,procedure,mapa,
+FLUJOMETRIA,procedure,flujometria,
+TACHADURAS,stop,,legal footer; not tomografia
+QUIROFANO,stop,,facility fee
+FARMACOS,stop,,facility fee
+RESTAURACION,stop,,dental treatment
+EXODONCIA,stop,,dental treatment
+SEDACION,stop,,facility fee
+MATERIAL MEDICO,stop,,facility fee
+USO DE EMERGENCIA,stop,,facility fee
+CONCENTRADO GLOBULAR,stop,,blood product
+SERVICIOS HOSPITALARIOS,stop,,facility fee
