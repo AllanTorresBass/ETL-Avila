@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   BarChart3,
-  Check,
   ChevronDown,
   ClipboardCheck,
   FileStack,
@@ -55,6 +54,7 @@ interface MenuEntry {
   kind: "menu";
   id: string;
   label: string;
+  description: string;
   items: Destination[];
 }
 
@@ -118,7 +118,7 @@ const ESTUDIOS: Destination = {
 const ESPECIALIDADES: Destination = {
   href: "/especialidades",
   label: "Especialidades",
-  hint: "Árbol de atención",
+  hint: "Áreas y subespecialidades",
   permission: "read",
   icon: Layers,
 };
@@ -144,27 +144,27 @@ const ACCESO: Destination = {
   icon: Shield,
 };
 
+const PANEL_COPY = "Pipeline, negocio y resumen.";
+const CLINICA_COPY = "Directorio, pruebas y especialidades.";
+
 const ENTRIES: NavEntry[] = [
-  { kind: "menu", id: "paneles", label: "Paneles", items: [ETL, NEGOCIO, INFORME] },
+  { kind: "menu", id: "paneles", label: "Paneles", description: PANEL_COPY, items: [ETL, NEGOCIO, INFORME] },
   { kind: "link", item: PERSONAS },
   { kind: "link", item: FACTURAS },
-  { kind: "menu", id: "clinica", label: "Clínica", items: [MEDICOS, ESTUDIOS, ESPECIALIDADES] },
+  { kind: "menu", id: "clinica", label: "Clínica", description: CLINICA_COPY, items: [MEDICOS, ESTUDIOS, ESPECIALIDADES] },
   { kind: "link", item: DOCUMENTOS },
   { kind: "link", item: REVISION, separated: true },
 ];
 
-const SECTIONS: { id: string; label: string; items: Destination[] }[] = [
-  { id: "paneles", label: "Paneles", items: [ETL, NEGOCIO, INFORME] },
-  {
-    id: "registros",
-    label: "Registros",
-    items: [PERSONAS, FACTURAS, MEDICOS, ESTUDIOS, ESPECIALIDADES, DOCUMENTOS],
-  },
+const SECTIONS: { id: string; label: string; description?: string; items: Destination[] }[] = [
+  { id: "paneles", label: "Paneles", description: PANEL_COPY, items: [ETL, NEGOCIO, INFORME] },
+  { id: "registros", label: "Registros", items: [PERSONAS, FACTURAS, DOCUMENTOS] },
+  { id: "clinica", label: "Clínica", description: CLINICA_COPY, items: [MEDICOS, ESTUDIOS, ESPECIALIDADES] },
   { id: "trabajo", label: "Trabajo", items: [REVISION] },
 ];
 
 const menuContentClass =
-  "z-50 min-w-72 origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-3xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg data-[side=bottom]:slide-in-from-top-2 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
+  "z-50 min-w-80 origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-3xl border border-border bg-popover p-1.5 text-popover-foreground shadow-lg data-[side=bottom]:slide-in-from-top-2 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95";
 
 const menuItemClass =
   "flex cursor-pointer items-center gap-3 rounded-2xl px-2 py-2 text-left outline-none select-none data-[highlighted]:bg-brand/10";
@@ -221,7 +221,14 @@ function DestinationBody({ item, active }: { item: Destination; active: boolean 
         </span>
         <span className="block text-xs text-muted-foreground">{item.hint}</span>
       </span>
-      {active ? <Check className="size-4 shrink-0 text-brand" aria-hidden="true" /> : <span className="size-4 shrink-0" />}
+      {active ? (
+        <span
+          aria-hidden="true"
+          className="shrink-0 rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-medium text-brand"
+        >
+          Actual
+        </span>
+      ) : null}
     </>
   );
 }
@@ -243,7 +250,7 @@ function MenuItems({
           href={item.href}
           onClick={onNavigate}
           aria-current={active ? "page" : undefined}
-          className={menuItemClass}
+          className={cn(menuItemClass, active && "bg-brand/10")}
         >
           <DestinationBody item={item} active={active} />
         </Link>
@@ -256,46 +263,41 @@ function NavSplit({ entry, pathname }: { entry: MenuEntry; pathname: string }) {
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === pathname;
   const activeItem = entry.items.find((item) => isCurrent(pathname, item.href));
-  const current = activeItem ?? entry.items[0];
-  if (!current) return null;
   const active = Boolean(activeItem);
 
   return (
-    <div
-      className={cn(
-        "inline-flex items-center rounded-full transition-colors",
-        active || open ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-brand/10 hover:text-brand",
-      )}
-    >
-      <Link
-        href={current.href}
-        aria-current={active ? "page" : undefined}
-        className="inline-flex min-h-10 items-center rounded-l-full pr-1.5 pl-3.5 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <DropdownMenu.Root open={open} onOpenChange={(next) => setOpenPath(next ? pathname : null)}>
+      <DropdownMenu.Trigger
+        type="button"
+        className={cn(
+          "group inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+          active || open ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-brand/10 hover:text-brand",
+        )}
       >
-        {current.label}
-        {active ? <span className="sr-only">, página actual</span> : null}
-      </Link>
-      <DropdownMenu.Root open={open} onOpenChange={(next) => setOpenPath(next ? pathname : null)}>
-        <DropdownMenu.Trigger
-          type="button"
-          aria-label={`Abrir ${entry.label}`}
-          className="group inline-flex min-h-10 min-w-8 items-center justify-center rounded-r-full pr-2.5 pl-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ChevronDown
-            className="size-3.5 opacity-70 transition-transform group-data-[state=open]:rotate-180"
-            aria-hidden="true"
-          />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content align="start" sideOffset={10} className={menuContentClass}>
-            <DropdownMenu.Label className="px-3 pt-2 pb-1 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
-              {entry.label}
-            </DropdownMenu.Label>
-            <MenuItems items={entry.items} pathname={pathname} onNavigate={() => setOpenPath(null)} />
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-    </div>
+        <span>{entry.label}</span>
+        {activeItem ? (
+          <span className="hidden font-normal opacity-80 xl:inline">
+            <span aria-hidden="true"> · </span>
+            {activeItem.label}
+          </span>
+        ) : null}
+        {activeItem ? <span className="sr-only xl:hidden">, página actual: {activeItem.label}</span> : null}
+        <ChevronDown
+          className="size-3.5 opacity-70 transition-transform group-data-[state=open]:rotate-180"
+          aria-hidden="true"
+        />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="start" sideOffset={10} className={menuContentClass}>
+          <DropdownMenu.Label className="px-3 pt-2.5 pb-2">
+            <span className="block text-sm font-semibold tracking-tight text-foreground">{entry.label}</span>
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{entry.description}</span>
+          </DropdownMenu.Label>
+          <DropdownMenu.Separator className="mx-2 mb-1 h-px bg-border" />
+          <MenuItems items={entry.items} pathname={pathname} onNavigate={() => setOpenPath(null)} />
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
@@ -349,6 +351,9 @@ function MobileSections({ role, onNavigate }: { role: AppRole; onNavigate: () =>
             <p className="px-2 pb-1 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
               {section.label}
             </p>
+            {section.description ? (
+              <p className="px-2 pb-1.5 text-xs text-muted-foreground">{section.description}</p>
+            ) : null}
             <div className="flex flex-col">
               {section.items.map((item) => {
                 const active = isCurrent(pathname, item.href);
