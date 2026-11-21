@@ -1,0 +1,36 @@
+code,name_es,especialidad_code,modality
+ecografia,Ecografía,radiologia,imagen
+ecocardiograma,Ecocardiograma,cardiologia,imagen
+electrocardiograma,Electrocardiograma,cardiologia,funcional
+holter,Holter,cardiologia,funcional
+prueba_esfuerzo,Prueba de esfuerzo,cardiologia,funcional
+coronariografia,Coronariografía,cardiologia,imagen
+tomografia,Tomografía,radiologia,imagen
+angiotomografia,Angiotomografía,radiologia,imagen
+resonancia,Resonancia magnética,radiologia,imagen
+mamografia,Mamografía,radiologia,imagen
+ecomamografia,Ecomamografía,radiologia,imagen
+rayos_x,Rayos X,radiologia,imagen
+fistulografia,Fistulografía,radiologia,imagen
+gammagrama,Gammagrama,radiologia,imagen
+antibiograma,Antibiograma,laboratorio_clinico,laboratorio
+densitometria,Densitometría,radiologia,imagen
+endoscopia_digestiva,Endoscopia digestiva superior,gastroenterologia,endoscopia
+colonoscopia,Colonoscopia,gastroenterologia,endoscopia
+colposcopia,Colposcopia,ginecologia_obstetricia,endoscopia
+cistoscopia,Cistoscopia,urologia,endoscopia
+laringoscopia,Laringoscopia,otorrinolaringologia,endoscopia
+laparoscopia,Laparoscopia,cirugia_general,quirurgico
+artroscopia,Artroscopia,traumatologia,quirurgico
+citologia,Citología,anatomia_patologica,laboratorio
+biopsia,Biopsia,anatomia_patologica,laboratorio
+examenes_laboratorio,Exámenes de laboratorio,laboratorio_clinico,laboratorio
+audiometria,Audiometría,otorrinolaringologia,funcional
+serologia,Serología,laboratorio_clinico,laboratorio
+electromiografia,Electromiografía,neurologia,funcional
+electroencefalograma,Electroencefalograma,neurologia,funcional
+fluororetinografia,Fluororetinografía,oftalmologia,imagen
+espirometria,Espirometría,neumonologia,funcional
+terapia_respiratoria,Terapia respiratoria,neumonologia,funcional
+quimioterapia,Quimioterapia,oncologia_medica,consulta
+radioterapia,Radioterapia,oncologia_medica,consulta

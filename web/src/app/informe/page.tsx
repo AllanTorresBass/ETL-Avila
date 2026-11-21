@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, CircleDollarSign, Link2, ReceiptText } from "lucide-react";
+import { BadgeCheck, CircleDollarSign, Link2, ReceiptText, Stethoscope } from "lucide-react";
 import { AttentionPanel, type AttentionItem } from "@/components/attention-panel";
 import { BreakdownList } from "@/components/breakdown-card";
 import { DashboardHeader } from "@/components/dashboard-header";
@@ -17,6 +17,7 @@ import { DOCUMENT_TYPE_LABELS } from "@/lib/db";
 import { formatAccount, formatDate, formatInvoiceNumber } from "@/lib/format";
 import { formatPercent, formatUsd, formatUsdCompact, percentChange } from "@/lib/format-metrics";
 import { getInformeData } from "@/lib/informe-data";
+import { LINK_STATUS_LABELS } from "@/lib/medico-data";
 import { REVIEW_GROUPS, REVIEW_KIND_LABELS } from "@/lib/review";
 
 export const metadata: Metadata = {
@@ -409,6 +410,76 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                           href: `/documentos?type=${row.key}`,
                         }))}
                         empty="Aún no hay documentos cargados."
+                      />
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              id: "clinico",
+              label: "Clínico",
+              count: n(data.clinical.kpis.atenciones),
+              title: "Médicos, especialidades y atenciones",
+              description: "Leído de informes, órdenes, laboratorios e imágenes · todo el archivo.",
+              body: (
+                <div className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <KpiCard
+                      label="Médicos"
+                      value={n(data.clinical.kpis.medicos)}
+                      hint={`${n(data.clinical.kpis.conMpps)} con MPPS`}
+                      href="/medicos"
+                      icon={<Stethoscope className="size-4" />}
+                    />
+                    <KpiCard
+                      label="Con especialidad"
+                      value={n(data.clinical.kpis.conEspecialidad)}
+                      hint={
+                        data.clinical.kpis.medicos > 0
+                          ? formatPercent(data.clinical.kpis.conEspecialidad / data.clinical.kpis.medicos)
+                          : undefined
+                      }
+                      href="/especialidades"
+                    />
+                    <KpiCard
+                      label="Atenciones"
+                      value={n(data.clinical.kpis.atenciones)}
+                      hint={`${n(data.clinical.kpis.completas)} con paciente, médico y especialidad`}
+                    />
+                    <KpiCard
+                      label="Casos clínicos abiertos"
+                      value={n(data.clinical.kpis.openReviews)}
+                      href="/revision?tipo=medico"
+                    />
+                  </div>
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <div>
+                      <h3 className="text-sm font-medium text-foreground">Especialidades con más atenciones</h3>
+                      <p className="mb-3 text-xs text-muted-foreground">Incluye sus subespecialidades.</p>
+                      <BreakdownList
+                        rows={data.clinical.topEspecialidades.map((row) => ({
+                          key: row.code,
+                          label: row.name_es,
+                          value: row.atenciones,
+                          display: n(row.atenciones),
+                          hint: `${row.area_name} · ${n(row.medicos)} médicos`,
+                          href: `/medicos?especialidad=${row.code}`,
+                        }))}
+                        empty="Aún no hay atenciones cargadas."
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-foreground">Estado del vínculo</h3>
+                      <p className="mb-3 text-xs text-muted-foreground">Paciente, médico y especialidad por atención.</p>
+                      <BreakdownList
+                        rows={data.clinical.statuses.map((row) => ({
+                          key: row.status,
+                          label: LINK_STATUS_LABELS[row.status] || row.status,
+                          value: row.n,
+                          display: n(row.n),
+                        }))}
+                        empty="Aún no hay atenciones cargadas."
                       />
                     </div>
                   </div>

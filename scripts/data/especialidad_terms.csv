@@ -1,0 +1,289 @@
+term_folded,kind,target_code,note
+MEDICINA GENERAL,discipline,medicina_general,
+MEDICO GENERAL,practitioner,medicina_general,
+MEDICINA FAMILIAR,discipline,medicina_familiar,
+MEDICO FAMILIAR,practitioner,medicina_familiar,
+MEDICINA OCUPACIONAL,discipline,medicina_ocupacional,
+MEDICO OCUPACIONAL,practitioner,medicina_ocupacional,
+MEDICINA DEL TRABAJO,discipline,medicina_ocupacional,synonym
+SALUD OCUPACIONAL,discipline,medicina_ocupacional,synonym
+MEDICINA INTERNA,discipline,medicina_interna,
+INTERNISTA,practitioner,medicina_interna,
+MEDICO INTERNISTA,practitioner,medicina_interna,
+CARDIOLOGIA,discipline,cardiologia,
+CARDIOLOGO,practitioner,cardiologia,
+CARDIOLOGICO,adjective,cardiologia,report title only
+CARDIOLOGIA PEDIATRICA,discipline,cardiologia_pediatrica,
+CARDIOLOGO PEDIATRA,practitioner,cardiologia_pediatrica,
+CARDIOLOGO INFANTIL,practitioner,cardiologia_pediatrica,
+ENDOCRINOLOGIA,discipline,endocrinologia,
+ENDOCRINOLOGO,practitioner,endocrinologia,
+ENDOCRINOLOGICO,adjective,endocrinologia,report title only
+GASTROENTEROLOGIA,discipline,gastroenterologia,
+GASTROENTEROLOGO,practitioner,gastroenterologia,
+GASTROENTEROLOGICO,adjective,gastroenterologia,report title only
+GASTROLOGIA,discipline,gastroenterologia,colloquial
+NEFROLOGIA,discipline,nefrologia,
+NEFROLOGO,practitioner,nefrologia,
+NEFROLOGICO,adjective,nefrologia,report title only
+NEUMONOLOGIA,discipline,neumonologia,
+NEUMONOLOGO,practitioner,neumonologia,
+NEUMOLOGIA,discipline,neumonologia,synonym
+NEUMOLOGO,practitioner,neumonologia,synonym
+NEUMOLOGICO,adjective,neumonologia,report title only
+NEUMONOLOGICO,adjective,neumonologia,report title only
+NEUMONOLOGIA PEDIATRICA,discipline,neumonologia_pediatrica,
+NEUMONOLOGO PEDIATRA,practitioner,neumonologia_pediatrica,
+REUMATOLOGIA,discipline,reumatologia,
+REUMATOLOGO,practitioner,reumatologia,
+REUMATOLOGICO,adjective,reumatologia,report title only
+HEMATOLOGIA,discipline,hematologia,
+HEMATOLOGO,practitioner,hematologia,
+HEMATOLOGICO,adjective,hematologia,report title only
+INFECTOLOGIA,discipline,infectologia,
+INFECTOLOGO,practitioner,infectologia,
+ONCOLOGIA,discipline,oncologia_medica,
+ONCOLOGIA MEDICA,discipline,oncologia_medica,
+ONCOLOGO,practitioner,oncologia_medica,
+ONCOLOGICO,adjective,oncologia_medica,report title only
+ALERGOLOGIA,discipline,alergologia,
+ALERGOLOGO,practitioner,alergologia,
+INMUNOLOGIA,discipline,alergologia,synonym
+INMUNOLOGO,practitioner,alergologia,synonym
+GERIATRIA,discipline,geriatria,
+GERIATRA,practitioner,geriatria,
+GERONTOLOGIA,discipline,geriatria,synonym
+GERONTOLOGO,practitioner,geriatria,synonym
+MEDICINA CRITICA,discipline,medicina_intensiva,
+MEDICINA INTENSIVA,discipline,medicina_intensiva,
+TERAPIA INTENSIVA,discipline,medicina_intensiva,
+INTENSIVISTA,practitioner,medicina_intensiva,
+MEDICINA DEL DEPORTE,discipline,medicina_deporte,
+MEDICINA DEPORTIVA,discipline,medicina_deporte,
+DEPORTOLOGO,practitioner,medicina_deporte,
+DERMATOLOGIA,discipline,dermatologia,
+DERMATOLOGO,practitioner,dermatologia,
+DERMATOLOGICO,adjective,dermatologia,report title only
+NEUROLOGIA,discipline,neurologia,
+NEUROLOGO,practitioner,neurologia,
+NEUROLOGICO,adjective,neurologia,report title only; exam prose is never read
+NUTRICION,discipline,nutricion,
+NUTRICIONISTA,practitioner,nutricion,
+NUTROLOGO,practitioner,nutricion,
+NUTRIOLOGO,practitioner,nutricion,
+CIRUGIA,discipline,cirugia_general,bare word
+CIRUGIA GENERAL,discipline,cirugia_general,
+CIRUJANO GENERAL,practitioner,cirugia_general,
+CIRUJANO,stop,,ambiguous alone: usually the MEDICO CIRUJANO degree
+CIRUGIA VASCULAR,discipline,cirugia_vascular,
+CIRUJANO VASCULAR,practitioner,cirugia_vascular,
+ANGIOLOGIA,discipline,cirugia_vascular,synonym
+ANGIOLOGO,practitioner,cirugia_vascular,synonym
+CIRUGIA CARDIOVASCULAR,discipline,cirugia_cardiovascular,
+CIRUJANO CARDIOVASCULAR,practitioner,cirugia_cardiovascular,
+CIRUGIA ONCOLOGICA,discipline,cirugia_oncologica,
+CIRUJANO ONCOLOGO,practitioner,cirugia_oncologica,
+CIRUGIA PLASTICA,discipline,cirugia_plastica,
+CIRUJANO PLASTICO,practitioner,cirugia_plastica,
+CIRUGIA TORACICA,discipline,cirugia_toracica,
+CIRUGIA DE TORAX,discipline,cirugia_toracica,
+CIRUJANO DE TORAX,practitioner,cirugia_toracica,
+CIRUGIA PEDIATRICA,discipline,cirugia_pediatrica,
+CIRUJANO PEDIATRA,practitioner,cirugia_pediatrica,
+CIRUJANO INFANTIL,practitioner,cirugia_pediatrica,
+CIRUGIA MAXILOFACIAL,discipline,cirugia_maxilofacial,
+CIRUGIA BUCAL,discipline,cirugia_maxilofacial,
+CIRUJANO MAXILOFACIAL,practitioner,cirugia_maxilofacial,
+MAXILOFACIAL,discipline,cirugia_maxilofacial,
+COLOPROCTOLOGIA,discipline,coloproctologia,
+COLOPROCTOLOGO,practitioner,coloproctologia,
+PROCTOLOGIA,discipline,coloproctologia,synonym
+PROCTOLOGO,practitioner,coloproctologia,synonym
+MASTOLOGIA,discipline,mastologia,
+MASTOLOGO,practitioner,mastologia,
+CIRUJANO MASTOLOGO,practitioner,mastologia,
+TRAUMATOLOGIA,discipline,traumatologia,
+TRAUMATOLOGO,practitioner,traumatologia,
+TRAUMATOLOGICO,adjective,traumatologia,report title only
+ORTOPEDIA,discipline,traumatologia,synonym
+ORTOPEDISTA,practitioner,traumatologia,synonym
+TRAUMATOLOGIA Y ORTOPEDIA,discipline,traumatologia,
+CIRUGIA ORTOPEDICA,discipline,traumatologia,
+CIRUGIA DE MANO,discipline,cirugia_mano,
+CIRUJANO DE MANO,practitioner,cirugia_mano,
+NEUROCIRUGIA,discipline,neurocirugia,
+NEUROCIRUJANO,practitioner,neurocirugia,
+UROLOGIA,discipline,urologia,
+UROLOGO,practitioner,urologia,
+UROLOGICO,adjective,urologia,report title only
+CIRUJANO UROLOGO,practitioner,urologia,
+OFTALMOLOGIA,discipline,oftalmologia,
+OFTALMOLOGO,practitioner,oftalmologia,
+OFTALMOLOGICO,adjective,oftalmologia,report title only
+CIRUJANO OFTALMOLOGO,practitioner,oftalmologia,
+CIRUJANO OFTALMOLOGICO,practitioner,oftalmologia,
+OTORRINOLARINGOLOGIA,discipline,otorrinolaringologia,
+OTORRINOLARINGOLOGO,practitioner,otorrinolaringologia,
+OTORRINO,practitioner,otorrinolaringologia,short form
+OTORRINOLARINGOLOGICO,adjective,otorrinolaringologia,report title only
+ANESTESIOLOGIA,discipline,anestesiologia,
+ANESTESIOLOGO,practitioner,anestesiologia,
+ANESTESISTA,practitioner,anestesiologia,synonym
+ANESTESIA,discipline,anestesiologia,
+FONIATRIA,discipline,foniatria,
+FONIATRA,practitioner,foniatria,
+NEUROPEDIATRIA,discipline,neuropediatria,
+NEUROPEDIATRA,practitioner,neuropediatria,
+NEUROLOGIA PEDIATRICA,discipline,neuropediatria,
+ELECTROFISIOLOGIA,discipline,cardiologia,cardiac electrophysiology
+ELECTROFISIOLOGO,practitioner,cardiologia,cardiac electrophysiology
+RADIOLOGICO,adjective,radiologia,report title only
+ODONTOLOGICO,adjective,odontologia,report title only
+ENDOCRINO,practitioner,endocrinologia,short form
+OTORRINOLOGIA,discipline,otorrinolaringologia,short form
+UROTOMOGRAFIA,procedure,tomografia,
+TAC,procedure,tomografia,
+RX,procedure,rayos_x,
+URETROCISTOGRAFIA,procedure,rayos_x,
+RECTOSIGMOIDOSCOPIA,procedure,colonoscopia,
+CISTOURETROSCOPIA,procedure,cistoscopia,
+DOPPLER,procedure,ecografia,
+ECO,procedure,ecografia,short form
+AUDIOMETRIA,procedure,audiometria,
+LABORATORIO,procedure,examenes_laboratorio,
+LABORATORIOS,procedure,examenes_laboratorio,
+PERFIL,procedure,examenes_laboratorio,lab panel
+CITOLOGICO,procedure,citologia,
+GAMMAGRAMA,procedure,gammagrama,
+GAMMAGRAFIA,procedure,gammagrama,
+ANTIBIOGRAMA,procedure,antibiograma,
+PEDIATRIA,discipline,pediatria,
+PEDIATRA,practitioner,pediatria,
+MEDICO PEDIATRA,practitioner,pediatria,
+PEDIATRICO,adjective,pediatria,report title only
+PUERICULTURA,discipline,pediatria,
+NEONATOLOGIA,discipline,neonatologia,
+NEONATOLOGO,practitioner,neonatologia,
+GINECOLOGIA,discipline,ginecologia_obstetricia,
+GINECOLOGO,practitioner,ginecologia_obstetricia,
+GINECOLOGICO,adjective,ginecologia_obstetricia,report title only
+OBSTETRICIA,discipline,ginecologia_obstetricia,
+OBSTETRA,practitioner,ginecologia_obstetricia,
+GINECOLOGIA Y OBSTETRICIA,discipline,ginecologia_obstetricia,
+GINECO OBSTETRICIA,discipline,ginecologia_obstetricia,
+GINECOOBSTETRICIA,discipline,ginecologia_obstetricia,
+GINECOLOGO OBSTETRA,practitioner,ginecologia_obstetricia,
+GINECO OBSTETRA,practitioner,ginecologia_obstetricia,
+GINECOOBSTETRA,practitioner,ginecologia_obstetricia,
+RADIOLOGIA,discipline,radiologia,
+RADIOLOGO,practitioner,radiologia,
+IMAGENOLOGIA,discipline,radiologia,synonym
+IMAGENOLOGO,practitioner,radiologia,synonym
+ANATOMIA PATOLOGICA,discipline,anatomia_patologica,
+ANATOMOPATOLOGO,practitioner,anatomia_patologica,
+ANATOMOPATOLOGIA,discipline,anatomia_patologica,
+PATOLOGO,practitioner,anatomia_patologica,
+LABORATORIO CLINICO,discipline,laboratorio_clinico,
+BIOANALISTA,role,laboratorio_clinico,profession of the lab
+PSIQUIATRIA,discipline,psiquiatria,
+PSIQUIATRA,practitioner,psiquiatria,
+PSICOLOGIA,discipline,psicologia_clinica,
+PSICOLOGIA CLINICA,discipline,psicologia_clinica,
+PSICOLOGO,practitioner,psicologia_clinica,
+PSICOLOGO CLINICO,practitioner,psicologia_clinica,
+FISIATRIA,discipline,fisiatria,
+FISIATRA,practitioner,fisiatria,
+MEDICINA FISICA Y REHABILITACION,discipline,fisiatria,
+MEDICINA FISICA,discipline,fisiatria,
+REHABILITACION,discipline,fisiatria,
+FISIOTERAPIA,discipline,fisioterapia,
+FISIOTERAPEUTA,practitioner,fisioterapia,
+TERAPIA FISICA,discipline,fisioterapia,
+TERAPIA OCUPACIONAL,discipline,fisioterapia,
+ODONTOLOGIA,discipline,odontologia,
+ODONTOLOGO,practitioner,odontologia,
+ECOGRAFIA,procedure,ecografia,
+ECOSONOGRAMA,procedure,ecografia,
+ECOGRAMA,procedure,ecografia,
+ULTRASONIDO,procedure,ecografia,
+ECOCARDIOGRAMA,procedure,ecocardiograma,
+ECOCARDIOGRAFIA,procedure,ecocardiograma,
+ELECTROCARDIOGRAMA,procedure,electrocardiograma,
+HOLTER,procedure,holter,
+PRUEBA DE ESFUERZO,procedure,prueba_esfuerzo,
+ERGOMETRIA,procedure,prueba_esfuerzo,
+CORONARIOGRAFIA,procedure,coronariografia,
+CATETERISMO,procedure,coronariografia,
+TOMOGRAFIA,procedure,tomografia,
+ANGIOTOMOGRAFIA,procedure,angiotomografia,
+RESONANCIA,procedure,resonancia,
+RESONANCIA MAGNETICA,procedure,resonancia,
+MAMOGRAFIA,procedure,mamografia,
+ECOMAMOGRAFIA,procedure,ecomamografia,
+RAYOS X,procedure,rayos_x,
+RADIOGRAFIA,procedure,rayos_x,
+FISTULOGRAFIA,procedure,fistulografia,
+DENSITOMETRIA,procedure,densitometria,
+ENDOSCOPIA,procedure,endoscopia_digestiva,
+GASTROSCOPIA,procedure,endoscopia_digestiva,
+VIDEOGASTROSCOPIA,procedure,endoscopia_digestiva,
+VIDEOENDOSCOPIA,procedure,endoscopia_digestiva,
+COLONOSCOPIA,procedure,colonoscopia,
+VIDEOCOLONOSCOPIA,procedure,colonoscopia,
+COLPOSCOPIA,procedure,colposcopia,
+CISTOSCOPIA,procedure,cistoscopia,
+URETROCISTOSCOPIA,procedure,cistoscopia,
+VIDEOCISTOSCOPIA,procedure,cistoscopia,
+LARINGOSCOPIA,procedure,laringoscopia,
+NASOFIBROLARINGOSCOPIA,procedure,laringoscopia,
+LAPAROSCOPIA,procedure,laparoscopia,
+ARTROSCOPIA,procedure,artroscopia,
+CITOLOGIA,procedure,citologia,
+BIOPSIA,procedure,biopsia,
+SEROLOGIA,procedure,serologia,
+ELECTROMIOGRAFIA,procedure,electromiografia,
+ELECTROENCEFALOGRAMA,procedure,electroencefalograma,
+FLUORORETINOGRAFIA,procedure,fluororetinografia,
+ESPIROMETRIA,procedure,espirometria,
+TERAPIA RESPIRATORIA,procedure,terapia_respiratoria,
+NEBULOTERAPIA,procedure,terapia_respiratoria,
+QUIMIOTERAPIA,procedure,quimioterapia,
+RADIOTERAPIA,procedure,radioterapia,
+ECOGRAFISTA,role,ecografia,performs ecografía; not a specialty
+ECOSONOGRAFISTA,role,ecografia,performs ecografía; not a specialty
+ECOCARDIOGRAFISTA,role,ecocardiograma,performs ecocardiograma; not a specialty
+ENDOSCOPISTA,role,endoscopia_digestiva,performs endoscopia; not a specialty
+INSTRUMENTISTA,role,,surgical team role
+CITOTECNOLOGO,role,citologia,
+MEDICO CIRUJANO,degree,medico_cirujano,Venezuelan medical degree; not Cirugía
+MEDICO RESIDENTE,stop,,training status
+RESIDENTE,stop,,training status
+ESPECIALISTA,stop,,generic word
+MEDICO ESPECIALISTA,stop,,generic word
+ESPECIALIDAD,stop,,label word
+SINTOMATOLOGIA,stop,,clinical prose
+ETIOLOGIA,stop,,clinical prose
+PATOLOGIA,stop,,ambiguous: disease vs anatomía patológica
+FISIOPATOLOGIA,stop,,clinical prose
+MICROSCOPIA,stop,,lab technique
+TECNOLOGIA,stop,,noise
+NANOTECNOLOGIA,stop,,noise
+FOTOGRAFIA,stop,,noise
+ANALISTA,stop,,noise
+SALUBRISTA,stop,,public health title
+BAUTISTA,stop,,surname
+BAPTISTA,stop,,surname
+EVANGELISTA,stop,,surname
+CALLISTA,stop,,noise
+PROCTALGIA,stop,,symptom
+PATOLOGICO,stop,,clinical prose
+FARMACOLOGICO,stop,,clinical prose
+FISIOLOGICO,stop,,clinical prose
+MICROBIOLOGICO,stop,,lab prose
+EPIDEMIOLOGICO,stop,,clinical prose
+TOXICOLOGIA,stop,,rare; not in catalog yet
+TERAPIA,stop,,generic word
+VISTA,stop,,noise
+PROGRAMA,stop,,noise
+ESPECIALIZADO,stop,,generic word
+ESPECIALIZADA,stop,,generic word

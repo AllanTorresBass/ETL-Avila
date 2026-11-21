@@ -1,0 +1,8 @@
+code,name_es,sort_order
+clinica,Medicina clínica,1
+quirurgica,Especialidades quirúrgicas,2
+materno_infantil,Materno-infantil,3
+diagnostico_apoyo,Diagnóstico y apoyo,4
+salud_mental,Salud mental,5
+rehabilitacion,Rehabilitación,6
+odontologia,Odontología,7
