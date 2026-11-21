@@ -34,7 +34,8 @@ export const ACCEPT_EFFECT: Record<string, string> = {
   ci_conflict: "Aceptar hace titular a la persona de la cédula y deja al anterior como beneficiario.",
   workbook_titular: "Aceptar hace titular a la persona de la cédula y deja al anterior como beneficiario.",
   auth_match: "Aceptar vincula la autorización con la factura y, si falta, enlaza a la persona como beneficiario.",
-  multiple_ci: "Aceptar marca la página como revisada; el titular no cambia.",
+  multiple_ci:
+    "Aceptar marca la página como revisada; el titular no cambia. Después vuelve a correr role_verify / reparación de roles en esa factura.",
   acta_titular: "Aceptar confirma que el titular del acta no era el asegurado.",
   dob_conflict: "Aceptar confirma la fecha guardada; la otra fuente se ignora.",
   phone_conflict: "Aceptar confirma el teléfono guardado; la otra fuente se ignora.",

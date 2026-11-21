@@ -78,7 +78,12 @@ export async function getEtlData() {
                AND EXISTS (SELECT 1 FROM avila.invoice_person bip WHERE bip.invoice_id = i.id AND bip.role = 'beneficiario')
           ) AS invoices_with_beneficiario,
           (SELECT count(*)::int FROM avila.review_item
-             WHERE status = 'open' AND kind IN ('ci_conflict', 'multiple_ci', 'workbook_titular')) AS open_role_reviews
+             WHERE status = 'open' AND kind IN ('ci_conflict', 'multiple_ci', 'workbook_titular', 'acta_titular')) AS open_role_reviews,
+          (SELECT count(*)::int FROM avila.invoice WHERE role_cohort = 'mismatch_no_beneficiario') AS mismatch_no_beneficiario,
+          (SELECT count(*)::int FROM avila.invoice WHERE role_cohort = 'id_docs_no_ci') AS id_docs_no_ci,
+          (SELECT count(*)::int FROM avila.invoice WHERE role_cohort = 'nameless_titular') AS nameless_titular,
+          (SELECT count(*)::int FROM avila.invoice WHERE role_cohort = 'blocked_review') AS blocked_review_cohort,
+          (SELECT count(*)::int FROM avila.invoice WHERE role_cohort = 'multi_titular') AS multi_titular
       `,
       [
         {
@@ -91,6 +96,11 @@ export async function getEtlData() {
           invoices_no_titular: 0,
           invoices_with_beneficiario: 0,
           open_role_reviews: 0,
+          mismatch_no_beneficiario: 0,
+          id_docs_no_ci: 0,
+          nameless_titular: 0,
+          blocked_review_cohort: 0,
+          multi_titular: 0,
         },
       ],
       failures,
@@ -165,6 +175,11 @@ export async function getEtlData() {
       invoicesNoTitular: num(k.invoices_no_titular),
       invoicesWithBeneficiario: num(k.invoices_with_beneficiario),
       openRoleReviews: num(k.open_role_reviews),
+      mismatchNoBeneficiario: num(k.mismatch_no_beneficiario),
+      idDocsNoCi: num(k.id_docs_no_ci),
+      namelessTitular: num(k.nameless_titular),
+      blockedReviewCohort: num(k.blocked_review_cohort),
+      multiTitular: num(k.multi_titular),
     },
     byType: byType.map((r) => ({ key: String(r.document_type), n: num(r.n) })),
     uploads: uploads.map((r) => ({ status: String(r.status), n: num(r.n) })),

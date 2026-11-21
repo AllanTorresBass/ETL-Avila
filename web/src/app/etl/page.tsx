@@ -121,8 +121,24 @@ export default async function EtlDashboardPage() {
       title: "Facturas sin titular",
       hint: "No se puede atribuir la factura a una persona.",
       count: kpi.invoicesNoTitular,
-      href: "/facturas",
+      href: "/facturas?has_titular=0",
       tone: "info",
+    },
+    {
+      id: "mismatch",
+      title: "Paciente distinto sin beneficiario",
+      hint: "La ruta o la fiscal nombra otro paciente y falta el vínculo.",
+      count: kpi.mismatchNoBeneficiario,
+      href: "/facturas?role_gap=mismatch",
+      tone: "warning",
+    },
+    {
+      id: "id-docs-no-ci",
+      title: "Documentos de identidad sin cédula",
+      hint: "Hay collage o cédula pero el titular quedó sin número.",
+      count: kpi.idDocsNoCi,
+      href: "/facturas?role_gap=no_ci",
+      tone: "warning",
     },
     {
       id: "no-invoice",
@@ -240,6 +256,24 @@ export default async function EtlDashboardPage() {
                       label="Facturas con beneficiario"
                       value={kpi.invoicesWithBeneficiario}
                       total={counts.invoices}
+                    />
+                    <Meter
+                      label="Paciente distinto sin beneficiario"
+                      value={kpi.mismatchNoBeneficiario}
+                      total={counts.invoices}
+                      href="/facturas?role_gap=mismatch"
+                    />
+                    <Meter
+                      label="ID sin cédula en titular"
+                      value={kpi.idDocsNoCi}
+                      total={counts.invoices}
+                      href="/facturas?role_gap=no_ci"
+                    />
+                    <Meter
+                      label="Titular sin nombre usable"
+                      value={kpi.namelessTitular}
+                      total={counts.invoices}
+                      href="/facturas?role_gap=nameless"
                     />
                     <Meter
                       label="Documentos subidos a Blob"

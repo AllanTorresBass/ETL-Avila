@@ -12,6 +12,15 @@ export type FacturaListRow = {
   has_titular: number;
 };
 
+/** URL role_gap values → avila.invoice.role_cohort (sql/010). */
+export const ROLE_GAP_COHORTS: Record<string, string> = {
+  mismatch: "mismatch_no_beneficiario",
+  no_ci: "id_docs_no_ci",
+  nameless: "nameless_titular",
+  blocked: "blocked_review",
+  multi: "multi_titular",
+};
+
 export type FacturaListFilters = {
   query: string;
   like: string;
@@ -21,6 +30,7 @@ export type FacturaListFilters = {
   hasPerson: string;
   hasTitular: string;
   hasDocs: string;
+  roleGap?: string;
   pageSize: number;
   requestedPage: number;
   exportLimit: number;
@@ -32,8 +42,21 @@ export async function queryFacturaList(filters: FacturaListFilters): Promise<{
   pageRows: FacturaListRow[];
   exportRows: FacturaListRow[];
 }> {
-  const { query, like, account, year, month, hasPerson, hasTitular, hasDocs, pageSize, requestedPage, exportLimit } =
-    filters;
+  const {
+    query,
+    like,
+    account,
+    year,
+    month,
+    hasPerson,
+    hasTitular,
+    hasDocs,
+    roleGap = "",
+    pageSize,
+    requestedPage,
+    exportLimit,
+  } = filters;
+  const roleCohort = ROLE_GAP_COHORTS[roleGap] ?? "";
   const db = sql();
 
   const [countRow] = await db`
@@ -61,6 +84,7 @@ export async function queryFacturaList(filters: FacturaListFilters): Promise<{
           )) OR (${hasDocs} = '0' AND NOT EXISTS (
             SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
           )))
+      AND (${roleCohort} = '' OR i.role_cohort = ${roleCohort})
   `;
 
   const total = countRow?.n ?? 0;
@@ -105,6 +129,7 @@ export async function queryFacturaList(filters: FacturaListFilters): Promise<{
             )) OR (${hasDocs} = '0' AND NOT EXISTS (
               SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
             )))
+        AND (${roleCohort} = '' OR i.role_cohort = ${roleCohort})
       ORDER BY i.invoice_number DESC
       LIMIT ${pageSize} OFFSET ${offset}
     `,
@@ -144,6 +169,7 @@ export async function queryFacturaList(filters: FacturaListFilters): Promise<{
             )) OR (${hasDocs} = '0' AND NOT EXISTS (
               SELECT 1 FROM avila.document d WHERE d.invoice_id = i.id
             )))
+        AND (${roleCohort} = '' OR i.role_cohort = ${roleCohort})
       ORDER BY i.invoice_number DESC
       LIMIT ${exportLimit}
     `,

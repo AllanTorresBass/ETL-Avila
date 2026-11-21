@@ -169,9 +169,21 @@ _NOISE_TOKENS = {
     "PACIENTES",
     "CONSTITUCION",
     "SENIAT",
+    "VENEZOLANA",
+    "VENEZOLANO",
+    "VENEZOLANAS",
+    "VENEZOLANOS",
+    "NACIONALIDAD",
+    "APELLIDOS",
+    "APELLIDO",
+    "NOMBRES",
+    "NOMBRE",
+    "CEDULA",
+    "IDENTIDAD",
     "2023",
     "2024",
     "2025",
+    "2026",
     "2026",
     "2027",
     *MONTHS,
@@ -327,24 +339,73 @@ def extract_personal_identity(text: str | None) -> tuple[str, str] | None:
     return None
 
 
+# Dotted cédula without V/E — common on noisy collage OCR next to card fields.
+_DOTTED_CEDULA = re.compile(r"(?<![\d.])(\d{1,2}\.\d{3}\.\d{3})(?![\d.])")
+# Bare 7–8 digit cédula near an identity cue (collage OCR often drops the V).
+_BARE_CEDULA_NEAR_CUE = re.compile(
+    r"(?:CEDULA|C\.?\s*I\.?|VENEZOLAN|NACIONALIDAD|N[°º]\s*DE\s*IDENT)"
+    r".{0,40}?(?<![\d.])(\d{7,8})(?![\d.])"
+    r"|(?<![\d.])(\d{7,8})(?![\d.]).{0,40}?"
+    r"(?:CEDULA|C\.?\s*I\.?|VENEZOLAN|NACIONALIDAD)",
+    re.I | re.S,
+)
+_COLLAGE_OR_CARD = re.compile(
+    r"CEDULA\s+DE\s+IDENTIDAD|DOCUMENTOS?\s+DE\s+(?:\S+\s+){0,4}?IDENTIFICACION|"
+    r"CONSEJO\s+NACIONAL\s+ELECTORAL|\bAPELLIDOS?\b.+\bNOMBRES?\b",
+    re.I | re.S,
+)
+
+
 def extract_all_cedulas(text: str | None) -> list[str]:
-    """Every distinct cédula on a page, in reading order (digits only)."""
+    """Every distinct personal cédula on a page, in reading order (digits only).
+
+    Prefers V/E-prefixed and C.I.-labeled matches, then dotted forms, then bare
+    digits next to identity cues. Never returns a J/G RIF.
+    """
     if not text:
         return []
+    folded = fold(text)
     seen: list[str] = []
-    for match in _IDENTITY_NUMBER.finditer(fold(text)):
-        number = (match.group(1) or match.group(2) or "").replace(".", "")
-        if number and number not in seen:
-            seen.append(number)
+
+    def _add(number: str | None) -> None:
+        if not number:
+            return
+        digits = number.replace(".", "").replace(" ", "")
+        if len(digits) < 6 or len(digits) > 9:
+            return
+        # Skip obvious J-RIF tails that slipped past the personal filter.
+        if digits.startswith("0") and len(digits) >= 9:
+            return
+        if digits not in seen:
+            seen.append(digits)
+
+    for match in _IDENTITY_NUMBER.finditer(folded):
+        _add(match.group(1) or match.group(2))
+    for match in _DOTTED_CEDULA.finditer(folded):
+        _add(match.group(1))
+    if _COLLAGE_OR_CARD.search(folded) or "CEDULA" in folded or "C.I" in folded:
+        for match in _BARE_CEDULA_NEAR_CUE.finditer(folded):
+            _add(match.group(1) or match.group(2))
     return seen
 
 
 def extract_name_from_cedula_ocr(text: str | None) -> str | None:
-    """Best-effort full name from a photographed cédula card."""
+    """Best-effort full name from a photographed cédula or ID collage card block.
+
+    Never returns nationality (Venezolana) or form labels — those fail the name gate.
+    """
+    from person_name_gate import sanitize_person_name
+
     if not text:
         return None
     folded = fold(text)
-    if not _CEDULA_TITLE.search(folded):
+    # Plastic title, CNE header, or collage cover with APELLIDOS/NOMBRES fields.
+    if not (
+        _CEDULA_TITLE.search(folded)
+        or _CEDULA_CNE.search(folded)
+        or (_ID_COLLAGE.search(folded) and _CEDULA_CARD_FIELDS.search(folded))
+        or (_CEDULA_CARD_FIELDS.search(folded) and extract_all_cedulas(text))
+    ):
         return None
     apellidos = None
     nombres = None
@@ -355,11 +416,11 @@ def extract_name_from_cedula_ocr(text: str | None) -> str | None:
     if nm:
         nombres = _normalize_person_name(nm.group(1))
     if apellidos and nombres:
-        return f"{nombres} {apellidos}".strip()
+        return sanitize_person_name(f"{nombres} {apellidos}".strip())
     if apellidos:
-        return apellidos
+        return sanitize_person_name(apellidos)
     if nombres:
-        return nombres
+        return sanitize_person_name(nombres)
     return None
 
 

@@ -168,6 +168,37 @@ def collect(cur) -> dict:
         """
     )
     out.update(dict(cur.fetchone()))
+
+    # Verification cohorts (sql/010 + role_verify --write-cohort). Soft-fail if
+    # the migration is not applied yet.
+    try:
+        cur.execute(
+            """
+            SELECT invoices, multi_titular, blocked_review, no_titular, id_docs_no_ci,
+                   mismatch_no_beneficiario, nameless_titular, self_visit_ok,
+                   resolved_pair, unknown_links, weak_evidence, unset_cohort
+            FROM avila.v_invoice_role_cohort
+            """
+        )
+        cohort_row = cur.fetchone()
+        if cohort_row:
+            out["role_verify_cohorts"] = dict(cohort_row)
+        cur.execute(
+            """
+            SELECT computed_at, counters
+            FROM avila.role_verify_snapshot WHERE id = 1
+            """
+        )
+        snap = cur.fetchone()
+        if snap:
+            out["role_verify_snapshot_at"] = snap["computed_at"]
+            counters = snap["counters"] or {}
+            if isinstance(counters, str):
+                counters = json.loads(counters)
+            out["role_verify_snapshot"] = counters
+    except Exception:
+        out["role_verify_cohorts"] = None
+        out["role_verify_snapshot"] = None
     return out
 
 
@@ -201,6 +232,31 @@ def render_md(stats: dict) -> str:
         f"| ID docs, titular no CI | {stats['id_docs_titular_no_ci']} | {100 * stats['id_docs_titular_no_ci'] // inv} |",
         f"| CI titulares with beneficiario | {stats['ci_titulares_with_beneficiario']} | — |",
         "",
+    ]
+    cohorts = stats.get("role_verify_cohorts") or {}
+    if cohorts:
+        lines += [
+            "## Role verify cohorts",
+            "",
+            "| Cohort | Count |",
+            "| --- | ---: |",
+            f"| mismatch_no_beneficiario | {cohorts.get('mismatch_no_beneficiario', 0)} |",
+            f"| id_docs_no_ci | {cohorts.get('id_docs_no_ci', 0)} |",
+            f"| nameless_titular | {cohorts.get('nameless_titular', 0)} |",
+            f"| blocked_review | {cohorts.get('blocked_review', 0)} |",
+            f"| multi_titular | {cohorts.get('multi_titular', 0)} |",
+            f"| no_titular | {cohorts.get('no_titular', 0)} |",
+            f"| resolved_pair | {cohorts.get('resolved_pair', 0)} |",
+            f"| self_visit_ok | {cohorts.get('self_visit_ok', 0)} |",
+            f"| unknown_links | {cohorts.get('unknown_links', 0)} |",
+            f"| weak_evidence | {cohorts.get('weak_evidence', 0)} |",
+            f"| unset_cohort | {cohorts.get('unset_cohort', 0)} |",
+            "",
+        ]
+    snap_at = stats.get("role_verify_snapshot_at")
+    if snap_at:
+        lines += [f"Last role_verify snapshot: {snap_at}", ""]
+    lines += [
         "## Titular by source",
         "",
         "| Source | Count |",

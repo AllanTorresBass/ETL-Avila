@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     hasPerson: triState(sp.get("has_person") || undefined),
     hasTitular: triState(sp.get("has_titular") || undefined),
     hasDocs: triState(sp.get("has_docs") || undefined),
+    roleGap: (sp.get("role_gap") || "").trim(),
     pageSize: LIST_PAGE_SIZE,
     requestedPage: requestedPage(sp.get("page")),
     exportLimit: 0,

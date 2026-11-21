@@ -85,6 +85,13 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
                  = regexp_replace(p.identity_number, '\\D', '', 'g')
                AND p.full_name ~ '[0-9]'
              )
+             OR coalesce(p.full_name, '') ~* 'venezolan|nacionalidad|cedula[[:space:]]+de[[:space:]]+identidad|\\yapellido|\\ynombre'
+             OR coalesce(p.full_name, '') ~ '^20[2-3][0-9]{5}'
+             OR coalesce(p.identity_number, '') ~ '^20[2-3][0-9]{5}$'
+             OR (
+               coalesce(p.full_name, '') <> ''
+               AND array_length(regexp_split_to_array(trim(p.full_name), '[[:space:]]+'), 1) < 2
+             )
            )))
       AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
       AND (${account} = '' OR a.code = ${account})
@@ -148,6 +155,13 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
                      = regexp_replace(p2.identity_number, '\\D', '', 'g')
                    AND p2.full_name ~ '[0-9]'
                  )
+                 OR coalesce(p2.full_name, '') ~* 'venezolan|nacionalidad|cedula[[:space:]]+de[[:space:]]+identidad|\\yapellido|\\ynombre'
+                 OR coalesce(p2.full_name, '') ~ '^20[2-3][0-9]{5}'
+                 OR coalesce(p2.identity_number, '') ~ '^20[2-3][0-9]{5}$'
+                 OR (
+                   coalesce(p2.full_name, '') <> ''
+                   AND array_length(regexp_split_to_array(trim(p2.full_name), '[[:space:]]+'), 1) < 2
+                 )
                )))
           AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})
           AND (${account} = '' OR a.code = ${account})
@@ -208,6 +222,13 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
                    AND regexp_replace(coalesce(p2.full_name, ''), '\\D', '', 'g')
                      = regexp_replace(p2.identity_number, '\\D', '', 'g')
                    AND p2.full_name ~ '[0-9]'
+                 )
+                 OR coalesce(p2.full_name, '') ~* 'venezolan|nacionalidad|cedula[[:space:]]+de[[:space:]]+identidad|\\yapellido|\\ynombre'
+                 OR coalesce(p2.full_name, '') ~ '^20[2-3][0-9]{5}'
+                 OR coalesce(p2.identity_number, '') ~ '^20[2-3][0-9]{5}$'
+                 OR (
+                   coalesce(p2.full_name, '') <> ''
+                   AND array_length(regexp_split_to_array(trim(p2.full_name), '[[:space:]]+'), 1) < 2
                  )
                )))
           AND (${roleFilter} = '' OR ip.role::text = ${roleFilter})

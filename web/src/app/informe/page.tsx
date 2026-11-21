@@ -314,6 +314,18 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                       total={data.roles.invoices}
                     />
                     <Meter
+                      label="Paciente distinto sin beneficiario"
+                      value={data.roles.mismatchNoBeneficiario}
+                      total={data.roles.invoices}
+                      href="/facturas?role_gap=mismatch"
+                    />
+                    <Meter
+                      label="ID sin cédula en titular"
+                      value={data.roles.idDocsNoCi}
+                      total={data.roles.invoices}
+                      href="/facturas?role_gap=no_ci"
+                    />
+                    <Meter
                       label="Autorizaciones con factura"
                       value={data.authLinkage.linked}
                       total={data.authLinkage.lines}
