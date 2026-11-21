@@ -44,8 +44,12 @@ _CEDULA_NOISE = re.compile(r"cedula|identidad|pasaporte|carnet|rif\b", re.I)
 
 def is_junk_titular(row: dict) -> bool:
     """Drop OCR/date artifacts that look like people but are not."""
+    from person_name_gate import is_date_like_identity, is_usable_person_name
+
     name = (row.get("full_name") or "").strip()
     ci = (row.get("identity_number") or "").strip()
+    if is_date_like_identity(ci):
+        return True
     if not name:
         return True
     if not re.search(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]", name):
@@ -58,6 +62,8 @@ def is_junk_titular(row: dict) -> bool:
         return True
     # OCR collage titles dumped as the person name
     if _CEDULA_NOISE.search(name) and len(name.split()) >= 5:
+        return True
+    if not is_usable_person_name(name):
         return True
     return False
 

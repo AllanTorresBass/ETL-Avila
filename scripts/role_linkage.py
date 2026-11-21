@@ -44,9 +44,15 @@ from workbook_enrichment.link_roles import apply_row_links  # noqa: E402
 from workbook_enrichment.upsert_persons import resolve_people_from_row  # noqa: E402
 
 
-def _titular_only_invoices(cur, limit: int = 0) -> list[dict]:
-    cur.execute(
-        """
+def _titular_only_invoices(
+    cur, limit: int = 0, *, role_cohort: str | None = None
+) -> list[dict]:
+    params: list = []
+    cohort_sql = ""
+    if role_cohort:
+        cohort_sql = " AND i.role_cohort = %s"
+        params.append(role_cohort)
+    sql = f"""
         SELECT i.id::text AS invoice_id, i.invoice_number
         FROM avila.invoice i
         WHERE EXISTS (
@@ -57,10 +63,12 @@ def _titular_only_invoices(cur, limit: int = 0) -> list[dict]:
           SELECT 1 FROM avila.invoice_person bip
           WHERE bip.invoice_id = i.id AND bip.role = 'beneficiario'
         )
+        {cohort_sql}
         ORDER BY i.invoice_number
         """
-        + (f" LIMIT {int(limit)}" if limit else "")
-    )
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    cur.execute(sql, params or None)
     return cur.fetchall()
 
 
@@ -119,9 +127,17 @@ def _titular_person(cur, invoice_id: str) -> dict | None:
     return cur.fetchone()
 
 
-def cmd_beneficiario(cur, *, apply: bool, limit: int, stats: Counter, conn=None) -> None:
+def cmd_beneficiario(
+    cur,
+    *,
+    apply: bool,
+    limit: int,
+    stats: Counter,
+    conn=None,
+    role_cohort: str | None = None,
+) -> None:
     """Harvest beneficiarios from fiscal patient + path name on titular-only invoices."""
-    for inv in _titular_only_invoices(cur, limit):
+    for inv in _titular_only_invoices(cur, limit, role_cohort=role_cohort):
         stats["candidates"] += 1
         invoice_id = inv["invoice_id"]
         titular = _titular_person(cur, invoice_id)
@@ -173,12 +189,20 @@ def cmd_beneficiario(cur, *, apply: bool, limit: int, stats: Counter, conn=None)
                     if linked:
                         stats["path_linked"] += 1
                     else:
-                        stats["path_skipped"] += 1
+                        # Subset-name / nameless / same-CI guards — surface for verify.
+                        if not (titular.get("full_name") or "").strip():
+                            stats["path_skipped_nameless_titular"] += 1
+                        elif _names_refer_to_same_person(path_name, titular.get("full_name") or ""):
+                            stats["path_skipped_same_person"] += 1
+                        else:
+                            stats["path_skipped"] += 1
                 else:
                     if _names_refer_to_same_person(path_name, titular.get("full_name") or ""):
-                        stats["path_skipped"] += 1
+                        stats["path_skipped_same_person"] += 1
                     elif path_ci and path_ci == (titular.get("identity_number") or ""):
                         stats["path_skipped"] += 1
+                    elif not (titular.get("full_name") or "").strip():
+                        stats["path_skipped_nameless_titular"] += 1
                     else:
                         stats["path_linked"] += 1
             elif has_ben and before == stats["patient_linked"] + stats["path_linked"]:
@@ -359,11 +383,18 @@ def main() -> int:
     )
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument(
+        "--role-cohort",
+        default="",
+        help="Restrict beneficiario harvest to invoices with this role_cohort "
+        "(e.g. mismatch_no_beneficiario after role_verify --write-cohort)",
+    )
     args = parser.parse_args()
     env = load_env()
     url = env.get("DATABASE_URL_UNPOOLED") or env["DATABASE_URL"]
     provenance.start_run(url, f"role_linkage.{args.command}", vars(args), apply=args.apply)
     stats: Counter = Counter()
+    role_cohort = args.role_cohort.strip() or None
     with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
         commands = (
             ("beneficiario", "propagate", "workbook")
@@ -373,7 +404,12 @@ def main() -> int:
         for name in commands:
             if name == "beneficiario":
                 cmd_beneficiario(
-                    cur, apply=args.apply, limit=args.limit, stats=stats, conn=conn if args.apply else None
+                    cur,
+                    apply=args.apply,
+                    limit=args.limit,
+                    stats=stats,
+                    conn=conn if args.apply else None,
+                    role_cohort=role_cohort,
                 )
             elif name == "propagate":
                 cmd_propagate(cur, apply=args.apply, limit=args.limit, stats=stats)

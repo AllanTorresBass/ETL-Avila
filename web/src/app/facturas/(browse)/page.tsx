@@ -27,6 +27,7 @@ async function FacturasFilterSection({
     has_person?: string;
     has_titular?: string;
     has_docs?: string;
+    role_gap?: string;
     page?: string;
   };
 }) {
@@ -38,6 +39,10 @@ async function FacturasFilterSection({
   const hasPerson = triState(sp.has_person);
   const hasTitular = triState(sp.has_titular);
   const hasDocs = triState(sp.has_docs);
+  const roleGapRaw = firstParam(sp.role_gap);
+  const roleGap = ["mismatch", "no_ci", "nameless", "blocked", "multi"].includes(roleGapRaw)
+    ? roleGapRaw
+    : "";
 
   const filterParams: Record<string, string | undefined> = {
     q: query || undefined,
@@ -47,6 +52,7 @@ async function FacturasFilterSection({
     has_person: hasPerson || undefined,
     has_titular: hasTitular || undefined,
     has_docs: hasDocs || undefined,
+    role_gap: roleGap || undefined,
   };
   const filtersActive = hasActiveFilters(filterParams);
 
@@ -125,6 +131,37 @@ async function FacturasFilterSection({
       clearHref: `${buildListHref("/facturas", omitParam(filterParams, "has_docs"))}#lista`,
     });
   }
+  if (roleGap === "mismatch") {
+    activeChips.push({
+      key: "role_gap",
+      label: "Paciente ≠ titular sin beneficiario",
+      clearHref: `${buildListHref("/facturas", omitParam(filterParams, "role_gap"))}#lista`,
+    });
+  } else if (roleGap === "no_ci") {
+    activeChips.push({
+      key: "role_gap",
+      label: "ID sin cédula",
+      clearHref: `${buildListHref("/facturas", omitParam(filterParams, "role_gap"))}#lista`,
+    });
+  } else if (roleGap === "nameless") {
+    activeChips.push({
+      key: "role_gap",
+      label: "Titular sin nombre",
+      clearHref: `${buildListHref("/facturas", omitParam(filterParams, "role_gap"))}#lista`,
+    });
+  } else if (roleGap === "blocked") {
+    activeChips.push({
+      key: "role_gap",
+      label: "Rol bloqueado en revisión",
+      clearHref: `${buildListHref("/facturas", omitParam(filterParams, "role_gap"))}#lista`,
+    });
+  } else if (roleGap === "multi") {
+    activeChips.push({
+      key: "role_gap",
+      label: "Varios titulares",
+      clearHref: `${buildListHref("/facturas", omitParam(filterParams, "role_gap"))}#lista`,
+    });
+  }
 
   return (
     <ListFilterBar
@@ -190,6 +227,19 @@ async function FacturasFilterSection({
             { value: "0", label: "Sin documentos" },
           ],
         },
+        {
+          name: "role_gap",
+          label: "Brecha de rol",
+          value: roleGap,
+          emptyLabel: "Todas",
+          options: [
+            { value: "mismatch", label: "Paciente ≠ titular" },
+            { value: "no_ci", label: "ID sin cédula" },
+            { value: "nameless", label: "Titular sin nombre" },
+            { value: "blocked", label: "Bloqueado en revisión" },
+            { value: "multi", label: "Varios titulares" },
+          ],
+        },
       ]}
     />
   );
@@ -206,6 +256,7 @@ export default async function FacturasPage({
     has_person?: string;
     has_titular?: string;
     has_docs?: string;
+    role_gap?: string;
     page?: string;
   }>;
 }) {
@@ -218,6 +269,7 @@ export default async function FacturasPage({
     has_person: firstParam(sp.has_person),
     has_titular: firstParam(sp.has_titular),
     has_docs: firstParam(sp.has_docs),
+    role_gap: firstParam(sp.role_gap),
     page: firstParam(sp.page) || "1",
   });
 

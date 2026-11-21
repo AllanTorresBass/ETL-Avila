@@ -183,6 +183,12 @@ def upsert_by_ci(
     address: str | None = None,
     dry_run: bool = False,
 ) -> tuple[str | None, str]:
+    from person_name_gate import is_date_like_identity, sanitize_person_name
+
+    if is_date_like_identity(identity_number):
+        # Scan-batch folder dates are not cédulas — refuse to create/update.
+        return None, "rejected_date_identity"
+    full_name = sanitize_person_name(full_name)
     cur.execute(
         """
         SELECT id, full_name, birth_date, phone, address
@@ -308,6 +314,12 @@ def upsert_by_name(
     address: str | None = None,
     dry_run: bool = False,
 ) -> tuple[str | None, str]:
+    from person_name_gate import sanitize_person_name
+
+    usable = sanitize_person_name(full_name)
+    if not usable:
+        return None, "rejected_name"
+    full_name = usable
     key = provisional_key_for_name(full_name)
     cur.execute("SELECT id FROM avila.person WHERE provisional_key = %s", (key,))
     row = cur.fetchone()

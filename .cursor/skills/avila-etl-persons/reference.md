@@ -67,9 +67,11 @@ Use project `.venv` and `PYTHONPATH=scripts`. Prefer unpooled DB URL from `env_l
 | `person_upsert.py` | CI / name upsert + absorb | imported by loader / repairs |
 | `upload_documents_to_blob.py` | Load pages → Neon + Blob | follow script `--help`; private Blob |
 | `reclassify_identity_pages.py` | OCR-cache reclassify + role relink | `… --all --suspect-only --quiet [--apply]` or `--invoices a,b,c` (one is required) |
-| `repair_corpus_person_roles.py` | Corpus CI titular + path beneficiario | `… --quiet` then `--apply`; opens `multiple_ci` reviews |
-| `role_inventory.py` | Counts-only role gap report → `output/runs/` | no flags |
-| `role_linkage.py` | Beneficiario harvest / pair propagate / workbook relink | `beneficiario\|propagate\|workbook\|all [--apply]` |
+| `repair_corpus_person_roles.py` | Corpus CI titular + path beneficiario | `… --quiet` then `--apply`; `--role-cohort id_docs_no_ci`; opens `multiple_ci` reviews |
+| `role_verify.py` | Per-invoice evidence cohorts + optional auto-safe repair | dry-run; `--write-cohort --apply`; `--repair --cohorts … [--apply]`; `--queue` |
+| `role_cohorts.py` | Shared cohort predicates / actions | imported by verify + tests |
+| `role_inventory.py` | Counts-only role gap report → `output/runs/` (includes verify cohorts when snapshot exists) | no flags |
+| `role_linkage.py` | Beneficiario harvest / pair propagate / workbook relink | `beneficiario\|propagate\|workbook\|all [--apply] [--role-cohort mismatch_no_beneficiario]` |
 | `cleanup_person_duplicates.py` | Junk + provisional merge | dry-run then `--apply` |
 | `scripts/local_cases/*` | **Case-specific** one-off repairs (git-ignored, PHI) | pattern only; prefer generic phases for new people |
 | `workbook_enrichment` | Register workbooks first | `python -m workbook_enrichment …` |
@@ -86,7 +88,13 @@ Use project `.venv` and `PYTHONPATH=scripts`. Prefer unpooled DB URL from `env_l
 
 ## Phase order and provenance
 
-Run order for a corpus refresh: reclassify → DOB repair → resolver → fiscal extract → auth matcher → scanner OCR → segment → scanner load → auth matcher again → **role inventory → fiscal `--missing-titular --roles-only --link-roles` → `role_linkage.py all` → `repair_corpus_person_roles.py`** → `/revision`. Each step does a dry-run then `--apply`, and each writes an `etl_run` row plus a counts-only report at `output/runs/{run_id}.md`.
+Run order for a corpus refresh: reclassify → DOB repair → resolver → fiscal extract → auth matcher → scanner OCR → segment → scanner load → auth matcher again → **`role_verify.py` → repair by cohort (`role_verify --repair` / `role_linkage --role-cohort` / `fiscal --missing-titular` / `repair_corpus_person_roles --role-cohort`) → `role_verify.py --write-cohort --apply` again** → `/revision`. Each step does a dry-run then `--apply`, and each writes an `etl_run` row plus a counts-only report at `output/runs/{run_id}.md`.
+
+### Role verify cohorts (one primary per invoice)
+
+Priority: `multi_titular` → `blocked_review` → `no_titular` → `id_docs_no_ci` → `mismatch_no_beneficiario` → `nameless_titular` → `resolved_pair` → `unknown_links` → `weak_evidence` → `self_visit_ok`.
+
+Migration: [sql/010_invoice_role_cohort.sql](../../../sql/010_invoice_role_cohort.sql) (`invoice.role_cohort`, `role_verify_snapshot`, `v_invoice_role_cohort`). Reader Facturas filter: `?role_gap=mismatch|no_ci|nameless|blocked|multi`.
 
 Provenance pattern for new code:
 

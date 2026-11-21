@@ -68,12 +68,18 @@ When the user names a person, CI, or FACT set — or when identity/role mislabel
 
 ### 5. Roles
 
-- Measure gaps with `role_inventory.py`, then fill titulares via `fiscal_extract.py --missing-titular --roles-only --link-roles` and identity pages via `repair_corpus_person_roles.py`.
-- Harvest / propagate beneficiarios with `role_linkage.py` (`beneficiario`, `propagate`, `workbook`, or `all`).
-- Ensure CI person is `titular` on each invoice via `try_promote_ci_titular` (it links the different path name as `beneficiario` too).
-- Any outcome other than `promoted` (`workbook_titular`, `ci_conflict`) or a `multiple_ci` page is a **review item** — see Stop / escalate.
-- Set `parentesco` when known (e.g. hijo).
-- Confirm one titular per invoice after repair.
+**Packet first, then cohort repair.** When a role or cédula disagrees with the factura, follow [avila-invoice-truth](../avila-invoice-truth/SKILL.md). Do not start from the person already on `invoice_person`. Cohort repair below is for facturas that skill left in `review`.
+
+**Verify → repair cohort → re-verify** (do not run overlapping titular backfills blindly).
+
+1. Apply `sql/010_invoice_role_cohort.sql` if needed, then measure with [`role_verify.py`](../../../scripts/role_verify.py) (and `role_inventory.py`). Persist cohorts: `role_verify.py --write-cohort --apply`.
+2. Auto-safe repair: `role_verify.py --repair --cohorts mismatch_no_beneficiario,nameless_titular,no_titular [--apply]`, or targeted `role_linkage.py beneficiario --role-cohort mismatch_no_beneficiario` and `fiscal_extract.py --missing-titular --roles-only --link-roles`.
+3. Hard identity gaps: `repair_corpus_person_roles.py --role-cohort id_docs_no_ci` after collage CI improvements / reclassify.
+4. Re-run `role_verify.py --write-cohort --apply` and confirm deltas in `output/runs/role-verify-*.md`.
+5. Ensure CI person is `titular` via `try_promote_ci_titular` only (never call `promote_ci_person_as_titular` directly). Any outcome other than `promoted` (`workbook_titular`, `ci_conflict`) or a `multiple_ci` page is a **review item** — see Stop / escalate.
+6. Set `parentesco` when known (e.g. hijo). Confirm one titular per invoice after repair.
+
+Stop criterion for auto-safe classes: `mismatch_no_beneficiario` and `multi_titular` at zero; residual only in `blocked_review` / `id_docs_no_ci` with open reviews.
 
 ### 6. Types
 
@@ -91,10 +97,11 @@ When the user names a person, CI, or FACT set — or when identity/role mislabel
 
 ### 8. Verify
 
-- SQL: role matrix per FACT; document types for identity pages; `person_id` on collage/acta/crops; open `review_item` rows for the person.
-- Reader: document Spanish labels; beneficiario profile shows titular banner; titular profile lists beneficiarios; **Historial** shows each change with its source and rule.
+- Run `role_verify.py` (counts + cohorts). Every invoice must have exactly one primary cohort; critical KPI is `mismatch_no_beneficiario`.
+- SQL: role matrix per FACT; document types for identity pages; `person_id` on collage/acta/crops; open `review_item` rows for the person; `avila.v_invoice_role_cohort` / snapshot.
+- Reader: `/etl` and `/informe` meters; Facturas `role_gap=` filter; beneficiario profile shows titular banner; titular profile lists beneficiarios; **Historial** shows each change with its source and rule.
 - Run report: counters in `output/runs/{run_id}.md` (and `avila.etl_run.counters`) match what you expected.
-- Tests: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts .venv/bin/python -m unittest discover -s scripts -p 'test_*.py'` (includes `test_golden_packets`: titular + minor + acta, collage noise, claim form, spelling variant).
+- Tests: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts .venv/bin/python -m unittest discover -s scripts -p 'test_*.py'` (includes `test_role_verify`, `test_golden_packets`).
 - Summarize for the user: what changed, remaining gaps, and dossier path (PHI stays local).
 
 ## Stop / escalate

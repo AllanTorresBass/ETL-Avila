@@ -58,6 +58,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument(
+        "--role-cohort",
+        default="",
+        help="Only invoices with this role_cohort (e.g. id_docs_no_ci after role_verify)",
+    )
     args = parser.parse_args()
 
     env = load_env()
@@ -72,20 +77,35 @@ def main() -> int:
         "review_multiple_ci": 0,
     }
     review: list[tuple[str, str]] = []
+    role_cohort = args.role_cohort.strip() or None
 
     with psycopg.connect(url, row_factory=dict_row) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT DISTINCT i.id AS invoice_id, i.invoice_number
-                FROM avila.invoice i
-                JOIN avila.document d ON d.invoice_id = i.id
-                WHERE d.document_type::text = ANY(%s)
-                  AND d.page_index < 900
-                ORDER BY i.invoice_number
-                """,
-                (list(IDENTITY_TYPES),),
-            )
+            if role_cohort:
+                cur.execute(
+                    """
+                    SELECT DISTINCT i.id AS invoice_id, i.invoice_number
+                    FROM avila.invoice i
+                    JOIN avila.document d ON d.invoice_id = i.id
+                    WHERE d.document_type::text = ANY(%s)
+                      AND d.page_index < 900
+                      AND i.role_cohort = %s
+                    ORDER BY i.invoice_number
+                    """,
+                    (list(IDENTITY_TYPES), role_cohort),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT DISTINCT i.id AS invoice_id, i.invoice_number
+                    FROM avila.invoice i
+                    JOIN avila.document d ON d.invoice_id = i.id
+                    WHERE d.document_type::text = ANY(%s)
+                      AND d.page_index < 900
+                    ORDER BY i.invoice_number
+                    """,
+                    (list(IDENTITY_TYPES),),
+                )
             invoices = cur.fetchall()
 
             for inv in invoices:

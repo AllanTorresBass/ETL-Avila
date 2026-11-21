@@ -244,9 +244,11 @@ Each script is dry-run first, then `--apply`. All of them record `etl_run`, prov
 | 4 Scanner OCR | `ocr_invoice_pages.py --scope scan [--folder …]` | Resumable OCR cache + `scan-pages.csv` |
 | 4 Segment | `segment_scan_packets.py --reviews` | `scan-packets.csv`; low-confidence packets → `segment_review` |
 | 4 Load | `upload_documents_to_blob.py --scan-packets [CSV] --shard i/n` | Packets ≥ `--min-confidence` load as `scan_packet`; then rerun phase 3 Auth |
-| 5 Roles | `role_inventory.py` then `fiscal_extract.py --missing-titular --link-roles --roles-only` | Measure gaps; fill titulares from fiscal OCR on invoices that still lack one |
-| 5 Roles | `role_linkage.py beneficiario\|propagate\|workbook\|all` | Path/fiscal beneficiario harvest; pair propagation; sabana relink |
-| 5 Roles | `repair_corpus_person_roles.py` | CI from identity pages → titular; `multiple_ci` → review queue |
+| 5 Roles | `role_verify.py` then `--write-cohort --apply` | One evidence cohort per invoice; KPI `mismatch_no_beneficiario`; snapshot + `invoice.role_cohort` |
+| 5 Roles | `role_verify.py --repair` / `fiscal_extract.py --missing-titular --link-roles --roles-only` | Auto-safe fill for no_titular / nameless / mismatch cohorts |
+| 5 Roles | `role_linkage.py beneficiario\|propagate\|workbook\|all [--role-cohort …]` | Path/fiscal beneficiario harvest; pair propagation; sabana relink |
+| 5 Roles | `repair_corpus_person_roles.py [--role-cohort id_docs_no_ci]` | CI from identity pages → titular; `multiple_ci` → review queue |
+| 5 Roles | `role_verify.py` again | Confirm cohort deltas before contact enrichment |
 | 5 Review | Reader `/revision` | Staff decisions, recorded as `review` provenance; auth accept also links beneficiario |
 | 6 Contact | `repair_workbook_contact.py` then `enrich_person_contact.py` | Fill-only phone, address, and birth date; `contact_gap` reason when a field stays empty |
 

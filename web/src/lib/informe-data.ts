@@ -167,10 +167,25 @@ export async function getInformeData(range: BiRange) {
               WHERE bip.invoice_id = i.id AND bip.role = 'beneficiario'
             )
           )::int AS titular_only,
+          count(*) FILTER (WHERE i.role_cohort = 'mismatch_no_beneficiario')::int AS mismatch_no_beneficiario,
+          count(*) FILTER (WHERE i.role_cohort = 'id_docs_no_ci')::int AS id_docs_no_ci,
+          count(*) FILTER (WHERE i.role_cohort = 'nameless_titular')::int AS nameless_titular,
+          count(*) FILTER (WHERE i.role_cohort = 'blocked_review')::int AS blocked_review,
           (SELECT count(*)::int FROM avila.invoice) AS invoices
         FROM avila.invoice i
       `,
-      [{ with_titular: 0, titular_and_beneficiario: 0, titular_only: 0, invoices: 0 }],
+      [
+        {
+          with_titular: 0,
+          titular_and_beneficiario: 0,
+          titular_only: 0,
+          mismatch_no_beneficiario: 0,
+          id_docs_no_ci: 0,
+          nameless_titular: 0,
+          blocked_review: 0,
+          invoices: 0,
+        },
+      ],
       failures,
       "cohortes de rol",
     ),
@@ -339,6 +354,10 @@ export async function getInformeData(range: BiRange) {
       titularOnly: num(roles.titular_only),
       titularAndBeneficiario: num(roles.titular_and_beneficiario),
       noTitular: Math.max(0, num(roles.invoices) - num(roles.with_titular)),
+      mismatchNoBeneficiario: num(roles.mismatch_no_beneficiario),
+      idDocsNoCi: num(roles.id_docs_no_ci),
+      namelessTitular: num(roles.nameless_titular),
+      blockedReview: num(roles.blocked_review),
     },
     authLinkage: {
       lines: authLines,

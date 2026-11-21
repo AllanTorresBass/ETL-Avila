@@ -40,15 +40,28 @@ export function pickPrimaryTitular(titulares: LinkedPerson[]): LinkedPerson | nu
   })[0];
 }
 
+/** OCR nationality / form labels that must never count as a person name. */
+const NAME_REJECT =
+  /venezolan|nacionalidad|cedula\s+de\s+identidad|\bapellidos?\b|\bnombres?\b|\bidentidad\b/i;
+
+/**
+ * True when the stored name is missing or is OCR junk (nationality, labels, dates).
+ * Keep in sync with scripts/person_name_gate.py.
+ */
 export function isIncompleteName(
   fullName: string | null | undefined,
   identityNumber: string | null | undefined,
 ): boolean {
   const name = (fullName || "").trim();
-  if (!name) return true;
   const ci = (identityNumber || "").trim();
+  if (ci && /^20[2-3]\d{5}$/.test(ci.replace(/\D/g, ""))) return true;
+  if (!name) return true;
   if (ci && name.replace(/\D/g, "") === ci.replace(/\D/g, "") && /\d/.test(name)) return true;
   if (/^\d[\d.\-\s]*$/.test(name)) return true;
+  if (/^20[2-3]\d{5}\b/.test(name)) return true;
+  if (NAME_REJECT.test(name)) return true;
+  const tokens = name.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return true;
   return false;
 }
 
@@ -365,6 +378,13 @@ export const getPersonaListKpis = cache(async function getPersonaListKpis() {
              AND regexp_replace(coalesce(p.full_name, ''), '\\D', '', 'g')
                = regexp_replace(p.identity_number, '\\D', '', 'g')
              AND p.full_name ~ '[0-9]'
+           )
+           OR coalesce(p.full_name, '') ~* 'venezolan|nacionalidad|cedula[[:space:]]+de[[:space:]]+identidad|\\yapellido|\\ynombre'
+           OR coalesce(p.full_name, '') ~ '^20[2-3][0-9]{5}'
+           OR coalesce(p.identity_number, '') ~ '^20[2-3][0-9]{5}$'
+           OR (
+             coalesce(p.full_name, '') <> ''
+             AND array_length(regexp_split_to_array(trim(p.full_name), '[[:space:]]+'), 1) < 2
            )
       )::int AS incomplete_name
     FROM avila.person p

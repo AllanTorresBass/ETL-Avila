@@ -28,8 +28,16 @@ export type FacturasSearchInput = {
   has_person?: string;
   has_titular?: string;
   has_docs?: string;
+  role_gap?: string;
   page?: string;
 };
+
+const ROLE_GAP_VALUES = new Set(["mismatch", "no_ci", "nameless", "blocked", "multi"]);
+
+function roleGapParam(raw: string | undefined): string {
+  const value = (raw || "").trim();
+  return ROLE_GAP_VALUES.has(value) ? value : "";
+}
 
 function yesNo(value: boolean): string {
   return value ? "sí" : "no";
@@ -74,6 +82,7 @@ export async function FacturasResults({ sp }: { sp: FacturasSearchInput }) {
   const hasPerson = triState(sp.has_person);
   const hasTitular = triState(sp.has_titular);
   const hasDocs = triState(sp.has_docs);
+  const roleGap = roleGapParam(firstParam(sp.role_gap));
   const requestedPage = parsePage(firstParam(sp.page) || undefined);
   const like = `%${query}%`;
 
@@ -85,6 +94,7 @@ export async function FacturasResults({ sp }: { sp: FacturasSearchInput }) {
     has_person: hasPerson || undefined,
     has_titular: hasTitular || undefined,
     has_docs: hasDocs || undefined,
+    role_gap: roleGap || undefined,
   });
 
   const { total, page, pageRows: invoices, exportRows: exportInvoices } = await queryFacturaList({
@@ -96,6 +106,7 @@ export async function FacturasResults({ sp }: { sp: FacturasSearchInput }) {
     hasPerson,
     hasTitular,
     hasDocs,
+    roleGap,
     pageSize: DEFAULT_PAGE_SIZE,
     requestedPage,
     exportLimit: FACTURAS_EXPORT_LIMIT,
@@ -109,6 +120,7 @@ export async function FacturasResults({ sp }: { sp: FacturasSearchInput }) {
     has_person: hasPerson || undefined,
     has_titular: hasTitular || undefined,
     has_docs: hasDocs || undefined,
+    role_gap: roleGap || undefined,
   };
 
   const csvTables = buildFacturasCsv(exportInvoices);
