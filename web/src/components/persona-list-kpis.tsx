@@ -54,7 +54,7 @@ export function PersonaListKpisStrip({
         featured
         label="Personas"
         value={n(kpis.total)}
-        hint={`${n(kpis.withIdentityDocs)} con docs de identidad · quita filtros`}
+        hint={`${n(kpis.withIdentityDocs)} con documentos de identidad · quita filtros`}
         href="/personas#lista"
         active={isActive(filters, {})}
         icon={<Users className="size-4" />}

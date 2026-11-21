@@ -15,6 +15,7 @@ import { FIELD_LABELS, SOURCE_KIND_LABELS } from "@/lib/review";
 import {
   formatAccount,
   formatDate,
+  formatDateEs,
   formatInvoiceNumber,
   formatMoney,
   formatSourceFileTitle,
@@ -127,17 +128,17 @@ export function PersonaSummary({
           </div>
           <div>
             <dt className="text-xs tracking-wider text-muted-foreground uppercase">Nacimiento</dt>
-            <dd>{formatDate(person.birth_date)}</dd>
+            <dd>{person.birth_date ? formatDateEs(person.birth_date) : "Sin fecha"}</dd>
             <GapNote gap={person.contact_gap} field="birth_date" />
           </div>
           <div>
             <dt className="text-xs tracking-wider text-muted-foreground uppercase">Teléfono</dt>
-            <dd>{person.phone || "—"}</dd>
+            <dd>{person.phone?.trim() || "Sin teléfono"}</dd>
             <GapNote gap={person.contact_gap} field="phone" />
           </div>
           <div className="sm:col-span-2">
             <dt className="text-xs tracking-wider text-muted-foreground uppercase">Dirección</dt>
-            <dd>{person.address || "—"}</dd>
+            <dd>{person.address?.trim() || "Sin dirección"}</dd>
             <GapNote gap={person.contact_gap} field="address" />
           </div>
           {person.notes ? (

@@ -1,6 +1,6 @@
 import { cache } from "react";
-import { IDENTITY_TYPE_LABELS, sql } from "@/lib/db";
-import { formatInvoiceNumber, roleLabel } from "@/lib/format";
+import { sql } from "@/lib/db";
+import { formatIdentity, formatInvoiceNumber, roleLabel } from "@/lib/format";
 
 export const PERSONA_AUTH_PAGE_SIZE = 20;
 export const PERSONA_HISTORY_LIMIT = 50;
@@ -237,9 +237,7 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
       `;
   const openReviews = openReviewsRow[0]?.n ?? 0;
 
-  const identityType =
-    IDENTITY_TYPE_LABELS[person.identity_type] || person.identity_type;
-  const identityLine = `${identityType}: ${person.identity_number || "—"}`;
+  const identityLine = formatIdentity(person.identity_type, person.identity_number);
 
   const roleCounts = new Map<string, number>();
   for (const inv of invoices) {
@@ -299,7 +297,6 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
 
   return {
     person,
-    identityType,
     identityLine,
     incompleteName: isIncompleteName(person.full_name, person.identity_number),
     roleCounts,

@@ -9,6 +9,12 @@ import {
 import { ResultCount } from "@/components/result-count";
 import type { CsvTable } from "@/lib/csv";
 import { ROLE_LABELS } from "@/lib/db";
+import {
+  formatDateEs,
+  formatDocumentCount,
+  formatFacturaCount,
+  formatIdentity,
+} from "@/lib/format";
 import { isIncompleteName } from "@/lib/persona-data";
 import { queryPersonaList, type PersonaListRow } from "@/lib/persona-list-data";
 import {
@@ -44,6 +50,18 @@ function yesNo(value: boolean): string {
   return value ? "sí" : "no";
 }
 
+function personSummary(person: PersonaListRow): string {
+  const parts = [formatIdentity(person.identity_type, person.identity_number)];
+  const phone = person.phone?.trim();
+  if (phone) parts.push(`Tel. ${phone}`);
+  if (person.birth_date) parts.push(`Nació el ${formatDateEs(person.birth_date)}`);
+  return parts.join(" · ");
+}
+
+function roleCountLabel(role: string, count: number): string {
+  return `${role} · ${formatFacturaCount(count)}`;
+}
+
 function buildPersonasCsv(people: PersonaListRow[]): CsvTable[] {
   return [
     {
@@ -67,7 +85,7 @@ function buildPersonasCsv(people: PersonaListRow[]): CsvTable[] {
         person.identity_type,
         person.identity_number || "",
         person.phone || "",
-        person.birth_date ? String(person.birth_date).slice(0, 10) : "",
+        person.birth_date ? formatDateEs(person.birth_date) : "",
         person.titular_n,
         person.beneficiario_n,
         person.docs,
@@ -174,7 +192,7 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-foreground">
-                        {person.full_name || "Sin nombre en OCR"}
+                        {person.full_name || "Sin nombre"}
                       </span>
                       {incomplete ? (
                         <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
@@ -183,39 +201,31 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
                       ) : null}
                       {gaps ? (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                          Gaps de contacto
+                          Contacto incompleto
                         </span>
                       ) : null}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {[
-                        `${person.identity_type}: ${person.identity_number || "—"}`,
-                        person.phone || null,
-                        person.birth_date ? String(person.birth_date).slice(0, 10) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{personSummary(person)}</div>
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {person.titular_n > 0 ? (
                         <span className="rounded-full bg-hero px-2.5 py-0.5 text-[11px] font-medium text-white">
-                          {`${ROLE_LABELS.titular} · ${person.titular_n}`}
+                          {roleCountLabel(ROLE_LABELS.titular, person.titular_n)}
                         </span>
                       ) : null}
                       {person.beneficiario_n > 0 ? (
                         <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[11px] font-medium text-brand">
-                          {`${ROLE_LABELS.beneficiario} · ${person.beneficiario_n}`}
+                          {roleCountLabel(ROLE_LABELS.beneficiario, person.beneficiario_n)}
                         </span>
                       ) : null}
                       {person.titular_n === 0 && person.beneficiario_n === 0 ? (
                         <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                          {ROLE_LABELS.unknown}
+                          Sin rol en facturas
                         </span>
                       ) : null}
                     </div>
                   </div>
                   <div className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {person.docs} doc{person.docs === 1 ? "" : "s"}
+                    {formatDocumentCount(person.docs)}
                   </div>
                 </Link>
               </li>
@@ -242,19 +252,19 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
                 <th className="py-1.5 pr-2 font-medium">Nacimiento</th>
                 <th className="py-1.5 pr-2 font-medium">Titular</th>
                 <th className="py-1.5 pr-2 font-medium">Beneficiario</th>
-                <th className="py-1.5 font-medium">Docs</th>
+                <th className="py-1.5 font-medium">Documentos</th>
               </tr>
             </thead>
             <tbody>
               {exportPeople.map((person) => (
                 <tr key={person.id} className="border-b border-border/70">
-                  <td className="py-1.5 pr-2">{person.full_name || "Sin nombre en OCR"}</td>
+                  <td className="py-1.5 pr-2">{person.full_name || "Sin nombre"}</td>
                   <td className="py-1.5 pr-2 tabular-nums">
-                    {person.identity_number || "—"}
+                    {person.identity_number?.trim() || "Sin cédula"}
                   </td>
-                  <td className="py-1.5 pr-2 tabular-nums">{person.phone || "—"}</td>
+                  <td className="py-1.5 pr-2 tabular-nums">{person.phone?.trim() || "Sin teléfono"}</td>
                   <td className="py-1.5 pr-2 tabular-nums">
-                    {person.birth_date ? String(person.birth_date).slice(0, 10) : "—"}
+                    {person.birth_date ? formatDateEs(person.birth_date) : "Sin fecha"}
                   </td>
                   <td className="py-1.5 pr-2 tabular-nums">{person.titular_n}</td>
                   <td className="py-1.5 pr-2 tabular-nums">{person.beneficiario_n}</td>
