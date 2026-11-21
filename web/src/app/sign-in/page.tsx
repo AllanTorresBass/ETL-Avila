@@ -1,13 +1,21 @@
+import type { CSSProperties } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { FileText, ReceiptText, ShieldCheck, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
-import { signIn } from "./actions";
+import { SignInForm } from "./sign-in-form";
 
 export const metadata: Metadata = {
   title: "Entrar · Ávila GPS",
 };
 
 export const dynamic = "force-dynamic";
+
+const points = [
+  { icon: Users, title: "Personas", text: "Expedientes y vínculos del grupo familiar." },
+  { icon: ReceiptText, title: "Facturas", text: "Cargos ligados a cada persona." },
+  { icon: FileText, title: "Documentos", text: "Revisión según el rol de tu cuenta." },
+];
 
 export default async function SignInPage({
   searchParams,
@@ -20,47 +28,52 @@ export default async function SignInPage({
   const next = sp.next && sp.next.startsWith("/") && !sp.next.startsWith("//") ? sp.next : "";
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md items-center py-12">
-      <section className="w-full rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <p className="text-xs font-medium tracking-wider text-info uppercase">Personal</p>
-        <h1 className="mt-1 text-3xl font-medium tracking-tight">Entrar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          El super admin crea las demás cuentas y les asigna un rol.
-        </p>
-        <form action={signIn} className="mt-6 space-y-4">
-          {next ? <input type="hidden" name="next" value={next} /> : null}
-          <label className="block text-xs font-medium text-muted-foreground">
-            Correo
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="username"
-              className="mt-1 block w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground"
-            />
-          </label>
-          <label className="block text-xs font-medium text-muted-foreground">
-            Contraseña
-            <input
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="mt-1 block w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground"
-            />
-          </label>
-          {sp.error ? (
-            <p role="alert" className="text-sm text-danger">
-              Correo o contraseña incorrectos.
+    <div data-screen="sign-in" className="flex w-full flex-1">
+      <section className="grid w-full overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:min-h-[36rem] lg:grid-cols-[1.05fr_0.95fr]">
+        <aside className="relative hidden overflow-hidden bg-hero px-10 py-12 text-hero-foreground lg:flex lg:flex-col lg:justify-between">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-20 -right-16 size-72 rounded-full bg-[#5BB2F5]/25 blur-3xl"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-16 -left-10 size-56 rounded-full bg-[#6CC24A]/20 blur-3xl"
+          />
+          <div className="relative rise-in" style={{ "--i": 0 } as CSSProperties}>
+            <p className="inline-flex items-center gap-2 text-xs font-medium tracking-wider text-[#9ed4ff] uppercase">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Lector interno
             </p>
-          ) : null}
-          <button
-            type="submit"
-            className="btn-green-gradient w-full rounded-full px-5 py-2.5 text-sm font-medium text-white"
-          >
-            Entrar
-          </button>
-        </form>
+            <p className="mt-4 max-w-sm text-3xl font-medium tracking-tight">El inventario del equipo, según tu rol.</p>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/75">
+              Una sesión para personas, facturas y documentos. Entras con la cuenta que te asignaron.
+            </p>
+          </div>
+          <ul className="relative mt-10 space-y-4">
+            {points.map((point, index) => (
+              <li
+                key={point.title}
+                className="flex items-start gap-3 rise-in"
+                style={{ "--i": index + 1 } as CSSProperties}
+              >
+                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+                  <point.icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="block text-sm font-medium">{point.title}</span>
+                  <span className="mt-0.5 block text-sm text-white/70">{point.text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </aside>
+        <div className="flex flex-col justify-center px-6 py-10 sm:px-10">
+          <div className="mb-8 rounded-2xl border border-border bg-muted/50 px-4 py-3 lg:hidden">
+            <p className="text-xs font-medium tracking-wider text-info uppercase">Lector interno</p>
+            <p className="mt-1 text-sm text-muted-foreground">Personas, facturas y documentos según tu rol.</p>
+          </div>
+          <SignInForm nextPath={next} initialError={sp.error === "1"} />
+        </div>
       </section>
     </div>
   );

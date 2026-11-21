@@ -194,6 +194,33 @@
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
+/* Sign-in fills the space under the header. */
+body:has([data-screen="sign-in"]) {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+}
+
+body:has([data-screen="sign-in"]) > main {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
+}
+
+body:has([data-screen="sign-in"]) > footer {
+  display: none;
+}
+
+[data-screen="sign-in"] input:-webkit-autofill,
+[data-screen="sign-in"] input:-webkit-autofill:hover,
+[data-screen="sign-in"] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  box-shadow: inset 0 0 0 1000px var(--card);
+}
+
 @media print {
   @page {
     margin: 1.2cm;
