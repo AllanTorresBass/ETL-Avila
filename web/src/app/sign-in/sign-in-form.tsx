@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { signIn } from "./actions";
 
-const FAILED = "Correo o contraseña incorrectos.";
+const FAILED = "El correo o la contraseña no coinciden. Revísalos e intenta de nuevo.";
 
 export interface SignInFormProps {
   nextPath: string;
@@ -39,10 +39,10 @@ export function SignInForm({ nextPath, initialError }: SignInFormProps) {
 
   return (
     <form action={formAction} className="w-full max-w-sm rise-in" aria-busy={pending} style={{ "--i": 1 } as CSSProperties}>
-      <p className="text-xs font-medium tracking-wider text-info uppercase">Personal</p>
-      <h1 className="mt-1 text-3xl font-medium tracking-tight">Entrar</h1>
+      <p className="text-xs font-medium tracking-wider text-info uppercase">Acceso del personal</p>
+      <h1 className="mt-1 text-3xl font-medium tracking-tight">Te damos la bienvenida</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Lector interno de personas, facturas y documentos. El super admin crea las cuentas y asigna el rol.
+        Entra con el correo que te asignó el equipo. Si aún no tienes cuenta, pídela a un super admin.
       </p>
       <div className="mt-6 space-y-4">
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
@@ -103,7 +103,7 @@ export function SignInForm({ nextPath, initialError }: SignInFormProps) {
           </div>
           {capsLock ? (
             <p id="sign-in-caps" role="status" className="mt-1.5 text-xs text-warning">
-              Bloq Mayús está activo.
+              Bloq Mayús está activado.
             </p>
           ) : null}
         </div>
@@ -123,7 +123,7 @@ export function SignInForm({ nextPath, initialError }: SignInFormProps) {
         </button>
       </div>
       <p className="mt-4 text-xs text-muted-foreground">
-        La sesión queda en este navegador. Ciérrala si compartes el equipo.
+        Cuidamos la información de cada paciente. Si compartes este equipo, cierra sesión al terminar.
       </p>
     </form>
   );
