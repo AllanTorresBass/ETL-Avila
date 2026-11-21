@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Card grid placeholder for the médicos directory and the especialidades tree. */
+/** Card grid placeholder for the médicos directory. */
 export function MedicosListSkeleton({ label = "Cargando médicos" }: { label?: string }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label={label}>
