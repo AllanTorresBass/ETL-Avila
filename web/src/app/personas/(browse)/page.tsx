@@ -108,7 +108,7 @@ async function PersonasFilterSection({
   if (hasContactGap === "1") {
     activeChips.push({
       key: "has_contact_gap",
-      label: "Gaps de contacto",
+      label: "Contacto incompleto",
       clearHref: `${buildListHref("/personas", omitParam(filterParams, "has_contact_gap"))}#lista`,
     });
   }
@@ -181,7 +181,7 @@ async function PersonasFilterSection({
           label: "Contacto",
           value: hasContactGap,
           emptyLabel: "Todos",
-          options: [{ value: "1", label: "Con gaps de contacto" }],
+          options: [{ value: "1", label: "Contacto incompleto" }],
         },
         {
           name: "incomplete_name",

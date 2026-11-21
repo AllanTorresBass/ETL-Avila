@@ -139,7 +139,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
     },
     {
       id: "contact",
-      title: "Personas con gaps de contacto",
+      title: "Personas con contacto incompleto",
       hint: "Nacimiento, teléfono o dirección sin dato usable.",
       count: data.contact.withAnyGap,
       href: "/personas",
@@ -298,7 +298,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
               id: "calidad",
               label: "Calidad",
               title: "Calidad del vínculo y contacto",
-              description: "Cruce entre personas, facturas y autorizaciones, más gaps de contacto.",
+              description: "Cruce entre personas, facturas y autorizaciones, más el contacto incompleto.",
               body: (
                 <div className="grid gap-8 lg:grid-cols-5">
                   <div className="grid gap-6 md:grid-cols-2 lg:col-span-3">
@@ -341,7 +341,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                   <div className="lg:col-span-2">
                     <h3 className="mb-3 text-sm font-medium text-foreground">Completitud de contacto</h3>
                     {data.contact.withAnyGap === 0 && data.contact.byCode.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Sin gaps de contacto registrados.</p>
+                      <p className="text-sm text-muted-foreground">No hay contacto incompleto.</p>
                     ) : (
                       <div className="space-y-5">
                         <dl className="grid grid-cols-2 gap-3 text-sm">
@@ -354,13 +354,13 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                             <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.withoutCi)}</dd>
                           </div>
                           <div className="rounded-2xl bg-muted px-3 py-2">
-                            <dt className="text-xs text-muted-foreground">Gaps nacimiento</dt>
+                            <dt className="text-xs text-muted-foreground">Nacimiento incompleto</dt>
                             <dd className="mt-0.5 text-lg font-semibold tabular-nums">
                               {n(data.contact.birthDateGaps)}
                             </dd>
                           </div>
                           <div className="rounded-2xl bg-muted px-3 py-2">
-                            <dt className="text-xs text-muted-foreground">Gaps teléfono</dt>
+                            <dt className="text-xs text-muted-foreground">Teléfono incompleto</dt>
                             <dd className="mt-0.5 text-lg font-semibold tabular-nums">{n(data.contact.phoneGaps)}</dd>
                           </div>
                         </dl>
@@ -371,7 +371,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                             value: g.n,
                             display: n(g.n),
                           }))}
-                          empty="Sin gaps de contacto registrados."
+                          empty="No hay contacto incompleto."
                         />
                       </div>
                     )}
@@ -384,7 +384,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
               label: "Atención",
               count: n(attentionCount),
               title: "Qué necesita atención",
-              description: "Cola de revisión, documentos fallidos y gaps operativos.",
+              description: "Cola de revisión, documentos fallidos y pendientes operativos.",
               body: (
                 <div className="space-y-8">
                   <AttentionPanel items={attention} embedded />
