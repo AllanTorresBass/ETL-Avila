@@ -26,7 +26,7 @@ export async function signIn(
   const password = String(formData.get("password") || "");
   const next = safeNext(String(formData.get("next") || ""));
   const attempt = (prev?.attempt ?? 0) + 1;
-  const failed = { error: "Correo o contraseña incorrectos.", attempt };
+  const failed = { error: "El correo o la contraseña no coinciden. Revísalos e intenta de nuevo.", attempt };
 
   await deleteExpiredSessions();
   const user = await findStaffByEmail(email);
