@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
+import { AuthorizationLineCard } from "@/components/authorization-line-card";
 import { AtencionList } from "@/components/atencion-list";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
@@ -19,7 +20,6 @@ import {
   formatDate,
   formatDateEs,
   formatInvoiceNumber,
-  formatMoney,
   formatSourceFileTitle,
   formatSourcePages,
   roleLabel,
@@ -337,30 +337,17 @@ export function PersonaDossierTabs({
           <div className="space-y-3">
             <div className="space-y-2">
               {lines.map((line) => (
-                <div
+                <AuthorizationLineCard
                   key={line.id}
-                  className="rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm"
-                >
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <span className="font-medium">{line.clave_rms || "Sin clave"}</span>
-                    <span className="text-muted-foreground">
-                      {formatDate(line.service_date || line.request_date)}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-muted-foreground">
-                    {line.diagnosis || line.service_description || "Sin diagnóstico"}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    <span>{line.contratante || line.provider_name || "—"}</span>
-                    <span>BS {formatMoney(line.amount_bs)}</span>
-                    <span>USD {formatMoney(line.amount_usd)}</span>
-                    {line.invoice_id ? (
+                  line={line}
+                  extra={
+                    line.invoice_id ? (
                       <Link href={`/facturas/${line.invoice_id}`} className="text-brand">
                         Ver factura
                       </Link>
-                    ) : null}
-                  </div>
-                </div>
+                    ) : null
+                  }
+                />
               ))}
             </div>
             <Pagination

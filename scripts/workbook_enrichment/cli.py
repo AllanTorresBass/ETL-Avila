@@ -21,6 +21,7 @@ from workbook_enrichment.discover import (  # noqa: E402
     iter_workbook_paths,
     write_inventory_csv,
 )
+from workbook_enrichment.authorization_items import aps_code_from_path  # noqa: E402
 from workbook_enrichment.link_roles import apply_row_links  # noqa: E402
 from workbook_enrichment.load_authorization_lines import (  # noqa: E402
     upsert_authorization_line,
@@ -40,6 +41,8 @@ def cmd_inventory(args: argparse.Namespace) -> None:
 
 
 def _process_row(cur, relative, sheet, row_number, row, dry_run: bool, stats: Counter) -> None:
+    if not row.get("aps_code"):
+        row["aps_code"] = aps_code_from_path(relative)
     people = resolve_people_from_row(cur, row, dry_run=dry_run)
     for act in people["actions"]:
         stats[act] += 1
