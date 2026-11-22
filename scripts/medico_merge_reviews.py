@@ -203,6 +203,17 @@ def run(cur, *, checked_ids: frozenset[str] = frozenset()) -> None:
     provenance.counters["held_pairs_now_same_medico"] = cur.rowcount
 
 
+def accept_mpps_conflicts(cur) -> None:
+    cur.execute(
+        """
+        UPDATE avila.review_item SET status = 'accepted', resolved_by = %s, resolved_at = now(), updated_at = now()
+        WHERE kind = 'medico_mpps_conflict' AND status = 'open'
+        """,
+        (RESOLVER,),
+    )
+    provenance.counters["mpps_conflicts_accepted"] = cur.rowcount
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--apply", action="store_true")
@@ -210,6 +221,11 @@ def main() -> int:
         "--review-ids",
         default="",
         help="Comma-separated review id prefixes (8 chars) a person checked and accepts as the same médico",
+    )
+    parser.add_argument(
+        "--accept-mpps-conflicts",
+        action="store_true",
+        help="Accept open medico_mpps_conflict reviews: the médico keeps its main name, like Aceptar in /revision",
     )
     args = parser.parse_args()
     checked_ids = frozenset(part.strip()[:8] for part in args.review_ids.split(",") if part.strip())
@@ -220,6 +236,8 @@ def main() -> int:
     provenance.start_run(url, "medico_merge_reviews", vars(args), apply=args.apply)
     with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
         run(cur, checked_ids=checked_ids)
+        if args.accept_mpps_conflicts:
+            accept_mpps_conflicts(cur)
         if args.apply:
             conn.commit()
         else:

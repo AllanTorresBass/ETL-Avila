@@ -42,7 +42,8 @@ _DATE = r"(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{2,4})"
 _ISSUE_DATE = re.compile(rf"FECHA\s+DE\s+EMISI[O0]N\W{{0,4}}{_DATE}")
 _ANY_DATE = re.compile(rf"\bFECHA\b\W{{0,4}}{_DATE}")
 _NAME = r"([A-Z][A-Z .'\-]{2,60}?)"
-_CI = r"(?:(?:[VE]\s*-?\s*)|(?:C\.?\s*I\.?\W{0,3}[VE]?\s*-?\s*))(\d{1,2}\.?\d{3}\.?\d{3}|\d{6,9})\b"
+# The second letter of C.I. is often OCR'd as the digit 1 or a lowercase L.
+_CI = r"(?:(?:[VE]\s*-?\s*)|(?:C\.?\s*[Il1]\.?\W{0,3}[VE]?\s*-?\s*))(\d{1,2}\.?\d{3}\.?\d{3}|\d{6,9})\b"
 # Name runs until CI digits or a known next label / end of line (OCR often glues fields).
 _TITULAR = re.compile(
     rf"TITULAR\s*:?\s*{_NAME}\s*(?:{_CI})?(?=\s*$|\s*(?:PACIENTE|TOMADOR|CLAVE|ORDEN|FACTUR)|\n)",
