@@ -5,7 +5,7 @@ type Db = ReturnType<typeof sql>;
 type Query = ReturnType<Db>;
 
 /** Same as Python `provenance.value_hash`, so hashes from both writers compare. */
-function valueHash(value: string): string {
+export function valueHash(value: string): string {
   const text = value.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
   return createHash("sha256").update(text, "utf8").digest("hex").slice(0, 16);
 }

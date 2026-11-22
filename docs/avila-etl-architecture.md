@@ -309,7 +309,53 @@ Accept effects: `medico_duplicate` merges the second médico into the first; `at
 
 Run `clinical_apply.py --apply` only after the precision worksheet (`clinical_verify.py --sample 200`, then `--score`) meets the targets: doctor 95%, especialidad 90%, patient 95%.
 
-## 16. Roadmap
+## 16. Authorization lifecycle
+
+An authorization line is one row of an insurer workbook (sábana, relación, or cintillo) under `Avila-backup/`. Schema: `sql/014_authorization_item.sql` (items and sources) and `sql/015_authorization_lifecycle.sql` (insurer, date origin, provider, and match outcome).
+
+### Order of the steps
+
+Each script is a dry-run until `--apply`, writes an `etl_run`, and records `field_provenance` for every field it changes.
+
+| Step | Script | What it writes |
+| --- | --- | --- |
+| Load | `load_authorization_lines.py` | `authorization_line`, keeping existing values with `coalesce` |
+| Items and titular | `repair_authorization_items.py` | `authorization_item` (consulta, estudio, servicio), `authorization_source` (file and `sheet:row`), `titular_person_id`, and `aps_code` |
+| Especialidad | `especialidad_backfill.py` | `especialidad_id`, `procedimiento_id` |
+| Dates | `repair_authorization_dates.py` | Clears Excel placeholder dates (year before 2000). Keeps real `request_date` or `service_date`; otherwise sets `period_month` from the month and year in the sheet or file name, or from the workbook save date (at most 6 months back). Sets `date_source` |
+| Insurer and provider | `repair_authorization_fields.py` | `account_id` from the folder, `provider_code` (all G.P.S and GPS Ávila spellings fold to `gps_avila`) |
+| Match | `match_auth_lines.py` | `invoice_id` when linked, plus `match_status`, `match_score`, `match_signals`, `matched_at` on every line |
+| Audit | `authorization_audit.py [--label NAME]` | `output/runs/authorization-audit-NAME.md`, counts only |
+
+### Match signals
+
+Candidates are the facturas of the line's person, of its titular, and those that share its CLAVE, in the same insurer. Scores: CLAVE +0.60, person on the factura +0.40, otherwise titular on the factura +0.30, exact date with the factura 0 to 30 days later +0.20 (−0.20 when issued before, −0.20 when much later), period month equal to the factura month or the month before +0.10 (−0.20 when issued before the month or more than 6 months after), amount within 2% +0.15, similar service text +0.10, and the only candidate +0.10. The score links at 0.70 or more with a 0.15 margin over the runner-up, and opens an `auth_match` review from 0.45. The person joins the factura as beneficiario only when the CLAVE matched.
+
+### `match_status`
+
+| Value | Meaning |
+| --- | --- |
+| `linked` | The matcher linked it |
+| `review` | An `auth_match` review is open, or a reviewer accepted one |
+| `low_score` | The person or titular has facturas in the insurer, but none scored 0.45 |
+| `no_candidate` | Neither the person nor the titular has a factura in that insurer, and no CLAVE matches |
+| `no_person` | The line names no person, titular, or CLAVE |
+| `duplicate` | The line copies another request (`duplicate_of`) |
+| `staff` | Someone linked or unlinked it in `/autorizaciones`. The matcher never rescores it |
+
+### Provenance rules
+
+`authorization_date_repair` (reasons `period:named`, `period:saved`, `cleared:<field>`), `authorization_fields`, `match_auth_lines` (reason lists the signals), `review_auth_match` (Revisión accept), `staff_link_authorization` and `staff_unlink_authorization` (`source_kind='manual'`, `source_ref=/autorizaciones/<id>`), and `staff_link_authorization_beneficiario` when the link adds the patient to the factura.
+
+### Reader
+
+`/autorizaciones` has two views. Lista filters by state, insurer, contratante, especialidad, date quality, and year. Análisis shows the funnel, the reasons a line has no factura, the trend, each insurer, contratante, and especialidad, the days until the factura, and where each date came from. `/autorizaciones/[id]` shows the summary, items, patient and titular, the factura with candidate facturas, the origin row and copies, reviews, and the provenance history. Vincular and Desvincular need the `review` permission. JSON: `/api/v1/autorizaciones` (`?vista=analisis&rango=12m` for the analysis) and `/api/v1/autorizaciones/[id]`. Queries live in `web/src/lib/authorization-data.ts`.
+
+### Result (2026-11-21, counts only)
+
+Of 5,564 lines, the baseline had 1,146 linked, 3,913 with no date, and 512 with a placeholder date. After the repairs, 1,153 are linked, 3,732 have a period month, and 693 have no date at all. Every line has a `match_status`. Unlinked: 1,999 `low_score`, 1,827 `no_candidate`, 511 `no_person`, and 72 in review. For most `low_score` lines the nearest factura in the same insurer is 17 to 32 months after the authorization: the facturas from that period (mostly 2023) are not loaded, so loading them is what would raise the link rate.
+
+## 17. Roadmap
 
 - Scanner packets whose fiscal sheet has neither a readable invoice number nor a control number (still orphaned).
 - Improve cintillo workbooks that are image-only (OCR sheet embeds).
