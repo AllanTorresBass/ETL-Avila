@@ -31,16 +31,19 @@ export type FacturaPerson = {
 export type FacturaAuthLine = {
   id: string;
   clave_rms: string | null;
+  aps_code: string | null;
   diagnosis: string | null;
   service_description: string | null;
   amount_bs: string | number | null;
   amount_usd: string | number | null;
   person_id: string | null;
   service_date: string | Date | null;
+  request_date?: string | Date | null;
   contratante: string | null;
   provider_name: string | null;
   person_name: string | null;
   identity_number: string | null;
+  items: unknown;
 };
 
 export type FacturaSourceFile = {
@@ -96,16 +99,27 @@ export async function getFacturaDetail(id: string, fileRaw: string): Promise<Fac
     SELECT count(*)::int AS n
     FROM avila.authorization_line
     WHERE invoice_id = ${id}::uuid
+      AND duplicate_of IS NULL
   `;
   const authTotal = authCountRow?.n ?? 0;
 
   const authLines = await db`
-    SELECT al.id, al.clave_rms, al.diagnosis, al.service_description, al.amount_bs, al.amount_usd,
-           al.person_id, al.service_date, al.contratante, al.provider_name,
-           p.full_name AS person_name, p.identity_number
+    SELECT al.id, al.clave_rms, al.aps_code, al.diagnosis, al.service_description,
+           al.amount_bs, al.amount_usd, al.person_id, al.service_date, al.request_date,
+           al.contratante, al.provider_name,
+           p.full_name AS person_name, p.identity_number,
+           COALESCE((
+             SELECT json_agg(
+               json_build_object('label', ai.label, 'quantity', ai.quantity)
+               ORDER BY ai.position
+             )
+             FROM avila.authorization_item ai
+             WHERE ai.authorization_line_id = al.id
+           ), '[]'::json) AS items
     FROM avila.authorization_line al
     LEFT JOIN avila.person p ON p.id = al.person_id
     WHERE al.invoice_id = ${id}::uuid
+      AND al.duplicate_of IS NULL
     ORDER BY coalesce(al.service_date, al.created_at) DESC
     LIMIT ${FACTURA_AUTH_LIMIT}
   `;

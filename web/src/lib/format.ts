@@ -92,3 +92,51 @@ export function formatSourceFileTitle(
 export function formatSourcePages(pages: number | null | undefined): string {
   return pages != null ? `${pages} pág` : "? pág";
 }
+
+export type AuthItemView = {
+  label: string;
+  quantity: string | number | null;
+};
+
+export function authItems(value: unknown): AuthItemView[] {
+  let raw = value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw) as unknown;
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+  const items: AuthItemView[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const label = (row as { label?: unknown }).label;
+    if (typeof label !== "string" || !label.trim()) continue;
+    const quantity = (row as { quantity?: unknown }).quantity;
+    items.push({
+      label,
+      quantity: typeof quantity === "string" || typeof quantity === "number" ? quantity : null,
+    });
+  }
+  return items;
+}
+
+export function formatAuthHeading(line: {
+  aps_code?: string | null;
+  clave_rms?: string | null;
+}): string {
+  const aps = line.aps_code?.trim();
+  if (aps) return aps;
+  const clave = line.clave_rms?.trim();
+  return clave || "Sin clave";
+}
+
+export function formatAuthItem(item: AuthItemView): string {
+  const quantity = item.quantity;
+  if (quantity === null || quantity === "") return item.label;
+  const number = typeof quantity === "number" ? quantity : Number(quantity);
+  if (!Number.isFinite(number) || number <= 0) return item.label;
+  const shown = Number.isInteger(number) ? String(number) : String(number);
+  return `${item.label} × ${shown}`;
+}

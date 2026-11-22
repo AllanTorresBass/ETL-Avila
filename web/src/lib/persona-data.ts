@@ -83,6 +83,7 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
     SELECT count(*)::int AS n
     FROM avila.authorization_line
     WHERE person_id = ${id}::uuid
+      AND duplicate_of IS NULL
   `;
   const authTotal = authCountRow?.n ?? 0;
   const authPageMax = Math.max(1, Math.ceil(authTotal / PERSONA_AUTH_PAGE_SIZE));
@@ -180,12 +181,21 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
   });
 
   const lines = await db`
-    SELECT id, clave_rms, contratante, service_date, request_date, diagnosis,
-           service_description, provider_name, amount_bs, amount_usd,
-           coverage_amount, authorized_amount, invoice_id
-    FROM avila.authorization_line
-    WHERE person_id = ${id}::uuid
-    ORDER BY coalesce(service_date, request_date) DESC NULLS LAST, created_at DESC
+    SELECT al.id, al.clave_rms, al.aps_code, al.contratante, al.service_date, al.request_date,
+           al.diagnosis, al.service_description, al.provider_name, al.amount_bs, al.amount_usd,
+           al.coverage_amount, al.authorized_amount, al.invoice_id,
+           COALESCE((
+             SELECT json_agg(
+               json_build_object('label', ai.label, 'quantity', ai.quantity)
+               ORDER BY ai.position
+             )
+             FROM avila.authorization_item ai
+             WHERE ai.authorization_line_id = al.id
+           ), '[]'::json) AS items
+    FROM avila.authorization_line al
+    WHERE al.person_id = ${id}::uuid
+      AND al.duplicate_of IS NULL
+    ORDER BY coalesce(al.service_date, al.request_date) DESC NULLS LAST, al.created_at DESC
     LIMIT ${PERSONA_AUTH_PAGE_SIZE} OFFSET ${authOffset}
   `;
 
@@ -297,6 +307,24 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
     }
   }
 
+  const authLines = lines.map((line) => ({
+    id: String(line.id ?? ""),
+    clave_rms: line.clave_rms == null ? null : String(line.clave_rms),
+    aps_code: line.aps_code == null ? null : String(line.aps_code),
+    contratante: line.contratante == null ? null : String(line.contratante),
+    service_date: line.service_date ?? null,
+    request_date: line.request_date ?? null,
+    diagnosis: line.diagnosis == null ? null : String(line.diagnosis),
+    service_description: line.service_description == null ? null : String(line.service_description),
+    provider_name: line.provider_name == null ? null : String(line.provider_name),
+    amount_bs: line.amount_bs ?? null,
+    amount_usd: line.amount_usd ?? null,
+    coverage_amount: line.coverage_amount ?? null,
+    authorized_amount: line.authorized_amount ?? null,
+    invoice_id: line.invoice_id == null ? null : String(line.invoice_id),
+    items: line.items,
+  }));
+
   const primaryTitular = pickPrimaryTitular(titulares as LinkedPerson[]);
   const [clinical, estudios] = await Promise.all([getPersonaMedicos(id), queryEstudiosForPerson(id)]);
 
@@ -316,7 +344,7 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
     authTotal,
     authPage,
     authOffset,
-    lines,
+    lines: authLines,
     identityDocs,
     expedienteDocs,
     expedienteByInvoice,

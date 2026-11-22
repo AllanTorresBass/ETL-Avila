@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthorizationLineCard } from "@/components/authorization-line-card";
 import { AtencionList } from "@/components/atencion-list";
 import { EstudioList } from "@/components/estudio-list";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -14,7 +15,6 @@ import {
   formatAccount,
   formatDate,
   formatInvoiceNumber,
-  formatMoney,
   formatSourceFileTitle,
   formatSourcePages,
   roleLabel,
@@ -220,28 +220,17 @@ export default async function FacturaDetailPage({
       >
         <div className="space-y-2">
           {authLines.map((line) => (
-            <div
+            <AuthorizationLineCard
               key={line.id}
-              className="rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm"
-            >
-              <div className="flex flex-wrap justify-between gap-2">
-                <span className="font-medium">{line.clave_rms || "Sin clave"}</span>
-                <span className="text-muted-foreground">{formatDate(line.service_date)}</span>
-              </div>
-              <div className="mt-1 text-muted-foreground">
-                {line.diagnosis || line.service_description || "Sin diagnóstico"}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span>{line.contratante || line.provider_name || "—"}</span>
-                <span>BS {formatMoney(line.amount_bs)}</span>
-                <span>USD {formatMoney(line.amount_usd)}</span>
-                {line.person_id ? (
+              line={line}
+              extra={
+                line.person_id ? (
                   <Link href={`/personas/${line.person_id}`} className="text-brand">
                     {line.person_name || line.identity_number || "Ver persona"}
                   </Link>
-                ) : null}
-              </div>
-            </div>
+                ) : null
+              }
+            />
           ))}
         </div>
       </RelationSection>

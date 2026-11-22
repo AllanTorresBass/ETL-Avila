@@ -94,6 +94,8 @@ HEADER_ALIASES: dict[str, str] = {
     "CODIGO APS": "aps_code",
     "CÓDIGO APS": "aps_code",
     "COD APS": "aps_code",
+    "ESPECIALIDAD MEDICA": "service_description",
+    "ESTUDIO ESPECIAL": "service_description",
     "PROVEEDOR": "provider_name",
     "NOMBRE DEL PROVEEDOR": "provider_name",
     "RAZON SOCIAL": "provider_name",
