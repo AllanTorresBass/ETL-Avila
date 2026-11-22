@@ -205,7 +205,7 @@ export async function getEtlData() {
 export type MonthPoint = { month: string; usd: number; invoices: number };
 
 /** Fill months without invoices so the trend line is continuous. */
-function fillMonths(points: MonthPoint[]): MonthPoint[] {
+export function fillMonths(points: MonthPoint[]): MonthPoint[] {
   if (points.length < 2) return points;
   const byMonth = new Map(points.map((p) => [p.month, p]));
   const [startYear, startMonth] = points[0].month.split("-").map(Number);

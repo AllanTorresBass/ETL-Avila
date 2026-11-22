@@ -12,6 +12,7 @@ from workbook_enrichment.normalize import (
     digits_ci,
     map_headers,
     parse_invoice_number,
+    provider_code,
     row_dict,
 )
 from workbook_enrichment.upsert_persons import (
@@ -22,6 +23,12 @@ from workbook_enrichment.upsert_persons import (
 
 
 class NormalizeTests(unittest.TestCase):
+    def test_provider_code_folds_gps_avila_spellings(self):
+        for spelling in ("G.P.S Avila", "GPS ÁVILA", "G.P.S ÁVILA", "GPS AVILA", "G.P.S. ÁVILA", "G.P.S AVILA", "G.P.S. Avila"):
+            self.assertEqual(provider_code(spelling), "gps_avila", spelling)
+        self.assertEqual(provider_code("Clínica Los Andes, C.A."), "clinica_los_andes_ca")
+        self.assertIsNone(provider_code("  "))
+
     def test_digits_ci_dotted(self):
         self.assertEqual(digits_ci("V-12.345.678"), "12345678")
         self.assertEqual(digits_ci(12345678), "12345678")

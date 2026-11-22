@@ -224,7 +224,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                       label="Autorizaciones con factura"
                       value={data.authLinkage.lines > 0 ? formatPercent(data.authLinkage.ratio) : "—"}
                       hint={`${n(data.authLinkage.linked)} de ${n(data.authLinkage.lines)}`}
-                      href="/etl"
+                      href="/autorizaciones?vista=analisis"
                       icon={<Link2 className="size-4" />}
                     />
                   </div>
@@ -330,7 +330,7 @@ export default async function InformePage({ searchParams }: PageProps<"/informe"
                       label="Autorizaciones con factura"
                       value={data.authLinkage.linked}
                       total={data.authLinkage.lines}
-                      href="/revision?tipo=autorizacion"
+                      href="/autorizaciones?estado=pendiente#lista"
                     />
                     <Meter
                       label="Documentos subidos a Blob"

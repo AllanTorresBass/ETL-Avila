@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuthorizationLineCard } from "@/components/authorization-line-card";
+import { AuthorizationStatusPill } from "@/components/authorization-status-pill";
 import { AtencionList } from "@/components/atencion-list";
 import { EstudioList } from "@/components/estudio-list";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -223,6 +224,8 @@ export default async function FacturaDetailPage({
             <AuthorizationLineCard
               key={line.id}
               line={line}
+              href={`/autorizaciones/${line.id}`}
+              badge={<AuthorizationStatusPill status={line.match_status} invoiceId={line.invoice_id} />}
               extra={
                 line.person_id ? (
                   <Link href={`/personas/${line.person_id}`} className="text-brand">

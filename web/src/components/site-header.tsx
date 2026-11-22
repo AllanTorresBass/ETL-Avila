@@ -8,6 +8,7 @@ import {
   BarChart3,
   ChevronDown,
   ClipboardCheck,
+  FileCheck,
   FileStack,
   FileText,
   Layers,
@@ -101,6 +102,13 @@ const FACTURAS: Destination = {
   permission: "read",
   icon: Receipt,
 };
+const AUTORIZACIONES: Destination = {
+  href: "/autorizaciones",
+  label: "Autorizaciones",
+  hint: "Libros de las aseguradoras",
+  permission: "read",
+  icon: FileCheck,
+};
 const MEDICOS: Destination = {
   href: "/medicos",
   label: "Médicos",
@@ -151,6 +159,7 @@ const ENTRIES: NavEntry[] = [
   { kind: "menu", id: "paneles", label: "Paneles", description: PANEL_COPY, items: [ETL, NEGOCIO, INFORME] },
   { kind: "link", item: PERSONAS },
   { kind: "link", item: FACTURAS },
+  { kind: "link", item: AUTORIZACIONES },
   { kind: "menu", id: "clinica", label: "Clínica", description: CLINICA_COPY, items: [MEDICOS, ESTUDIOS, ESPECIALIDADES] },
   { kind: "link", item: DOCUMENTOS },
   { kind: "link", item: REVISION, separated: true },
@@ -158,7 +167,7 @@ const ENTRIES: NavEntry[] = [
 
 const SECTIONS: { id: string; label: string; description?: string; items: Destination[] }[] = [
   { id: "paneles", label: "Paneles", description: PANEL_COPY, items: [ETL, NEGOCIO, INFORME] },
-  { id: "registros", label: "Registros", items: [PERSONAS, FACTURAS, DOCUMENTOS] },
+  { id: "registros", label: "Registros", items: [PERSONAS, FACTURAS, AUTORIZACIONES, DOCUMENTOS] },
   { id: "clinica", label: "Clínica", description: CLINICA_COPY, items: [MEDICOS, ESTUDIOS, ESPECIALIDADES] },
   { id: "trabajo", label: "Trabajo", items: [REVISION] },
 ];

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { AuthorizationLineCard } from "@/components/authorization-line-card";
+import { AuthorizationStatusPill } from "@/components/authorization-status-pill";
 import { AtencionList } from "@/components/atencion-list";
 import { DocumentGallery } from "@/components/document-gallery";
 import { EntityRow } from "@/components/entity-row";
@@ -340,6 +341,8 @@ export function PersonaDossierTabs({
                 <AuthorizationLineCard
                   key={line.id}
                   line={line}
+                  href={`/autorizaciones/${line.id}`}
+                  badge={<AuthorizationStatusPill status={line.match_status} invoiceId={line.invoice_id} />}
                   extra={
                     line.invoice_id ? (
                       <Link href={`/facturas/${line.invoice_id}`} className="text-brand">

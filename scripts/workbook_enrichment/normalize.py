@@ -73,6 +73,24 @@ def clean_name(value: Any) -> str | None:
     return text[:120]
 
 
+_PROVIDER_ALIASES = {"GPS AVILA": "gps_avila"}
+
+
+def provider_code(value: Any) -> str | None:
+    """One code per provider: ``G.P.S. Ávila``, ``GPS AVILA`` and ``G.P.S Avila`` are ``gps_avila``."""
+    name = clean_name(value)
+    if not name:
+        return None
+    folded = fold_header(name)
+    folded = re.sub(r"\b([A-Z])\.\s*(?=[A-Z]\b)", r"\1", folded)
+    folded = re.sub(r"[^A-Z0-9 ]+", " ", folded)
+    folded = re.sub(r"\b([A-Z]) (?=[A-Z]\b)", r"\1", folded)
+    folded = re.sub(r"\s+", " ", folded).strip()
+    if not folded:
+        return None
+    return _PROVIDER_ALIASES.get(folded, folded.lower().replace(" ", "_"))
+
+
 def parse_date(value: Any) -> dt.date | None:
     if value is None or value == "":
         return None

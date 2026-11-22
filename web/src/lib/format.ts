@@ -42,6 +42,27 @@ export function formatDateEs(value: string | Date | null | undefined): string {
   return `${parts.day} ${month} ${parts.year}`;
 }
 
+/** Month only, for authorizations dated by their workbook period: "mar 2023". */
+export function formatMonthEs(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const parts = calendarParts(value);
+  const month = parts ? MONTHS_ES[parts.month - 1] : undefined;
+  if (!parts || !month) return "—";
+  return `${month} ${parts.year}`;
+}
+
+/** Exact authorization date, else its period month, else a dash. */
+export function formatAuthDate(line: {
+  service_date?: string | Date | null;
+  request_date?: string | Date | null;
+  period_month?: string | Date | null;
+}): string {
+  const exact = line.service_date || line.request_date;
+  if (exact) return formatDate(exact);
+  if (line.period_month) return `Mes ${formatMonthEs(line.period_month)}`;
+  return "Sin fecha";
+}
+
 /** Identity line for a person card. Empty number reads as missing cédula. */
 export function formatIdentity(type: string | null | undefined, number: string | null | undefined): string {
   const id = number?.trim();

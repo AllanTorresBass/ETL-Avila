@@ -183,7 +183,7 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
   const lines = await db`
     SELECT al.id, al.clave_rms, al.aps_code, al.contratante, al.service_date, al.request_date,
            al.diagnosis, al.service_description, al.provider_name, al.amount_bs, al.amount_usd,
-           al.coverage_amount, al.authorized_amount, al.invoice_id,
+           al.coverage_amount, al.authorized_amount, al.invoice_id, al.period_month, al.match_status,
            COALESCE((
              SELECT json_agg(
                json_build_object('label', ai.label, 'quantity', ai.quantity)
@@ -322,6 +322,8 @@ export async function getPersonaDetail(id: string, authPageRaw?: string) {
     coverage_amount: line.coverage_amount ?? null,
     authorized_amount: line.authorized_amount ?? null,
     invoice_id: line.invoice_id == null ? null : String(line.invoice_id),
+    period_month: line.period_month ?? null,
+    match_status: line.match_status == null ? null : String(line.match_status),
     items: line.items,
   }));
 
