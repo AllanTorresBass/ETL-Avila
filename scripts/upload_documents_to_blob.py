@@ -573,6 +573,7 @@ def link_invoice_person(
     source: str = "ocr",
     rule_id: str = "link_invoice_person",
     parentesco: str | None = None,
+    reason: str | None = None,
 ) -> None:
     old_role = _role_of(cur, invoice_id, person_id)
     _link_invoice_person(cur, invoice_id, person_id, role, source)
@@ -584,7 +585,7 @@ def link_invoice_person(
             """,
             (parentesco, invoice_id, person_id),
         )
-    record_role(cur, invoice_id, person_id, old_role, rule_id=rule_id)
+    record_role(cur, invoice_id, person_id, old_role, rule_id=rule_id, reason=reason)
 
 
 def _link_invoice_person(cur, invoice_id: str, person_id: str, role: str, source: str) -> None:

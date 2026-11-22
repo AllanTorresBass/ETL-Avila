@@ -45,6 +45,13 @@ class FiscalExtractTests(unittest.TestCase):
         self.assertEqual(f.total_usd, 95.5)
         self.assertEqual(f.services, ["CONSULTA PEDIATRIA", "ECOGRAFIA ABDOMINAL"])
 
+    def test_patient_ci_when_ocr_reads_i_as_one(self):
+        text = "Titular: JUAN PEREZ V-11222333\nPaciente: LUIS DIAZ C.1:44555666\nTomador: CLAVE:7654321\n"
+        fields = extract(text)
+        self.assertEqual(fields.titular_ci, "11222333")
+        self.assertEqual(fields.patient_name, "LUIS DIAZ")
+        self.assertEqual(fields.patient_ci, "44555666")
+
     def test_glued_control_number(self):
         self.assertEqual(extract(GLUED_CONTROL).control_number, "00-054321")
 
