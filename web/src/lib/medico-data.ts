@@ -125,6 +125,14 @@ export type EspecialidadBacklogRow = {
   occurrences: number;
 };
 
+export type EspecialidadSpecialist = {
+  id: string;
+  title: string | null;
+  full_name: string;
+  code: string | null;
+  atenciones: number;
+};
+
 /** Area + especialidad options for filters, ordered as the taxonomy tree. */
 export const listEspecialidadOptions = cache(async function listEspecialidadOptions(): Promise<
   EspecialidadOption[]
@@ -421,6 +429,36 @@ export async function getEspecialidadTree(): Promise<EspecialidadTreeRow[]> {
     ORDER BY area_sort, coalesce(parent_code, code), level, name_es
   `;
   return rows as EspecialidadTreeRow[];
+}
+
+/** Every active médico under each catalog specialty. `code` is null when none is assigned. */
+export async function listEspecialidadSpecialists(): Promise<EspecialidadSpecialist[]> {
+  const db = sql();
+  const rows = await db`
+    SELECT m.id::text AS id, m.title, m.full_name, e.code,
+           CASE
+             WHEN e.id IS NULL THEN coalesce(tot.atenciones, 0)
+             ELSE coalesce(st.atenciones, 0)
+           END::int AS atenciones
+    FROM avila.medico m
+    LEFT JOIN avila.medico_especialidad me ON me.medico_id = m.id
+    LEFT JOIN avila.especialidad e ON e.id = me.especialidad_id
+    LEFT JOIN (
+      SELECT medico_id, count(*)::int AS atenciones
+      FROM avila.atencion
+      WHERE link_status <> 'duplicate'
+      GROUP BY medico_id
+    ) tot ON tot.medico_id = m.id
+    LEFT JOIN (
+      SELECT medico_id, especialidad_id, count(*)::int AS atenciones
+      FROM avila.atencion
+      WHERE link_status <> 'duplicate' AND especialidad_id IS NOT NULL
+      GROUP BY medico_id, especialidad_id
+    ) st ON st.medico_id = m.id AND st.especialidad_id = e.id
+    WHERE m.merged_into IS NULL
+    ORDER BY lower(m.full_name)
+  `;
+  return rows as EspecialidadSpecialist[];
 }
 
 /** Terms seen on documents that matched no catalog entry (for the review backlog). */
