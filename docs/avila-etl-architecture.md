@@ -309,7 +309,13 @@ Accept effects: `medico_duplicate` merges the second médico into the first; `at
 
 Run `clinical_apply.py --apply` only after the precision worksheet (`clinical_verify.py --sample 200`, then `--score`) meets the targets: doctor 95%, especialidad 90%, patient 95%.
 
-## 16. Roadmap
+## 16. Estudios by type
+
+Schema: `sql/016_estudio.sql`. Families live in `estudio_tipo`. Each `procedimiento` that is a diagnostic study points at one family. `estudio.label` is the most specific name on the line or the page title: the test (Hemograma), the modality plus the body site (Rayos X de tórax), or the procedure when the page only names the family. The same specific name for one patient on one factura is one estudio. An order with no procedure name stays its own row. `estudio_archivo` attaches every source page: `documentacion` for the factura line, the order, or a written report, and `imagen` for a laboratorio or imagenología result sheet.
+
+`estudio_extract.py --apply` rewrites `invoice_service`, then calls `avila.rebuild_estudios` and `estudio_catalogo.assign_catalog`. Schema `sql/017_estudio_catalogo.sql` adds the clinic catalog: level 1 is the service the clinic manages (Exámenes de laboratorio), level 2 is the named exam under it (Hematología completa). The reader catalog is `/estudios/catalogo`. Line provenance stays on `invoice_service`.
+
+## 17. Roadmap
 
 - Scanner packets whose fiscal sheet has neither a readable invoice number nor a control number (still orphaned).
 - Improve cintillo workbooks that are image-only (OCR sheet embeds).
