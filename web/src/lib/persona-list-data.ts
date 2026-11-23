@@ -18,6 +18,7 @@ export type PersonaListFilters = {
   like: string;
   hasCi: string;
   hasPhone: string;
+  hasAuthorization: string;
   hasInvoice: string;
   hasContactGap: string;
   incompleteName: string;
@@ -39,6 +40,7 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
     like,
     hasCi,
     hasPhone,
+    hasAuthorization,
     hasInvoice,
     hasContactGap,
     incompleteName,
@@ -65,6 +67,14 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
            OR (${hasCi} = '0' AND (p.identity_number IS NULL OR p.identity_number = '')))
       AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p.phone IS NOT NULL AND p.phone <> '')
            OR (${hasPhone} = '0' AND (p.phone IS NULL OR p.phone = '')))
+      AND (${hasAuthorization} = '' OR (${hasAuthorization} = '1' AND EXISTS (
+             SELECT 1 FROM avila.authorization_line alx
+             WHERE alx.person_id = p.id AND alx.duplicate_of IS NULL
+           ))
+           OR (${hasAuthorization} = '0' AND NOT EXISTS (
+             SELECT 1 FROM avila.authorization_line alx
+             WHERE alx.person_id = p.id AND alx.duplicate_of IS NULL
+           )))
       AND (${hasInvoice} = '' OR (${hasInvoice} = '1' AND EXISTS (
              SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p.id
            ))
@@ -135,6 +145,14 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
                OR (${hasCi} = '0' AND (p2.identity_number IS NULL OR p2.identity_number = '')))
           AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p2.phone IS NOT NULL AND p2.phone <> '')
                OR (${hasPhone} = '0' AND (p2.phone IS NULL OR p2.phone = '')))
+          AND (${hasAuthorization} = '' OR (${hasAuthorization} = '1' AND EXISTS (
+                 SELECT 1 FROM avila.authorization_line alx
+                 WHERE alx.person_id = p2.id AND alx.duplicate_of IS NULL
+               ))
+               OR (${hasAuthorization} = '0' AND NOT EXISTS (
+                 SELECT 1 FROM avila.authorization_line alx
+                 WHERE alx.person_id = p2.id AND alx.duplicate_of IS NULL
+               )))
           AND (${hasInvoice} = '' OR (${hasInvoice} = '1' AND EXISTS (
                  SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
                ))
@@ -203,6 +221,14 @@ export async function queryPersonaList(filters: PersonaListFilters): Promise<{
                OR (${hasCi} = '0' AND (p2.identity_number IS NULL OR p2.identity_number = '')))
           AND (${hasPhone} = '' OR (${hasPhone} = '1' AND p2.phone IS NOT NULL AND p2.phone <> '')
                OR (${hasPhone} = '0' AND (p2.phone IS NULL OR p2.phone = '')))
+          AND (${hasAuthorization} = '' OR (${hasAuthorization} = '1' AND EXISTS (
+                 SELECT 1 FROM avila.authorization_line alx
+                 WHERE alx.person_id = p2.id AND alx.duplicate_of IS NULL
+               ))
+               OR (${hasAuthorization} = '0' AND NOT EXISTS (
+                 SELECT 1 FROM avila.authorization_line alx
+                 WHERE alx.person_id = p2.id AND alx.duplicate_of IS NULL
+               )))
           AND (${hasInvoice} = '' OR (${hasInvoice} = '1' AND EXISTS (
                  SELECT 1 FROM avila.invoice_person ipx WHERE ipx.person_id = p2.id
                ))

@@ -378,6 +378,18 @@ export const getPersonaListKpis = cache(async function getPersonaListKpis() {
       )::int AS without_phone,
       count(*) FILTER (
         WHERE EXISTS (
+          SELECT 1 FROM avila.authorization_line al
+          WHERE al.person_id = p.id AND al.duplicate_of IS NULL
+        )
+      )::int AS with_authorization,
+      count(*) FILTER (
+        WHERE NOT EXISTS (
+          SELECT 1 FROM avila.authorization_line al
+          WHERE al.person_id = p.id AND al.duplicate_of IS NULL
+        )
+      )::int AS without_authorization,
+      count(*) FILTER (
+        WHERE EXISTS (
           SELECT 1 FROM avila.invoice_person ip WHERE ip.person_id = p.id
         )
       )::int AS with_invoice,
@@ -444,6 +456,8 @@ export const getPersonaListKpis = cache(async function getPersonaListKpis() {
     withoutCi: row?.without_ci ?? 0,
     withPhone: row?.with_phone ?? 0,
     withoutPhone: row?.without_phone ?? 0,
+    withAuthorization: row?.with_authorization ?? 0,
+    withoutAuthorization: row?.without_authorization ?? 0,
     withInvoice: row?.with_invoice ?? 0,
     withoutInvoice: row?.without_invoice ?? 0,
     titulares: row?.titulares ?? 0,

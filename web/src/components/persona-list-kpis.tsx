@@ -1,9 +1,9 @@
 import {
   BadgeCheck,
+  FileCheck,
   FileWarning,
   IdCard,
   Link2,
-  Phone,
   ReceiptText,
   UserRound,
   Users,
@@ -16,6 +16,7 @@ const n = (v: number) => v.toLocaleString("es-VE");
 export type PersonaListFilterState = {
   has_ci?: string;
   has_phone?: string;
+  has_authorization?: string;
   has_invoice?: string;
   role?: string;
   has_contact_gap?: string;
@@ -31,6 +32,7 @@ function isActive(
     return (
       !filters.has_ci &&
       !filters.has_phone &&
+      !filters.has_authorization &&
       !filters.has_invoice &&
       !filters.role &&
       !filters.has_contact_gap &&
@@ -107,12 +109,12 @@ export function PersonaListKpisStrip({
         icon={<UserRound className="size-4" />}
       />
       <KpiCard
-        label="Con teléfono"
-        value={n(kpis.withPhone)}
-        hint={`${n(kpis.withoutPhone)} sin teléfono`}
-        href="/personas?has_phone=1#lista"
-        active={isActive(filters, { has_phone: "1" })}
-        icon={<Phone className="size-4" />}
+        label="Con autorización"
+        value={n(kpis.withAuthorization)}
+        hint={`${n(kpis.withoutAuthorization)} sin autorización`}
+        href="/personas?has_authorization=1#lista"
+        active={isActive(filters, { has_authorization: "1" })}
+        icon={<FileCheck className="size-4" />}
       />
     </section>
   );

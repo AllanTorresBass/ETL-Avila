@@ -38,6 +38,7 @@ export type PersonasSearchInput = {
   q?: string;
   has_ci?: string;
   has_phone?: string;
+  has_authorization?: string;
   has_invoice?: string;
   has_contact_gap?: string;
   incomplete_name?: string;
@@ -101,6 +102,7 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
   const query = normalizeQuery(sp.q);
   const hasCi = triState(sp.has_ci);
   const hasPhone = triState(sp.has_phone);
+  const hasAuthorization = triState(sp.has_authorization);
   const hasInvoice = triState(sp.has_invoice);
   const hasContactGap = triState(sp.has_contact_gap);
   const incompleteName = triState(sp.incomplete_name);
@@ -114,6 +116,7 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
     q: query || undefined,
     has_ci: hasCi || undefined,
     has_phone: hasPhone || undefined,
+    has_authorization: hasAuthorization || undefined,
     has_invoice: hasInvoice || undefined,
     has_contact_gap: hasContactGap || undefined,
     incomplete_name: incompleteName || undefined,
@@ -126,6 +129,7 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
     like,
     hasCi,
     hasPhone,
+    hasAuthorization,
     hasInvoice,
     hasContactGap,
     incompleteName,
@@ -140,6 +144,7 @@ export async function PersonasResults({ sp }: { sp: PersonasSearchInput }) {
     q: query || undefined,
     has_ci: hasCi || undefined,
     has_phone: hasPhone || undefined,
+    has_authorization: hasAuthorization || undefined,
     has_invoice: hasInvoice || undefined,
     has_contact_gap: hasContactGap || undefined,
     incomplete_name: incompleteName || undefined,

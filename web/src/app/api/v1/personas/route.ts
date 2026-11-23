@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     like: `%${query}%`,
     hasCi: triState(sp.get("has_ci") || undefined),
     hasPhone: triState(sp.get("has_phone") || undefined),
+    hasAuthorization: triState(sp.get("has_authorization") || undefined),
     hasInvoice: triState(sp.get("has_invoice") || undefined),
     hasContactGap: triState(sp.get("has_contact_gap") || undefined),
     incompleteName: triState(sp.get("incomplete_name") || undefined),
