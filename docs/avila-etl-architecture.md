@@ -355,7 +355,13 @@ Candidates are the facturas of the line's person, of its titular, and those that
 
 Of 5,564 lines, the baseline had 1,146 linked, 3,913 with no date, and 512 with a placeholder date. After the repairs, 1,153 are linked, 3,732 have a period month, and 693 have no date at all. Every line has a `match_status`. Unlinked: 1,999 `low_score`, 1,827 `no_candidate`, 511 `no_person`, and 72 in review. For most `low_score` lines the nearest factura in the same insurer is 17 to 32 months after the authorization: the facturas from that period (mostly 2023) are not loaded, so loading them is what would raise the link rate.
 
-## 17. Roadmap
+## 17. Estudios by type
+
+Schema: `sql/016_estudio.sql`. Families live in `estudio_tipo`. Each `procedimiento` that is a diagnostic study points at one family. `estudio.label` is the most specific name on the line or the page title: the test (Hemograma), the modality plus the body site (Rayos X de tórax), or the procedure when the page only names the family. The same specific name for one patient on one factura is one estudio. An order with no procedure name stays its own row. `estudio_archivo` attaches every source page: `documentacion` for the factura line, the order, or a written report, and `imagen` for a laboratorio or imagenología result sheet.
+
+`estudio_extract.py --apply` rewrites `invoice_service`, then calls `avila.rebuild_estudios` and `estudio_catalogo.assign_catalog`. Schema `sql/017_estudio_catalogo.sql` adds the clinic catalog: level 1 is the service the clinic manages (Exámenes de laboratorio), level 2 is the named exam under it (Hematología completa). The reader catalog is `/estudios/catalogo`. Line provenance stays on `invoice_service`.
+
+## 18. Roadmap
 
 - Scanner packets whose fiscal sheet has neither a readable invoice number nor a control number (still orphaned).
 - Improve cintillo workbooks that are image-only (OCR sheet embeds).

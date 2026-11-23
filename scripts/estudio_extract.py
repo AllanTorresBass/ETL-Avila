@@ -6,7 +6,12 @@
 
 Dry-run prints counts and rolls back. ``--apply`` replaces the derived rows.
 A consult note that only requests a test is not stored. Page text stays in the
-OCR cache; ``service_label`` is the fiscal line or the procedure name.
+OCR cache. ``service_label`` is the most specific study name on that line or
+page title: the test, the modality plus the body site, or the procedure.
+
+Requires ``sql/016_estudio.sql``. After the service lines are written, apply
+calls ``avila.rebuild_estudios`` so each study is saved under its type, with
+every documentation page and result image attached.
 
 The apply is refused when the estudio invoice count is below the neighborhood
 in output/runs/medical-tests.md, or when a known consult-only factura gains
@@ -30,11 +35,13 @@ import provenance  # noqa: E402
 from env_load import load_env  # noqa: E402
 from especialidad_normalize import default_catalog, normalize_text  # noqa: E402
 from especialidad_store import load_ids, observation_rows, write_observations  # noqa: E402
+from estudio_catalogo import assign_catalog  # noqa: E402
 from estudio_kind import (  # noqa: E402
     classify_line,
     classify_order,
     classify_result_page,
     family_of,
+    specific_name,
 )
 from fiscal_extract import extract  # noqa: E402
 from ocr_invoice_pages import cache_path  # noqa: E402
@@ -114,11 +121,10 @@ def _label(kind: str, code: str | None, raw: str, document_type: str) -> str:
     if kind != "estudio":
         text = " ".join((raw or "").split())
         return (text or document_type)[:120]
-    if raw and document_type == "factura_fiscal":
-        return " ".join(raw.split())[:120]
-    name = (default_catalog().procedimientos.get(code or "") or {}).get("name_es")
-    if name:
-        return name
+    context = "fiscal_line" if document_type == "factura_fiscal" else "report_title"
+    detail = specific_name(raw, code, context=context)
+    if detail:
+        return detail[:120]
     if document_type == "laboratorio":
         return "Laboratorio"
     if document_type == "imagenologia":
@@ -194,7 +200,7 @@ def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
                 order = classify_order(text)
                 if order:
                     _kind, code, _state = order
-                    found.append(("estudio", 0, "", code))
+                    found.append(("estudio", 0, "\n".join(text.splitlines()[:40]), code))
                     stats["study_order" if code else "study_order_unnamed"] += 1
                 else:
                     stats["consult_order"] += 1
@@ -202,7 +208,7 @@ def collect(cur) -> tuple[list[dict], list[tuple], Counter]:
                 result = classify_result_page(text, dtype)
                 if result:
                     _kind, code = result
-                    found.append(("estudio", 0, "", code))
+                    found.append(("estudio", 0, "\n".join(text.splitlines()[:20]), code))
                     stats["result_typed" if dtype in {"laboratorio", "imagenologia"} else "result_misfiled"] += 1
                 elif dtype == "informe_medico":
                     stats["consult_or_other_note"] += 1
@@ -332,6 +338,20 @@ def apply_rows(cur, rows: list[dict], observations: list[tuple]) -> None:
     stored = {(r["invoice_id"], r["source"], r["document_id"], r["line_no"]): r for r in cur.fetchall()}
     _write_provenance(cur, rows, stored)
     write_observations(cur, observations)
+    cur.execute("SELECT avila.rebuild_estudios(%s::uuid)", (provenance.current_run_id(),))
+    cur.execute(
+        """
+        SELECT
+          (SELECT count(*)::int FROM avila.estudio) AS estudios,
+          (SELECT count(*)::int FROM avila.estudio_archivo WHERE origen = 'documentacion') AS documentacion,
+          (SELECT count(*)::int FROM avila.estudio_archivo WHERE origen = 'imagen') AS imagenes
+        """
+    )
+    saved = cur.fetchone()
+    provenance.counters.update(assign_catalog(cur))
+    provenance.counters["estudios"] = saved["estudios"]
+    provenance.counters["estudio_documentacion"] = saved["documentacion"]
+    provenance.counters["estudio_imagenes"] = saved["imagenes"]
     provenance.counters["rows"] = len(rows)
 
 

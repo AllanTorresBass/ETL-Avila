@@ -47,6 +47,13 @@ export function isEstudioProcedure(value: string): boolean {
   return value === "sin_nombre" || value === "sin_paciente" || ESTUDIO_FAMILIES.some((family) => family.codes.includes(value));
 }
 
+const DETAIL_RE = /^[\p{L}\p{N}][\p{L}\p{N} .·'’\-]{0,119}$/u;
+
+export function isEstudioDetail(value: string): boolean {
+  const text = value.trim();
+  return text.length >= 2 && text.length <= 120 && DETAIL_RE.test(text);
+}
+
 export type EstudioProcedureTile = {
   code: string;
   name: string;
@@ -94,6 +101,10 @@ export type EstudioLine = {
   invoiceId: string;
   invoiceNumber: string | null;
   issueDate: string | null;
+  documentId: string;
+  documentType: string;
+  pageIndex: number | null;
+  uploadStatus: string;
 };
 
 export type EstudioInvoiceRow = {
@@ -178,6 +189,12 @@ export async function getEstudioSummary(): Promise<EstudioSummary> {
   };
 }
 
+function pageIndexOf(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const page = Number(value);
+  return Number.isFinite(page) ? page : null;
+}
+
 function mapLine(row: Record<string, unknown>): EstudioLine {
   const code = text(row.procedimiento_code);
   return {
@@ -191,6 +208,10 @@ function mapLine(row: Record<string, unknown>): EstudioLine {
     invoiceId: String(row.invoice_id),
     invoiceNumber: text(row.invoice_number),
     issueDate: text(row.issue_date)?.slice(0, 10) ?? null,
+    documentId: String(row.document_id),
+    documentType: String(row.document_type || ""),
+    pageIndex: pageIndexOf(row.page_index),
+    uploadStatus: String(row.upload_status || ""),
   };
 }
 
@@ -198,13 +219,13 @@ export async function queryEstudioCatalog(): Promise<EstudioProcedureTile[]> {
   const db = sql();
   const rows = await db`
     SELECT pr.code,
-           pr.name_es,
+           s.service_label AS name_es,
            count(DISTINCT s.invoice_id)::int AS facturas,
            count(DISTINCT s.invoice_id) FILTER (WHERE s.source = 'result_page')::int AS with_result
     FROM avila.invoice_service s
     JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
     WHERE s.kind = 'estudio'
-    GROUP BY pr.code, pr.name_es
+    GROUP BY pr.code, s.service_label
   `;
   return rows
     .flatMap((row) => {
@@ -235,9 +256,14 @@ export async function queryEstudiosForInvoice(invoiceId: string): Promise<Estudi
            pr.name_es AS procedimiento_name,
            i.id::text AS invoice_id,
            i.invoice_number,
-           i.issue_date::text AS issue_date
+           i.issue_date::text AS issue_date,
+           d.id::text AS document_id,
+           d.document_type::text AS document_type,
+           d.page_index,
+           d.upload_status::text AS upload_status
     FROM avila.invoice_service s
     JOIN avila.invoice i ON i.id = s.invoice_id
+    JOIN avila.document d ON d.id = s.document_id
     LEFT JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
     WHERE s.kind = 'estudio' AND s.invoice_id = ${invoiceId}::uuid
     ORDER BY s.source, s.line_no
@@ -256,9 +282,14 @@ export async function queryEstudiosForPerson(personId: string): Promise<EstudioL
            pr.name_es AS procedimiento_name,
            i.id::text AS invoice_id,
            i.invoice_number,
-           i.issue_date::text AS issue_date
+           i.issue_date::text AS issue_date,
+           d.id::text AS document_id,
+           d.document_type::text AS document_type,
+           d.page_index,
+           d.upload_status::text AS upload_status
     FROM avila.invoice_service s
     JOIN avila.invoice i ON i.id = s.invoice_id
+    JOIN avila.document d ON d.id = s.document_id
     LEFT JOIN avila.procedimiento pr ON pr.id = s.procedimiento_id
     WHERE s.kind = 'estudio' AND s.person_id = ${personId}::uuid
     ORDER BY i.issue_date DESC NULLS LAST, i.invoice_number, s.source, s.line_no
@@ -266,10 +297,11 @@ export async function queryEstudiosForPerson(personId: string): Promise<EstudioL
   return rows.map((row) => mapLine(row));
 }
 
-export async function queryEstudioList(input: { query: string; family: string; procedure: string; page: number }) {
+export async function queryEstudioList(input: { query: string; family: string; procedure: string; detail?: string; page: number }) {
   const db = sql();
   const family = isEstudioFamily(input.family) ? input.family : "";
   const procedure = isEstudioProcedure(input.procedure) ? input.procedure : "";
+  const detail = input.detail && isEstudioDetail(input.detail) ? input.detail.trim() : "";
   const codes = familyCodes(family);
   const like = input.query ? `%${input.query}%` : "";
   const pageSize = LIST_PAGE_SIZE;
@@ -294,6 +326,7 @@ export async function queryEstudioList(input: { query: string; family: string; p
           OR (${procedure} = 'sin_paciente' AND s.person_id IS NULL)
           OR pr.code = ${procedure}
         )
+        AND (${detail} = '' OR s.service_label = ${detail})
         AND (
           ${input.query} = ''
           OR i.invoice_number ILIKE ${like}
@@ -330,6 +363,7 @@ export async function queryEstudioList(input: { query: string; family: string; p
         OR (${procedure} = 'sin_paciente' AND s.person_id IS NULL)
         OR pr.code = ${procedure}
       )
+      AND (${detail} = '' OR s.service_label = ${detail})
       AND (
         ${input.query} = ''
         OR i.invoice_number ILIKE ${like}
@@ -358,4 +392,95 @@ export async function queryEstudioList(input: { query: string; family: string; p
 
 export function estudioListPage(raw: string | null): number {
   return requestedPage(raw);
+}
+
+export type ClinicSpec = {
+  code: string;
+  name: string;
+  estudios: number;
+};
+
+export type ClinicStudy = {
+  code: string;
+  name: string;
+  familyCode: string;
+  estudios: number;
+  unspecified: number;
+  specs: ClinicSpec[];
+};
+
+export type ClinicCatalog = {
+  families: { code: string; name: string; estudios: number; studies: ClinicStudy[] }[];
+  studies: number;
+  specifications: number;
+  withoutType: number;
+};
+
+export async function queryClinicCatalog(): Promise<ClinicCatalog> {
+  const db = sql();
+  const [rows, uncovered] = await Promise.all([
+    db`
+      SELECT c.code,
+             c.name_es,
+             c.level,
+             c.estudio_tipo_code,
+             t.name_es AS family_name,
+             t.sort_order,
+             p.code AS parent_code,
+             count(e.id)::int AS estudios
+      FROM avila.estudio_catalogo c
+      JOIN avila.estudio_tipo t ON t.code = c.estudio_tipo_code
+      LEFT JOIN avila.estudio_catalogo p ON p.id = c.parent_id
+      LEFT JOIN avila.estudio e ON e.catalogo_id = c.id
+      GROUP BY c.code, c.name_es, c.level, c.estudio_tipo_code, t.name_es, t.sort_order, p.code
+      ORDER BY t.sort_order, c.level, c.name_es
+    `,
+    db`SELECT count(*)::int AS n FROM avila.estudio WHERE catalogo_id IS NULL`,
+  ]);
+  const families = new Map<string, { code: string; name: string; estudios: number; studies: ClinicStudy[] }>();
+  const byCode = new Map<string, ClinicStudy>();
+  for (const row of rows) {
+    const familyCode = String(row.estudio_tipo_code);
+    const family = families.get(familyCode) ?? {
+      code: familyCode,
+      name: String(row.family_name),
+      estudios: 0,
+      studies: [],
+    };
+    families.set(familyCode, family);
+    const count = num(row.estudios);
+    family.estudios += count;
+    if (Number(row.level) === 1) {
+      const study: ClinicStudy = {
+        code: String(row.code),
+        name: String(row.name_es),
+        familyCode,
+        estudios: count,
+        unspecified: count,
+        specs: [],
+      };
+      family.studies.push(study);
+      byCode.set(study.code, study);
+      continue;
+    }
+    const parent = byCode.get(String(row.parent_code || ""));
+    if (!parent) continue;
+    parent.specs.push({ code: String(row.code), name: String(row.name_es), estudios: count });
+    parent.estudios += count;
+  }
+  const listed = [...families.values()].filter((family) => family.estudios > 0);
+  for (const family of listed) {
+    family.studies = family.studies
+      .filter((study) => study.estudios > 0)
+      .sort((a, b) => b.estudios - a.estudios || a.name.localeCompare(b.name, "es"));
+    for (const study of family.studies) {
+      study.specs = study.specs.filter((spec) => spec.estudios > 0).sort((a, b) => b.estudios - a.estudios || a.name.localeCompare(b.name, "es"));
+    }
+  }
+  const studies = listed.reduce((sum, family) => sum + family.studies.length, 0);
+  const specifications = listed.reduce(
+    (sum, family) => sum + family.studies.reduce((inner, study) => inner + study.specs.length, 0),
+    0,
+  );
+  return { families: listed, studies, specifications, withoutType: num(uncovered[0]?.n) };
 }

@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   ESTUDIO_FAMILIES,
   getEstudioSummary,
+  isEstudioDetail,
   isEstudioProcedure,
   queryEstudioCatalog,
   queryEstudioList,
@@ -42,8 +43,8 @@ function ProcedureGrid({ items }: { items: EstudioProcedureTile[] }) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
-        <li key={item.code} className="rounded-2xl border border-border bg-muted/60 p-4">
-          <Link href={`/estudios?procedimiento=${item.code}`} className="font-medium text-brand hover:underline">
+        <li key={`${item.code}:${item.name}`} className="rounded-2xl border border-border bg-muted/60 p-4">
+          <Link href={`/estudios?detalle=${encodeURIComponent(item.name)}`} className="font-medium text-brand hover:underline">
             {item.name}
           </Link>
           <p className="mt-1 text-xs tabular-nums text-muted-foreground">
@@ -142,23 +143,30 @@ function EstudioTabs({
 export default async function EstudiosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; familia?: string; procedimiento?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; familia?: string; procedimiento?: string; detalle?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   const procedureRaw = firstParam(sp.procedimiento);
   const procedure = isEstudioProcedure(procedureRaw) ? procedureRaw : "";
+  const detailRaw = firstParam(sp.detalle);
+  const detail = isEstudioDetail(detailRaw) ? detailRaw.trim() : "";
   const summary = await getEstudioSummary();
 
-  if (!procedure) {
+  if (!procedure && !detail) {
     const catalog = await queryEstudioCatalog();
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Clínica"
           title="Estudios"
-          description="Familia y estudio. La consulta queda fuera. Cada estudio abre las facturas y las personas que lo tienen."
+          description="Familia y el estudio más específico que se pudo leer. La consulta queda fuera."
           badges={[{ label: countLabel(summary.facturas, "factura", "facturas") }]}
         />
+        <div className="flex justify-end">
+          <Link href="/estudios/catalogo" className="rounded-full border border-border px-4 py-2 text-sm font-medium text-brand">
+            Catálogo de la clínica
+          </Link>
+        </div>
         <EstudioTabs summary={summary} catalog={catalog} requested={firstParam(sp.familia)} />
       </div>
     );
@@ -168,13 +176,15 @@ export default async function EstudiosPage({
   const list = await queryEstudioList({
     query,
     family: "",
-    procedure,
+    procedure: detail ? "" : procedure,
+    detail,
     page: parsePage(firstParam(sp.page) || undefined),
   });
-  const named = (await queryEstudioCatalog()).find((item) => item.code === procedure);
-  const family = familyOf(procedure);
-  const title = named?.name || family?.label || "Estudios";
-  const params = { q: query, procedimiento: procedure };
+  const catalog = await queryEstudioCatalog();
+  const named = catalog.find((item) => (detail ? item.name === detail : item.code === procedure));
+  const family = familyOf(detail ? named?.code || "" : procedure);
+  const title = detail || named?.name || family?.label || "Estudios";
+  const params = { q: query, procedimiento: detail ? "" : procedure, detalle: detail };
   const chips: ActiveChip[] = [];
   if (query) {
     chips.push({
@@ -204,8 +214,8 @@ export default async function EstudiosPage({
         searchValue={firstParam(sp.q)}
         searchPlaceholder="Factura o paciente (mín. 2)"
         searchLabel="Buscar"
-        clearHref={hasActiveFilters(params) ? `/estudios?procedimiento=${procedure}` : undefined}
-        carry={{ procedimiento: procedure }}
+        clearHref={hasActiveFilters(params) ? (detail ? `/estudios?detalle=${encodeURIComponent(detail)}` : `/estudios?procedimiento=${procedure}`) : undefined}
+        carry={{ procedimiento: detail ? "" : procedure, detalle: detail }}
         activeChips={chips}
       />
       <ResultCount shown={list.rows.length} total={list.total} page={list.page} pageSize={DEFAULT_PAGE_SIZE} />

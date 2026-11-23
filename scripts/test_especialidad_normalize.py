@@ -14,7 +14,7 @@ from especialidad_normalize import (
     normalize_text,
     osa_distance,
 )
-from estudio_kind import classify_line
+from estudio_kind import classify_line, specific_name
 
 
 def _one(raw: str, context: str = "doctor_title"):
@@ -158,6 +158,43 @@ class Kinds(unittest.TestCase):
         self.assertEqual(classify_line("ELECTROCARDIOGRAMA"), ("estudio", "electrocardiograma"))
         self.assertEqual(classify_line("VALORACION CARDIOVASCULAR"), ("consulta", None))
         self.assertEqual(classify_line("USO DE QUIROFANO"), ("cargo", None))
+
+
+class SpecificName(unittest.TestCase):
+    def test_lab_test_beats_the_panel_bucket(self):
+        self.assertEqual(specific_name("HEMOGRAMA", "examenes_laboratorio", context="fiscal_line"), "Hemograma")
+        self.assertEqual(specific_name("CREATININA", "examenes_laboratorio", context="fiscal_line"), "Creatinina")
+
+    def test_panel_name_when_the_sheet_lists_many_analytes(self):
+        text = "HEMOGRAMA\nGLICEMIA\nCREATININA\nUREA"
+        self.assertEqual(specific_name(text, "examenes_laboratorio", context="report_title"), "Exámenes de laboratorio")
+
+    def test_two_tests_on_one_fiscal_line_stay_named(self):
+        self.assertEqual(
+            specific_name("HEMOGRAMA Y GLICEMIA", "examenes_laboratorio", context="fiscal_line"),
+            "Hemograma · Glicemia",
+        )
+
+    def test_imaging_keeps_the_body_site(self):
+        self.assertEqual(specific_name("RX DE TORAX", "rayos_x", context="fiscal_line"), "Rayos X de tórax")
+        self.assertEqual(specific_name("ECOGRAFIA ABDOMINAL", "ecografia", context="report_title"), "Ecografía abdominal")
+        self.assertEqual(specific_name("ECOGRAFIA PELVICO", "ecografia", context="report_title"), "Ecografía pélvica")
+        self.assertEqual(specific_name("HEMOGRAMA COMPLETO", "examenes_laboratorio", context="fiscal_line"), "Hemograma completo")
+        self.assertEqual(specific_name("RXTORAX", "rayos_x", context="fiscal_line"), "Rayos X de tórax")
+
+    def test_longer_procedure_word_beats_the_modality(self):
+        self.assertEqual(specific_name("URETROCISTOGRAFIA", "rayos_x", context="report_title"), "Uretrocistografía")
+        self.assertEqual(specific_name("VIDEOCOLONOSCOPIA", "colonoscopia", context="report_title"), "Videocolonoscopia")
+
+    def test_bare_modality_uses_the_procedure_name(self):
+        self.assertEqual(specific_name("LABORATORIO", "examenes_laboratorio", context="report_title"), "Exámenes de laboratorio")
+
+    def test_a_site_stays_with_its_own_study(self):
+        self.assertEqual(
+            specific_name("HEMOGRAMA ECOGRAFIA ABDOMINAL", "examenes_laboratorio", context="fiscal_line"),
+            "Hemograma",
+        )
+        self.assertEqual(specific_name("PERFIL TIROIDEO", "examenes_laboratorio", context="fiscal_line"), "Perfil tiroideo")
 
 
 class Distance(unittest.TestCase):
