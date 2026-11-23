@@ -18,6 +18,7 @@ export function PersonaListKpisConnected({ kpis }: { kpis: PersonaListKpis }) {
   const filters: PersonaListFilterState = {
     has_ci: pick(sp, "has_ci"),
     has_phone: pick(sp, "has_phone"),
+    has_authorization: pick(sp, "has_authorization"),
     has_invoice: pick(sp, "has_invoice"),
     has_contact_gap: pick(sp, "has_contact_gap"),
     incomplete_name: pick(sp, "incomplete_name"),

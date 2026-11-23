@@ -24,6 +24,7 @@ async function PersonasFilterSection({
     q?: string;
     has_ci?: string;
     has_phone?: string;
+    has_authorization?: string;
     has_invoice?: string;
     has_contact_gap?: string;
     incomplete_name?: string;
@@ -36,6 +37,7 @@ async function PersonasFilterSection({
   const rawQ = firstParam(sp.q);
   const hasCi = triState(sp.has_ci);
   const hasPhone = triState(sp.has_phone);
+  const hasAuthorization = triState(sp.has_authorization);
   const hasInvoice = triState(sp.has_invoice);
   const hasContactGap = triState(sp.has_contact_gap);
   const incompleteName = triState(sp.incomplete_name);
@@ -48,6 +50,7 @@ async function PersonasFilterSection({
     q: query || undefined,
     has_ci: hasCi || undefined,
     has_phone: hasPhone || undefined,
+    has_authorization: hasAuthorization || undefined,
     has_invoice: hasInvoice || undefined,
     has_contact_gap: hasContactGap || undefined,
     incomplete_name: incompleteName || undefined,
@@ -90,6 +93,19 @@ async function PersonasFilterSection({
       key: "has_phone",
       label: "Sin teléfono",
       clearHref: `${buildListHref("/personas", omitParam(filterParams, "has_phone"))}#lista`,
+    });
+  }
+  if (hasAuthorization === "1") {
+    activeChips.push({
+      key: "has_authorization",
+      label: "Con autorización",
+      clearHref: `${buildListHref("/personas", omitParam(filterParams, "has_authorization"))}#lista`,
+    });
+  } else if (hasAuthorization === "0") {
+    activeChips.push({
+      key: "has_authorization",
+      label: "Sin autorización",
+      clearHref: `${buildListHref("/personas", omitParam(filterParams, "has_authorization"))}#lista`,
     });
   }
   if (hasInvoice === "1") {
@@ -167,6 +183,16 @@ async function PersonasFilterSection({
           ],
         },
         {
+          name: "has_authorization",
+          label: "Autorización",
+          value: hasAuthorization,
+          emptyLabel: "Todas",
+          options: [
+            { value: "1", label: "Con autorización" },
+            { value: "0", label: "Sin autorización" },
+          ],
+        },
+        {
           name: "has_invoice",
           label: "Factura",
           value: hasInvoice,
@@ -220,6 +246,7 @@ export default async function PersonasPage({
     q?: string;
     has_ci?: string;
     has_phone?: string;
+    has_authorization?: string;
     has_invoice?: string;
     has_contact_gap?: string;
     incomplete_name?: string;
@@ -233,6 +260,7 @@ export default async function PersonasPage({
     q: firstParam(sp.q),
     has_ci: firstParam(sp.has_ci),
     has_phone: firstParam(sp.has_phone),
+    has_authorization: firstParam(sp.has_authorization),
     has_invoice: firstParam(sp.has_invoice),
     has_contact_gap: firstParam(sp.has_contact_gap),
     incomplete_name: firstParam(sp.incomplete_name),
