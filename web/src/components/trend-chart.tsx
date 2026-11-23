@@ -8,24 +8,23 @@ import { formatCompact, formatMonthKey, formatUsd, formatUsdCompact } from "@/li
 type Point = { month: string; usd: number; invoices: number };
 type Metric = "usd" | "invoices";
 
-const METRICS: { id: Metric; label: string }[] = [
-  { id: "usd", label: "Monto USD" },
-  { id: "invoices", label: "Facturas" },
-];
-
-const config = {
-  usd: { label: "Monto USD", color: "var(--chart-1)" },
-  invoices: { label: "Facturas", color: "var(--chart-2)" },
-} satisfies ChartConfig;
-
-export function TrendChart({ data }: { data: Point[] }) {
+/** `countLabel` names the `invoices` series (facturas on BI, autorizaciones elsewhere). */
+export function TrendChart({ data, countLabel = "Facturas" }: { data: Point[]; countLabel?: string }) {
   const [metric, setMetric] = useState<Metric>("usd");
   const hasSignal = data.some((p) => p[metric] > 0);
+  const metrics: { id: Metric; label: string }[] = [
+    { id: "usd", label: "Monto USD" },
+    { id: "invoices", label: countLabel },
+  ];
+  const config = {
+    usd: { label: "Monto USD", color: "var(--chart-1)" },
+    invoices: { label: countLabel, color: "var(--chart-2)" },
+  } satisfies ChartConfig;
 
   return (
     <div>
       <div role="group" aria-label="Métrica del gráfico" className="mb-4 inline-flex gap-1 rounded-full bg-muted p-1">
-        {METRICS.map((m) => (
+        {metrics.map((m) => (
           <button
             key={m.id}
             type="button"
@@ -98,7 +97,7 @@ export function TrendChart({ data }: { data: Point[] }) {
               <tr>
                 <th scope="col">Mes</th>
                 <th scope="col">Monto USD</th>
-                <th scope="col">Facturas</th>
+                <th scope="col">{countLabel}</th>
               </tr>
             </thead>
             <tbody>

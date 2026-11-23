@@ -250,7 +250,12 @@ export default async function EtlDashboardPage() {
               body: (
                 <div className="grid gap-6 lg:grid-cols-5">
                   <div className="grid gap-6 md:grid-cols-2 lg:col-span-3">
-                    <Meter label="Autorizaciones con factura" value={kpi.authLinked} total={kpi.authLines} />
+                    <Meter
+                      label="Autorizaciones con factura"
+                      value={kpi.authLinked}
+                      total={kpi.authLines}
+                      href="/autorizaciones?estado=pendiente#lista"
+                    />
                     <Meter label="Facturas con titular por cédula" value={kpi.invoicesCiTitular} total={counts.invoices} />
                     <Meter
                       label="Facturas con beneficiario"

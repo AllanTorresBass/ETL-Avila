@@ -189,7 +189,12 @@ export default async function BiDashboardPage({ searchParams }: PageProps<"/bi">
               body: (
                 <div className="grid gap-6 lg:grid-cols-5">
                   <div className="space-y-6 lg:col-span-3">
-                    <Meter label="Autorizaciones con factura" value={authorization.linked} total={authorization.lines} />
+                    <Meter
+                      label="Autorizaciones con factura"
+                      value={authorization.linked}
+                      total={authorization.lines}
+                      href={`/autorizaciones?vista=analisis&rango=${range}`}
+                    />
                     <dl className="grid gap-4 sm:grid-cols-3">
                       {[
                         { label: "Solicitado", value: authorization.requestedUsd },

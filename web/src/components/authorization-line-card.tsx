@@ -1,5 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
-import { authItems, formatAuthHeading, formatAuthItem, formatDate, formatMoney } from "@/lib/format";
+import { authItems, formatAuthDate, formatAuthHeading, formatAuthItem, formatMoney } from "@/lib/format";
 
 export type AuthorizationLineView = {
   id: string;
@@ -7,6 +8,7 @@ export type AuthorizationLineView = {
   clave_rms?: string | null;
   service_date?: string | Date | null;
   request_date?: string | Date | null;
+  period_month?: string | Date | null;
   diagnosis?: string | null;
   service_description?: string | null;
   contratante?: string | null;
@@ -19,19 +21,33 @@ export type AuthorizationLineView = {
 export function AuthorizationLineCard({
   line,
   extra,
+  href,
+  badge,
 }: {
   line: AuthorizationLineView;
   extra?: ReactNode;
+  /** Detail page; the heading becomes a link. */
+  href?: string;
+  /** Shown next to the heading (for example the match status). */
+  badge?: ReactNode;
 }) {
   const items = authItems(line.items);
   const detail = line.diagnosis?.trim() || "";
+  const heading = formatAuthHeading(line);
   return (
     <div className="rounded-2xl border border-border bg-muted/60 px-4 py-3 text-sm">
-      <div className="flex flex-wrap justify-between gap-2">
-        <span className="font-medium">{formatAuthHeading(line)}</span>
-        <span className="text-muted-foreground">
-          {formatDate(line.service_date || line.request_date)}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex flex-wrap items-center gap-2">
+          {href ? (
+            <Link href={href} className="font-medium text-brand hover:underline">
+              {heading}
+            </Link>
+          ) : (
+            <span className="font-medium">{heading}</span>
+          )}
+          {badge}
         </span>
+        <span className="text-muted-foreground">{formatAuthDate(line)}</span>
       </div>
       {detail ? <div className="mt-1 text-muted-foreground">{detail}</div> : null}
       {items.length > 0 ? (

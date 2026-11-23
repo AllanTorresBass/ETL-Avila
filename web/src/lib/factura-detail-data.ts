@@ -39,6 +39,9 @@ export type FacturaAuthLine = {
   person_id: string | null;
   service_date: string | Date | null;
   request_date?: string | Date | null;
+  period_month: string | Date | null;
+  match_status: string | null;
+  invoice_id: string | null;
   contratante: string | null;
   provider_name: string | null;
   person_name: string | null;
@@ -106,7 +109,7 @@ export async function getFacturaDetail(id: string, fileRaw: string): Promise<Fac
   const authLines = await db`
     SELECT al.id, al.clave_rms, al.aps_code, al.diagnosis, al.service_description,
            al.amount_bs, al.amount_usd, al.person_id, al.service_date, al.request_date,
-           al.contratante, al.provider_name,
+           al.contratante, al.provider_name, al.period_month, al.match_status, al.invoice_id,
            p.full_name AS person_name, p.identity_number,
            COALESCE((
              SELECT json_agg(

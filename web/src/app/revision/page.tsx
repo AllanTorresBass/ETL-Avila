@@ -178,7 +178,13 @@ export default async function RevisionPage({
                   ) : null}
                   {item.authorization_line_id ? (
                     <p className="text-foreground/80">
-                      Autorización {item.clave_rms || "sin clave"} · {formatDate(item.request_date)}
+                      <Link
+                        href={`/autorizaciones/${item.authorization_line_id}`}
+                        className="text-brand hover:underline"
+                      >
+                        Autorización {item.clave_rms || "sin clave"}
+                      </Link>{" "}
+                      · {formatDate(item.request_date)}
                       {item.service_description ? ` · ${item.service_description}` : ""}
                     </p>
                   ) : null}
