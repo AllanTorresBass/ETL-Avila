@@ -126,7 +126,7 @@ const ESTUDIOS: Destination = {
 const ESPECIALIDADES: Destination = {
   href: "/especialidades",
   label: "Especialidades",
-  hint: "Áreas y subespecialidades",
+  hint: "Especialidades y sus médicos",
   permission: "read",
   icon: Layers,
 };

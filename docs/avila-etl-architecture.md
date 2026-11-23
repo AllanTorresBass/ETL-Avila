@@ -299,7 +299,7 @@ A patient, especialidad, or médico set by a reviewer is not overwritten by a la
 
 ### Reader
 
-`/medicos` (directory with area, especialidad, and MPPS filters), `/medicos/[id]` (ficha, especialidades, pacientes, atenciones), `/especialidades` (tree plus an unknown-term backlog for revisors), a Médicos tab on `/personas/[id]`, Atenciones on `/facturas/[id]`, a Clínico panel on `/informe`, and the Médico group on `/revision`. JSON: `/api/v1/medicos`, `/api/v1/medicos/[id]`, `/api/v1/especialidades`. Queries live in `web/src/lib/medico-data.ts`.
+`/medicos` (directory with area, especialidad, and MPPS filters), `/medicos/[id]` (ficha, especialidades, pacientes, atenciones), `/especialidades` (tree, the médicos assigned to each specialty, and an unknown-term backlog for revisors), a Médicos tab on `/personas/[id]`, Atenciones on `/facturas/[id]`, a Clínico panel on `/informe`, and the Médico group on `/revision`. JSON: `/api/v1/medicos`, `/api/v1/medicos/[id]`, `/api/v1/especialidades`. Queries live in `web/src/lib/medico-data.ts`.
 
 Accept effects: `medico_duplicate` merges the second médico into the first; `atencion_patient` links the report to the suggested person; `medico_mpps_conflict` and `especialidad_unknown` close the case only.
 
