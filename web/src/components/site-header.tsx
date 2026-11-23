@@ -279,18 +279,12 @@ function NavSplit({ entry, pathname }: { entry: MenuEntry; pathname: string }) {
       <DropdownMenu.Trigger
         type="button"
         className={cn(
-          "group inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+          "group inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-sm font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
           active || open ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-brand/10 hover:text-brand",
         )}
       >
         <span>{entry.label}</span>
-        {activeItem ? (
-          <span className="hidden font-normal opacity-80 xl:inline">
-            <span aria-hidden="true"> · </span>
-            {activeItem.label}
-          </span>
-        ) : null}
-        {activeItem ? <span className="sr-only xl:hidden">, página actual: {activeItem.label}</span> : null}
+        {activeItem ? <span className="sr-only">, página actual: {activeItem.label}</span> : null}
         <ChevronDown
           className="size-3.5 opacity-70 transition-transform group-data-[state=open]:rotate-180"
           aria-hidden="true"
@@ -317,7 +311,7 @@ function NavLink({ item, pathname }: { item: Destination; pathname: string }) {
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex min-h-10 items-center rounded-full px-2.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active ? "bg-brand/10 text-brand" : "text-muted-foreground hover:bg-brand/10 hover:text-brand",
       )}
     >
@@ -330,7 +324,7 @@ function DesktopNav({ role }: { role: AppRole }) {
   const pathname = usePathname();
   const entries = entriesFor(role);
   return (
-    <nav className="hidden min-w-0 items-center gap-0.5 lg:flex" aria-label="Principal">
+    <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-hidden lg:flex" aria-label="Principal">
       {entries.map((entry, index) => {
         if (entry.kind === "menu") {
           return <NavSplit key={entry.id} entry={entry} pathname={pathname} />;
@@ -498,10 +492,10 @@ export function SiteHeader({ user }: SiteHeaderProps) {
         >
           <span aria-hidden="true" className="size-2.5 rounded-full bg-primary" />
           Ávila GPS
-          <span className="font-normal text-muted-foreground">· Lector</span>
+          <span className="hidden font-normal text-muted-foreground xl:inline">· Lector</span>
         </Link>
         {user ? <DesktopNav role={user.role} /> : null}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 bg-card/80">
           <ThemeToggle />
           {user ? (
             <>
